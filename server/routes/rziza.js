@@ -19,7 +19,7 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 })
 
-router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
     const { quantity, prixAchat = 3.5, prixVente = 5.5 } = req.body
     const id = Date.now()
