@@ -35,7 +35,7 @@ export const CATEGORIES_COMMANDE = [
   { id: "patisserie", label: "Patisserie", image: "/category-images/patisserie.jpg" },
   { id: "patisserie_cafe", label: "Pâtisserie/Cafe", image: "/category-images/patisserie.jpg" },
   { id: "sale", label: "Sale", image: "/category-images/sale.jpg" },
-  { id: "viennoiserie", label: "Viennoiserie", image: "/category-images/viennoiserie.jpg" },
+ { id: "viennoiserie", label: "Viennoiserie", image: "/category-images/viennoiserie.jpg" },
 ];
 
 // "Frigo Entremet" (Caisse) : fusionne les Entremets circulaires ET les Gâteaux au kg
