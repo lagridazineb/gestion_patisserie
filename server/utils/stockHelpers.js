@@ -29,12 +29,22 @@ async function getStockMap() {
 }
 
 // Génère un numéro de ticket unique et croissant, partagé entre ventes et commandes.
-// Utilise LAST_INSERT_ID() comme compteur atomique (pattern MySQL classique),
-// pour éviter que deux requêtes simultanées (PC + téléphone) ne reçoivent le même numéro.
 async function nextTicketNumber() {
   await pool.query('UPDATE ticket_counter SET value = LAST_INSERT_ID(value + 1) WHERE id = 1')
   const [rows] = await pool.query('SELECT LAST_INSERT_ID() AS ticketNumber')
   return rows[0].ticketNumber
 }
 
-module.exports = { adjustStock, setStock, getStockMap, nextTicketNumber }
+// mysql2 parse automatiquement les colonnes de type JSON en objets JS — mais selon le driver/la
+// version, on peut aussi recevoir du texte brut. Cette fonction gère les deux cas sans planter.
+function safeJsonParse(value, fallback) {
+  if (value === null || value === undefined) return fallback
+  if (typeof value === 'object') return value
+  try {
+    return JSON.parse(value)
+  } catch (e) {
+    return fallback
+  }
+}
+
+module.exports = { adjustStock, setStock, getStockMap, nextTicketNumber, safeJsonParse }
