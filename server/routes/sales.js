@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { pool } = require('../config/db')
 const { authMiddleware } = require('../middleware/auth')
-const { nextTicketNumber, adjustStock } = require('../utils/stockHelpers')
+const { nextTicketNumber, adjustStock, safeJsonParse } = require('../utils/stockHelpers')
 
 const AMANDE_KG_ID = 'g2'
 const SABLE_KG_ID = 'g3'
@@ -21,10 +21,10 @@ function mapRow(r) {
   return {
     id: r.id,
     ticketNumber: r.ticket_number,
-    items: typeof r.items === 'string' ? JSON.parse(r.items) : r.items,
+    items: safeJsonParse(r.items, []),
     paymentType: r.payment_type,
     total: Number(r.total),
-    refundedQty: (typeof r.refunded_qty === 'string' ? JSON.parse(r.refunded_qty) : r.refunded_qty) || {},
+    refundedQty: safeJsonParse(r.refunded_qty, {}),
     timestamp: r.created_at,
   }
 }
@@ -39,8 +39,6 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 })
 
-// Prévisualise le prochain numéro de ticket SANS l'incrémenter (utile pour l'affichage
-// caisse avant validation de la vente).
 router.get('/next-ticket-number', authMiddleware, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT value FROM ticket_counter WHERE id = 1')
@@ -63,8 +61,6 @@ router.get('/by-ticket/:ticketNumber', authMiddleware, async (req, res) => {
   }
 })
 
-// Enregistre une vente de caisse et déduit le stock (avec gestion spéciale des plateaux
-// Gâteau Marocain, qui consomment de l'Amande/Sable en kg plutôt qu'un stock propre).
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const { items, paymentType } = req.body
@@ -98,7 +94,6 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 })
 
-// Remboursement (partiel ou total) d'une vente de caisse — remet le produit en stock.
 router.post('/:ticketNumber/refund', authMiddleware, async (req, res) => {
   try {
     const ticketNumber = parseInt(req.params.ticketNumber, 10)
@@ -107,8 +102,8 @@ router.post('/:ticketNumber/refund', authMiddleware, async (req, res) => {
     const sale = rows[0]
     if (!sale) return res.status(404).json({ error: 'Ticket introuvable' })
 
-    const items = JSON.parse(sale.items)
-    const refundedQty = { ...(JSON.parse(sale.refunded_qty || '{}')) }
+    const items = safeJsonParse(sale.items, [])
+    const refundedQty = { ...safeJsonParse(sale.refunded_qty, {}) }
     let amount = 0
     const appliedItems = []
 
