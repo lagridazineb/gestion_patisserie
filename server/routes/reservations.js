@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { pool } = require('../config/db')
 const { authMiddleware } = require('../middleware/auth')
-const { nextTicketNumber } = require('../utils/stockHelpers')
+const { nextTicketNumber, safeJsonParse } = require('../utils/stockHelpers')
 
 // Convertit une ligne SQL (colonnes JSON en TEXT/JSON) vers l'objet utilisé par le frontend.
 function mapRow(r) {
@@ -14,15 +14,15 @@ function mapRow(r) {
     deliveryDate: r.delivery_date,
     deliveryTime: r.delivery_time,
     note: r.note,
-    items: typeof r.items === 'string' ? JSON.parse(r.items) : r.items,
+    items: safeJsonParse(r.items, []),
     total: Number(r.total),
     avance: Number(r.avance),
     avanceInitiale: Number(r.avance_initiale),
     resteAPayer: Number(r.reste_a_payer),
     paymentMode: r.payment_mode,
     ready: !!r.ready,
-    doneByAtelier: (typeof r.done_by_atelier === 'string' ? JSON.parse(r.done_by_atelier) : r.done_by_atelier) || {},
-    refundedQty: (typeof r.refunded_qty === 'string' ? JSON.parse(r.refunded_qty) : r.refunded_qty) || {},
+    doneByAtelier: safeJsonParse(r.done_by_atelier, {}),
+    refundedQty: safeJsonParse(r.refunded_qty, {}),
     soldePaid: !!r.solde_paid,
     soldePaymentMode: r.solde_payment_mode,
     soldePaidAt: r.solde_paid_at,
@@ -81,15 +81,15 @@ router.post('/', authMiddleware, async (req, res) => {
 router.patch('/:id/atelier', authMiddleware, async (req, res) => {
   try {
     const id = Number(req.params.id)
-    const { atelier } = req.body // l'atelier de CE préparateur qui vient de terminer sa partie
+    const { atelier } = req.body
     const [rows] = await pool.query('SELECT * FROM reservations WHERE id = ?', [id])
     const r = rows[0]
     if (!r) return res.status(404).json({ error: 'Commande introuvable' })
 
-    const doneByAtelier = { ...(JSON.parse(r.done_by_atelier || '{}')) }
+    const doneByAtelier = { ...safeJsonParse(r.done_by_atelier, {}) }
     if (atelier) doneByAtelier[atelier] = true
 
-    const items = JSON.parse(r.items)
+    const items = safeJsonParse(r.items, [])
     const allAteliers = [...new Set(items.map((i) => i.category).filter(Boolean))]
     const fullyReady = allAteliers.length > 0 && allAteliers.every((a) => doneByAtelier[a])
     const ready = r.ready || fullyReady
@@ -157,13 +157,13 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 router.post('/:ticketNumber/refund', authMiddleware, async (req, res) => {
   try {
     const ticketNumber = parseInt(req.params.ticketNumber, 10)
-    const { items: refundItems } = req.body // [{ id, qty }]
+    const { items: refundItems } = req.body
     const [rows] = await pool.query('SELECT * FROM reservations WHERE ticket_number = ? LIMIT 1', [ticketNumber])
     const r = rows[0]
     if (!r) return res.status(404).json({ error: 'Commande introuvable' })
 
-    const items = JSON.parse(r.items)
-    const refundedQty = { ...(JSON.parse(r.refunded_qty || '{}')) }
+    const items = safeJsonParse(r.items, [])
+    const refundedQty = { ...safeJsonParse(r.refunded_qty, {}) }
     let amount = 0
     const appliedItems = []
 
