@@ -167,7 +167,7 @@ export default function PreparateurPage() {
               <div>
                 <h3 className="font-fraunces text-lg text-diana-cream">
                   {isPatisserie && prepTab === 'kg' ? 'Commandes de gâteau par kg à préparer' :
-                   isPatisserie && prepTab === 'entremets' ? 'Commandes d'entremets à préparer' :
+                   isPatisserie && prepTab === 'entremets' ? 'Commandes d entremets à préparer' :
                    isPatisserie && prepTab === 'tranche' ? 'Commandes de tranches à préparer' :
                    'Commandes à préparer'}
                 </h3>
@@ -178,7 +178,7 @@ export default function PreparateurPage() {
             {displayTasks.length === 0 ? (
               <p className="text-sm italic text-diana-brownLight text-center py-6">
                 {isPatisserie && prepTab === 'kg' ? 'Aucune commande de gâteau par kg en attente' :
-                 isPatisserie && prepTab === 'entremets' ? 'Aucune commande d'entremets en attente' :
+                 isPatisserie && prepTab === 'entremets' ? 'Aucune commande d entremets en attente' :
                  isPatisserie && prepTab === 'tranche' ? 'Aucune commande de tranches en attente' :
                  'Aucune commande en attente pour votre atelier'}
               </p>
