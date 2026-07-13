@@ -17,7 +17,24 @@ export default function CakeCustomizationModal({ open, product, qty = 1, onConfi
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => setImageData(reader.result)
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        // Redimensionne à 900px de large maximum et compresse en JPEG : une photo de téléphone
+        // (souvent 3 à 10 Mo) passe ainsi à quelques centaines de Ko, pour que l'enregistrement
+        // de la commande ne soit jamais bloqué par une image trop lourde.
+        const maxWidth = 900
+        const scale = Math.min(1, maxWidth / img.width)
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        setImageData(canvas.toDataURL('image/jpeg', 0.75))
+      }
+      img.onerror = () => setImageData(reader.result)
+      img.src = reader.result
+    }
     reader.readAsDataURL(file)
   }
 
