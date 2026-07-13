@@ -105,6 +105,30 @@ export default function PreparateurPage() {
 
   const atelierLabel = ATELIERS.find(a => a.id === user?.atelier)?.label || user?.atelier
 
+  // ========== NOUVELLE LOGIQUE : Déterminer quelles commandes afficher selon l'onglet ==========
+  // Pour la pâtisserie : filtrer les tasks selon la catégorie active de l'onglet
+  const getFilteredTasks = () => {
+    if (!isPatisserie) {
+      // Atelier non-pâtisserie : toutes les tâches de l'atelier
+      return { pending: tasks, done: doneTasks, filter: atelierCategories }
+    }
+    if (prepTab === 'kg') {
+      // Onglet Gâteau par kg : uniquement les tâches kg
+      return { pending: kgTasks, done: kgDoneTasks, filter: ['gateaux_kg'] }
+    }
+    // Onglets Tranche (patisserie) et Entremets (entremet) : filtrer les tasks globales
+    const category = prepTab === 'tranche' ? 'patisserie' : 'entremet'
+    const pendingFiltered = tasks.filter(task =>
+      task.items.some(item => item.category === category)
+    )
+    const doneFiltered = doneTasks.filter(task =>
+      task.items.some(item => item.category === category)
+    )
+    return { pending: pendingFiltered, done: doneFiltered, filter: [category] }
+  }
+
+  const { pending: displayTasks, done: displayDoneTasks, filter: itemCategoryFilter } = getFilteredTasks()
+
   return (
     <div className="h-full overflow-y-auto p-4 sm:p-8">
       <div className="max-w-5xl mx-auto">
@@ -132,120 +156,121 @@ export default function PreparateurPage() {
           </div>
         )}
 
-        {(!isPatisserie || prepTab === 'kg') && (
+        {/* ========== CORRECTION : Afficher les commandes pour TOUS les onglets ========== */}
+        {/* Suppression de la condition (!isPatisserie || prepTab === 'kg') qui bloquait Tranche et Entremets */}
         <>
-        {(() => {
-          const displayTasks = isPatisserie ? kgTasks : tasks
-          const displayDoneTasks = isPatisserie ? kgDoneTasks : doneTasks
-          const itemCategoryFilter = isPatisserie ? ['gateaux_kg'] : atelierCategories
-          return (
-        <>
-        {/* Commandes à préparer (réservations passées via la page Commande) */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-diana-card border border-diana-border rounded-2xl p-5 sm:p-6 mb-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-xl bg-diana-accent/10 flex items-center justify-center"><FiClipboard className="text-diana-accentLight" size={20} /></div>
-            <div>
-              <h3 className="font-fraunces text-lg text-diana-cream">{isPatisserie ? 'Commandes de gâteau par kg à préparer' : 'Commandes à préparer'}</h3>
-              <p className="text-xs text-diana-brown">Articles réservés par un client, à préparer pour votre atelier</p>
+          {/* Commandes à préparer (réservations passées via la page Commande) */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-diana-card border border-diana-border rounded-2xl p-5 sm:p-6 mb-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-diana-accent/10 flex items-center justify-center"><FiClipboard className="text-diana-accentLight" size={20} /></div>
+              <div>
+                <h3 className="font-fraunces text-lg text-diana-cream">
+                  {isPatisserie && prepTab === 'kg' ? 'Commandes de gâteau par kg à préparer' :
+                   isPatisserie && prepTab === 'entremets' ? 'Commandes d'entremets à préparer' :
+                   isPatisserie && prepTab === 'tranche' ? 'Commandes de tranches à préparer' :
+                   'Commandes à préparer'}
+                </h3>
+                <p className="text-xs text-diana-brown">Articles réservés par un client, à préparer pour votre atelier</p>
+              </div>
+              {displayTasks.length > 0 && <span className="ml-auto bg-diana-accent/15 text-diana-accentLight text-xs font-semibold px-2.5 py-1 rounded-full">{displayTasks.length}</span>}
             </div>
-            {displayTasks.length > 0 && <span className="ml-auto bg-diana-accent/15 text-diana-accentLight text-xs font-semibold px-2.5 py-1 rounded-full">{displayTasks.length}</span>}
-          </div>
-          {displayTasks.length === 0 ? (
-            <p className="text-sm italic text-diana-brownLight text-center py-6">Aucune commande en attente pour votre atelier</p>
-          ) : (
-            <div className="space-y-3">
-              {displayTasks.map((task) => {
-                const atelierItems = task.items.filter((i) => itemCategoryFilter.includes(i.category))
-                return (
-                  <div key={task.id} className="bg-diana-dark/40 border border-diana-border/40 rounded-xl p-4">
-                    <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
-                      <div>
-                        <p className="text-sm font-semibold text-diana-cream flex items-center gap-1.5"><FiUser size={13} /> {task.clientName}</p>
-                        <p className="text-xs text-diana-brown flex items-center gap-2 mt-0.5">
-                          {task.clientPhone && <span className="flex items-center gap-1"><FiPhone size={11} /> {task.clientPhone}</span>}
-                          <span className="flex items-center gap-1"><FiCalendar size={11} /> {task.deliveryDate || '—'} {task.deliveryTime || ''}</span>
-                        </p>
+            {displayTasks.length === 0 ? (
+              <p className="text-sm italic text-diana-brownLight text-center py-6">
+                {isPatisserie && prepTab === 'kg' ? 'Aucune commande de gâteau par kg en attente' :
+                 isPatisserie && prepTab === 'entremets' ? 'Aucune commande d'entremets en attente' :
+                 isPatisserie && prepTab === 'tranche' ? 'Aucune commande de tranches en attente' :
+                 'Aucune commande en attente pour votre atelier'}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {displayTasks.map((task) => {
+                  const atelierItems = task.items.filter((i) => itemCategoryFilter.includes(i.category))
+                  return (
+                    <div key={task.id} className="bg-diana-dark/40 border border-diana-border/40 rounded-xl p-4">
+                      <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                        <div>
+                          <p className="text-sm font-semibold text-diana-cream flex items-center gap-1.5"><FiUser size={13} /> {task.clientName}</p>
+                          <p className="text-xs text-diana-brown flex items-center gap-2 mt-0.5">
+                            {task.clientPhone && <span className="flex items-center gap-1"><FiPhone size={11} /> {task.clientPhone}</span>}
+                            <span className="flex items-center gap-1"><FiCalendar size={11} /> {task.deliveryDate || '—'} {task.deliveryTime || ''}</span>
+                          </p>
+                        </div>
+                        <button onClick={() => handleMarkDone(task.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/90 text-white text-xs font-semibold hover:brightness-110 transition-all active:scale-[0.98] shrink-0">
+                          <FiCheck size={13} /> Terminé
+                        </button>
                       </div>
-                      <button onClick={() => handleMarkDone(task.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/90 text-white text-xs font-semibold hover:brightness-110 transition-all active:scale-[0.98] shrink-0">
-                        <FiCheck size={13} /> Terminé
-                      </button>
+                      <ul className="text-sm text-diana-brownLight space-y-2 mb-2">
+                        {atelierItems.map((i) => (
+                          <li key={i.id}>
+                            <div>• {i.name} × {Number.isInteger(i.qty) ? i.qty : i.qty.toFixed(2)}{i.unit === 'kg' ? ' kg' : ''}</div>
+                            {(i.customNote || i.customImage) && (
+                              <div className="ml-3 mt-1.5 p-2.5 rounded-lg bg-diana-accent/10 border border-diana-accent/20">
+                                {i.customNote && <p className="text-xs text-diana-accentLight font-medium">✍️ "{i.customNote}"</p>}
+                                {i.customImage && (
+                                  <img src={i.customImage} alt="Référence gâteau" className="mt-2 w-full max-w-[180px] h-24 object-cover rounded-md border border-diana-border" />
+                                )}
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      {task.note && <p className="text-xs text-diana-brown italic">Note : {task.note}</p>}
                     </div>
-                    <ul className="text-sm text-diana-brownLight space-y-2 mb-2">
-                      {atelierItems.map((i) => (
-                        <li key={i.id}>
-                          <div>• {i.name} × {Number.isInteger(i.qty) ? i.qty : i.qty.toFixed(2)}{i.unit === 'kg' ? ' kg' : ''}</div>
-                          {(i.customNote || i.customImage) && (
-                            <div className="ml-3 mt-1.5 p-2.5 rounded-lg bg-diana-accent/10 border border-diana-accent/20">
-                              {i.customNote && <p className="text-xs text-diana-accentLight font-medium">✍️ "{i.customNote}"</p>}
-                              {i.customImage && (
-                                <img src={i.customImage} alt="Référence gâteau" className="mt-2 w-full max-w-[180px] h-24 object-cover rounded-md border border-diana-border" />
-                              )}
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                    {task.note && <p className="text-xs text-diana-brown italic">Note : {task.note}</p>}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </motion.div>
+                  )
+                })}
+              </div>
+            )}
+          </motion.div>
 
-        {/* Commandes que vous avez terminées : cliquer sur "Prête" pour voir si elle a été
-            encaissée ou non, sans jamais afficher le prix de la commande. */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-diana-card border border-diana-border rounded-2xl p-5 sm:p-6 mb-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center"><FiCheck className="text-emerald-400" size={20} /></div>
-            <div>
-              <h3 className="font-fraunces text-lg text-diana-cream">Commandes terminées</h3>
-              <p className="text-xs text-diana-brown">Cliquez sur "Prête" pour voir si le client a déjà réglé, sans afficher le prix</p>
+          {/* Commandes que vous avez terminées : cliquer sur "Prête" pour voir si elle a été
+              encaissée ou non, sans jamais afficher le prix de la commande. */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-diana-card border border-diana-border rounded-2xl p-5 sm:p-6 mb-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center"><FiCheck className="text-emerald-400" size={20} /></div>
+              <div>
+                <h3 className="font-fraunces text-lg text-diana-cream">Commandes terminées</h3>
+                <p className="text-xs text-diana-brown">Cliquez sur "Prête" pour voir si le client a déjà réglé, sans afficher le prix</p>
+              </div>
+              {displayDoneTasks.length > 0 && <span className="ml-auto bg-emerald-500/15 text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded-full">{displayDoneTasks.length}</span>}
             </div>
-            {displayDoneTasks.length > 0 && <span className="ml-auto bg-emerald-500/15 text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded-full">{displayDoneTasks.length}</span>}
-          </div>
-          {displayDoneTasks.length === 0 ? (
-            <p className="text-sm italic text-diana-brownLight text-center py-6">Aucune commande terminée pour le moment</p>
-          ) : (
-            <div className="space-y-2.5">
-              {displayDoneTasks.map((t) => {
-                const revealed = !!revealedStatus[t.id]
-                return (
-                  <div key={t.id} className="bg-diana-dark/40 border border-diana-border/40 rounded-xl p-3.5 flex items-center justify-between gap-3 flex-wrap">
-                    <div>
-                      <p className="text-sm font-semibold text-diana-cream flex items-center gap-1.5"><FiUser size={13} /> {t.clientName}</p>
-                      <p className="text-xs text-diana-brown mt-0.5">Ticket n°{String(t.ticketNumber).padStart(3, '0')}</p>
-                    </div>
-                    {revealed ? (
-                      t.soldePaid ? (
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg">
-                          <FiCheckCircle size={13} /> Encaissée
-                        </span>
+            {displayDoneTasks.length === 0 ? (
+              <p className="text-sm italic text-diana-brownLight text-center py-6">Aucune commande terminée pour le moment</p>
+            ) : (
+              <div className="space-y-2.5">
+                {displayDoneTasks.map((t) => {
+                  const revealed = !!revealedStatus[t.id]
+                  return (
+                    <div key={t.id} className="bg-diana-dark/40 border border-diana-border/40 rounded-xl p-3.5 flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="text-sm font-semibold text-diana-cream flex items-center gap-1.5"><FiUser size={13} /> {t.clientName}</p>
+                        <p className="text-xs text-diana-brown mt-0.5">Ticket n°{String(t.ticketNumber).padStart(3, '0')}</p>
+                      </div>
+                      {revealed ? (
+                        t.soldePaid ? (
+                          <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg">
+                            <FiCheckCircle size={13} /> Encaissée
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-xs font-semibold text-diana-accentLight bg-diana-accent/10 px-3 py-1.5 rounded-lg">
+                            <FiXCircle size={13} /> Non encaissée
+                          </span>
+                        )
                       ) : (
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-diana-accentLight bg-diana-accent/10 px-3 py-1.5 rounded-lg">
-                          <FiXCircle size={13} /> Non encaissée
-                        </span>
-                      )
-                    ) : (
-                      <button onClick={() => toggleStatus(t.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-diana-gold/15 text-diana-gold border border-diana-gold/30 text-xs font-semibold hover:bg-diana-gold/25 transition-colors">
-                        <FiEye size={13} /> Prête
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </motion.div>
+                        <button onClick={() => toggleStatus(t.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-diana-gold/15 text-diana-gold border border-diana-gold/30 text-xs font-semibold hover:bg-diana-gold/25 transition-colors">
+                          <FiEye size={13} /> Prête
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </motion.div>
         </>
-          )
-        })()}
-        </>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
