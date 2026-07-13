@@ -125,23 +125,6 @@ export default function PreparateurPage() {
           <p className="text-sm text-diana-brown mt-1">Bienvenue, {user?.name}. Enregistrez votre production ci-dessous.</p>
         </motion.div>
 
-        {isPatisserie && (
-          <div className="flex bg-diana-card border border-diana-border rounded-xl p-1 mb-6 w-fit flex-wrap">
-            <button onClick={() => setPrepTab('tranche')}
-              className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${prepTab === 'tranche' ? 'bg-diana-gold text-diana-darker' : 'text-diana-brown hover:text-diana-cream'}`}>
-              <FiScissors size={12} /> Tranche
-            </button>
-            <button onClick={() => setPrepTab('entremets')}
-              className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${prepTab === 'entremets' ? 'bg-diana-gold text-diana-darker' : 'text-diana-brown hover:text-diana-cream'}`}>
-              <FiGrid size={12} /> Entremets circulaires <span className="opacity-70">({entremetProducts.length})</span>
-            </button>
-            <button onClick={() => setPrepTab('kg')}
-              className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${prepTab === 'kg' ? 'bg-diana-gold text-diana-darker' : 'text-diana-brown hover:text-diana-cream'}`}>
-              <FiClipboard size={12} /> Gâteau par kg
-            </button>
-          </div>
-        )}
-
         {(() => {
           const displayTasks = isPatisserie ? patisserieTasks : tasks
           const displayDoneTasks = isPatisserie ? patisserieDoneTasks : doneTasks
@@ -260,6 +243,22 @@ export default function PreparateurPage() {
               <div className="w-10 h-10 rounded-xl bg-diana-gold/10 flex items-center justify-center"><FiBox className="text-diana-gold" size={20} /></div>
               <h3 className="font-fraunces text-lg text-diana-cream">Nouvelle production</h3>
             </div>
+            {isPatisserie && (
+              <div className="flex bg-diana-dark/30 border border-diana-border rounded-xl p-1 mb-5 w-fit flex-wrap">
+                <button type="button" onClick={() => setPrepTab('tranche')}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${prepTab === 'tranche' ? 'bg-diana-gold text-diana-darker' : 'text-diana-brown hover:text-diana-cream'}`}>
+                  <FiScissors size={12} /> Tranche
+                </button>
+                <button type="button" onClick={() => setPrepTab('entremets')}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${prepTab === 'entremets' ? 'bg-diana-gold text-diana-darker' : 'text-diana-brown hover:text-diana-cream'}`}>
+                  <FiGrid size={12} /> Entremets circulaires <span className="opacity-70">({entremetProducts.length})</span>
+                </button>
+                <button type="button" onClick={() => setPrepTab('kg')}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${prepTab === 'kg' ? 'bg-diana-gold text-diana-darker' : 'text-diana-brown hover:text-diana-cream'}`}>
+                  <FiClipboard size={12} /> Gâteau par kg
+                </button>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs text-diana-brown mb-1.5 font-bold uppercase tracking-wide">Produit (Cliquer pour sélectionner)</label>
