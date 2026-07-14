@@ -33,6 +33,15 @@ export default function POSPage() {
   const [rzizaQty, setRzizaQty] = useState('')
   const [rzizaPrixAchat, setRzizaPrixAchat] = useState('3.5')
   const [rzizaBon, setRzizaBon] = useState(null)
+  const [clearReceipt, setClearReceipt] = useState(null)
+
+  // Dès que le reçu de vidage est prêt à l'écran, on lance l'impression automatiquement.
+  useEffect(() => {
+    if (clearReceipt) {
+      const t = setTimeout(() => window.print(), 300)
+      return () => clearTimeout(t)
+    }
+  }, [clearReceipt])
 
   const { order, addToOrder, setItemQuantity, removeItem, clearOrder,
     subtotal, remise, remiseAmount, total, setDiscount } = useCart()
@@ -161,6 +170,7 @@ export default function POSPage() {
     const result = await clearPerishableStock()
     refreshStock()
     addNotification(`Stock vidé pour ${result.count} produits (valeur: ${result.totalValue.toFixed(2)} DH)`, 'success')
+    if (result.entries?.length > 0) setClearReceipt({ ...result, label: 'Vidage du stock (fin de journée)' })
   }
 
   const handleAddRziza = async (e) => {
@@ -461,6 +471,47 @@ export default function POSPage() {
                 </button>
                 <button onClick={() => setRzizaBon(null)}
                   className="flex-1 bg-white text-diana-brown border border-diana-border py-2.5 rounded-xl text-sm font-semibold print:hidden">
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Reçu imprimable du vidage de stock — s'affiche et s'imprime automatiquement */}
+      <AnimatePresence>
+        {clearReceipt && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setClearReceipt(null)}>
+            <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+              className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
+                  <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
+                  <p className="text-diana-brown">{clearReceipt.label}</p>
+                  <p className="text-diana-brown">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
+                </div>
+                <div className="space-y-1 mb-2">
+                  {clearReceipt.entries.map((e) => (
+                    <div key={e.productId} className="flex justify-between py-0.5">
+                      <span className="pr-2">{e.name} × {e.qty}</span>
+                      <span className="shrink-0">{e.value.toFixed(2)} DH</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
+                  <div className="flex justify-between py-0.5"><span>Quantité totale</span><span>{clearReceipt.totalQuantity}</span></div>
+                  <div className="flex justify-between font-semibold"><span>Valeur totale</span><span>{clearReceipt.totalValue.toFixed(2)} DH</span></div>
+                </div>
+              </div>
+              <div className="flex gap-2 print:hidden">
+                <button onClick={() => window.print()}
+                  className="flex-1 flex items-center justify-center gap-2 bg-diana-dark text-diana-cream py-2.5 rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
+                  <FiPrinter size={15} /> Imprimer
+                </button>
+                <button onClick={() => setClearReceipt(null)}
+                  className="flex-1 bg-white text-diana-brown border border-diana-border py-2.5 rounded-xl text-sm font-semibold">
                   Fermer
                 </button>
               </div>
