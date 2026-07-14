@@ -4,7 +4,6 @@ export const CATEGORIES_POS = [
   { id: "viennoiserie", label: "Viennoiserie", image: "/category-images/viennoiserie.jpg" },
   { id: "millefeuille", label: "Millefeuille / Cake", image: "/category-images/millefeuille.jpg" },
   { id: "gateau_maroc", label: "Gâteau Marocain", image: "/category-images/gateau_maroc.jpg" },
-  { id: "entremet", label: "Entremets", image: "/category-images/entremet.jpg" },
   { id: "patisserie", label: "Pâtisserie", image: "/category-images/patisserie.jpg" },
   { id: "sale", label: "Salé", image: "/category-images/sale.jpg" },
   { id: "rziza", label: "Rziza", image: "/category-images/rziza.jpg" },
@@ -35,13 +34,13 @@ export const CATEGORIES_COMMANDE = [
   { id: "patisserie", label: "Patisserie", image: "/category-images/patisserie.jpg" },
   { id: "patisserie_cafe", label: "Pâtisserie/Cafe", image: "/category-images/patisserie.jpg" },
   { id: "sale", label: "Sale", image: "/category-images/sale.jpg" },
- { id: "viennoiserie", label: "Viennoiserie", image: "/category-images/viennoiserie.jpg" },
+  { id: "viennoiserie", label: "Viennoiserie", image: "/category-images/viennoiserie.jpg" },
   { id: "rziza", label: "Rziza", image: "/category-images/rziza.jpg" },
 ];
 
 // "Frigo Entremet" (Caisse) : fusionne les Entremets circulaires ET les Gâteaux au kg
 // produits par le préparateur pâtisserie — ils n'apparaissent plus séparément à la caisse.
-export const FRIGO_ENTREMET_SOURCE_CATEGORIES = ["gateaux_kg"]
+export const FRIGO_ENTREMET_SOURCE_CATEGORIES = ["gateaux_kg", "entremet"]
 export function getFrigoEntremetProducts() {
   return FRIGO_ENTREMET_SOURCE_CATEGORIES.flatMap((cat) => (PRODUCTS[cat] || []).map((p) => ({ ...p, category: cat })))
 }
