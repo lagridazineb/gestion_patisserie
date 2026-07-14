@@ -362,14 +362,14 @@ export default function PreparateurPage() {
               // mutualisé sur le produit de base — stock[p.id] n'est donc jamais mis à jour
               // (ni à la production, ni à la vente) et affichait toujours 0. On compte ici le
               // nombre réel de lots encore en stock (invendus) pour ce produit de base.
-              const qty = prepTab === 'kg'
+              const qty = (prepTab === 'kg' || prepTab === 'entremets')
                 ? frigoBatches.filter((b) => b.baseProductId === p.id).length
                 : (stock[p.id] ?? 0)
               const isLow = qty <= 5
               return (
                 <div key={p.id} className="flex items-center justify-between gap-3 bg-diana-dark/50 border border-diana-border/30 rounded-xl px-4 py-3">
                   <span className="text-sm text-diana-cream truncate pr-2">{p.name}</span>
-                  <span className={`text-sm font-semibold shrink-0 ${isLow ? 'text-diana-danger' : 'text-diana-gold'}`}>{qty} {prepTab === 'kg' ? (qty > 1 ? 'gâteaux' : 'gâteau') : (p.unit === 'kg' ? 'kg' : '')}</span>
+                  <span className={`text-sm font-semibold shrink-0 ${isLow ? 'text-diana-danger' : 'text-diana-gold'}`}>{qty} {(prepTab === 'kg' || prepTab === 'entremets') ? (qty > 1 ? 'gâteaux' : 'gâteau') : (p.unit === 'kg' ? 'kg' : '')}</span>
                 </div>
               )
             })}
