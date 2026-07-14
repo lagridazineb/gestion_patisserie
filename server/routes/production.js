@@ -23,8 +23,8 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 })
 
-// Enregistre une production. Pour les gâteaux au kg (category === 'gateaux_kg'),
-// crée un lot "Frigo Entremet" isolé au lieu de créditer un stock mutualisé.
+// Enregistre une production. Pour les gâteaux au kg et les entremets circulaires, crée un ou
+// plusieurs lots "Frigo Entremet" individuels au lieu de créditer un stock mutualisé.
 router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
   try {
     const { productId, product, quantity, category, price, atelier, date, time, image, user } = req.body
@@ -37,7 +37,9 @@ router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
     )
 
     let frigoBatch = null
+    let frigoBatches = null
     if (category === 'gateaux_kg' && price) {
+      // Gâteau au kg : UN lot, dont le poids/prix dépend de la quantité produite (en kg).
       const batchId = `frigobatch_${id}_${Math.random().toString(36).slice(2, 8)}`
       const weightLabel = Number.isInteger(quantity) ? `${quantity}kg` : `${quantity}kg`.replace('.', ',')
       const batchName = `${product} — ${weightLabel}`
@@ -49,11 +51,26 @@ router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
       )
       await adjustStock(batchId, 1)
       frigoBatch = { id: batchId, name: batchName, price: batchPrice, weightKg: quantity }
+    } else if (category === 'entremet' && price) {
+      // Entremet circulaire : chaque gâteau produit est une pièce vendable indépendante
+      // (prix fixe, pas de poids) — on crée un lot par unité produite, comme pour le kg.
+      const unitCount = Math.max(1, Math.round(quantity))
+      frigoBatches = []
+      for (let i = 0; i < unitCount; i++) {
+        const batchId = `frigobatch_${id}_${i}_${Math.random().toString(36).slice(2, 8)}`
+        await pool.query(
+          `INSERT INTO frigo_batches (id, production_entry_id, base_product_id, name, price, weight_kg, image, created_at)
+           VALUES (?, ?, ?, ?, ?, NULL, ?, NOW())`,
+          [batchId, id, productId, product, price, image || null]
+        )
+        await adjustStock(batchId, 1)
+        frigoBatches.push({ id: batchId, name: product, price })
+      }
     } else {
       await adjustStock(productId, quantity)
     }
 
-    res.json({ id, productId, product, quantity, category, price, atelier, frigoBatch })
+    res.json({ id, productId, product, quantity, category, price, atelier, frigoBatch, frigoBatches })
   } catch (error) {
     console.error('Erreur POST /api/production :', error)
     res.status(500).json({ error: 'Erreur serveur' })
@@ -70,10 +87,9 @@ router.delete('/:id', authMiddleware, preparateurMiddleware, async (req, res) =>
 
     await pool.query('DELETE FROM production_entries WHERE id = ?', [id])
 
-    if (entry.category === 'gateaux_kg') {
+    if (entry.category === 'gateaux_kg' || entry.category === 'entremet') {
       const [batches] = await pool.query('SELECT * FROM frigo_batches WHERE production_entry_id = ?', [id])
-      const batch = batches[0]
-      if (batch) {
+      for (const batch of batches) {
         await adjustStock(batch.id, -1)
         await pool.query('DELETE FROM frigo_batches WHERE id = ?', [batch.id])
       }
