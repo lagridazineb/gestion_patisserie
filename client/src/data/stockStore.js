@@ -174,15 +174,14 @@ export async function getAtelierTasks(atelier) {
   )
 }
 
-// Commandes que ce préparateur a déjà marquées "Terminé"
+// Commandes que ce préparateur a déjà marquées "Terminé", mais pas encore encaissées.
+// Dès qu'une commande est encaissée (solde payé), elle disparaît immédiatement de cette
+// liste chez tous les préparateurs concernés — elle reste consultable côté Admin/Caissier.
 export async function getAtelierDoneTasks(atelier) {
-  const today = new Date().toISOString().slice(0, 10)
   const reservations = await getReservations()
-  return reservations.filter((r) => {
-    if (!(getReservationAteliers(r).includes(atelier) && r.doneByAtelier && r.doneByAtelier[atelier])) return false
-    if (!r.soldePaid) return true
-    return r.soldePaidAt && String(r.soldePaidAt).slice(0, 10) === today
-  })
+  return reservations.filter((r) =>
+    getReservationAteliers(r).includes(atelier) && r.doneByAtelier && r.doneByAtelier[atelier] && !r.soldePaid
+  )
 }
 
 export function getCommandeRefundableQty(reservation, itemId) {
