@@ -1,4 +1,3 @@
-// Catégories affichées dans la Caisse (POS) : liste plate, inchangée par rapport à l'origine.
 export const CATEGORIES_POS = [
   { id: "pain", label: "Pain", image: "/category-images/pain.jpg" },
   { id: "viennoiserie", label: "Viennoiserie", image: "/category-images/viennoiserie.jpg" },
@@ -9,10 +8,6 @@ export const CATEGORIES_POS = [
   { id: "rziza", label: "Rziza", image: "/category-images/rziza.jpg" },
   { id: "frigo_entremet", label: "Frigo Entremet", image: "/category-images/entremet.jpg" },
 ];
-
-// Catégories affichées uniquement dans la page "Commande" (grande commande / réservation) :
-// structure imbriquée reprenant l'intégralité du catalogue transmis (Cake Design, Gâteaux
-// Kg, Pâtisserie/Cafe, etc.). Ne touche pas à la Caisse normale.
 export const CATEGORIES_COMMANDE = [
   {
     id: "cake_design",
@@ -38,15 +33,12 @@ export const CATEGORIES_COMMANDE = [
   { id: "rziza", label: "Rziza", image: "/category-images/rziza.jpg" },
 ];
 
-// "Frigo Entremet" (Caisse) : fusionne les Entremets circulaires ET les Gâteaux au kg
-// produits par le préparateur pâtisserie — ils n'apparaissent plus séparément à la caisse.
+
 export const FRIGO_ENTREMET_SOURCE_CATEGORIES = ["gateaux_kg", "entremet"]
 export function getFrigoEntremetProducts() {
   return FRIGO_ENTREMET_SOURCE_CATEGORIES.flatMap((cat) => (PRODUCTS[cat] || []).map((p) => ({ ...p, category: cat })))
 }
 
-// Renvoie la définition (top-level ou enfant) d'une catégorie à partir de son id,
-// en cherchant dans la structure imbriquée utilisée par la page Commande.
 export function findCategory(id) {
   for (const cat of CATEGORIES_COMMANDE) {
     if (cat.id === id) return cat;
@@ -58,15 +50,10 @@ export function findCategory(id) {
   return CATEGORIES_POS.find((c) => c.id === id) || null;
 }
 
-// Liste "aplatie" des catégories qui contiennent réellement des produits (utile pour
-// les formulaires d'administration où une catégorie parente comme "Gâteaux" ne doit pas
-// apparaître, seules ses sous-catégories "Entremets" / "Gâteaux Kg" le doivent).
 export const LEAF_CATEGORIES = CATEGORIES_COMMANDE.flatMap((cat) => cat.children ? cat.children : [cat])
 
 export const PRODUCTS = {
   cake_design: [
-    // "Layer hXX" = type de hauteur. Cliquer dessus ouvre une sélection des tailles
-    // disponibles (Layer 10/hXX à 30/hXX), chacune avec son propre prix (voir LAYER_VARIANTS).
     { id: "layer_h10", name: "Layer h10", price: 100, unit: "piece", image: null, stock: 0, isLayerType: true, layerHeight: 10 },
     { id: "layer_h15", name: "Layer h15", price: 150, unit: "piece", image: null, stock: 0, isLayerType: true, layerHeight: 15 },
     { id: "layer_h20", name: "Layer h20", price: 200, unit: "piece", image: null, stock: 0, isLayerType: true, layerHeight: 20 },
@@ -416,9 +403,7 @@ export const MOROCCAN_CAKE_DIVISION_TYPES = [
   "Seulement Gazelle"
 ];
 
-// Produits vendus au kg qui utilisent la composition générique "diviser en combien de
-// sortes" (1 à 12), chacun avec sa propre liste de saveurs.
 export const MOROCCAN_GENERIC_KG_COMPONENTS = {
-  g2: MOROCCAN_AMANDE_COMPONENTS, // Amande kg
-  g3: MOROCCAN_SABLE_COMPONENTS,  // Sable kg
+  g2: MOROCCAN_AMANDE_COMPONENTS, 
+  g3: MOROCCAN_SABLE_COMPONENTS,  
 };
