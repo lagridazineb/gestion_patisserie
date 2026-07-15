@@ -1,19 +1,22 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { CATEGORIES_POS as CATEGORIES, PRODUCTS, ALL_PRODUCTS } from '../data/products'
-import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches } from '../data/stockStore'
+import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks } from '../data/stockStore'
 import QuantityModal from '../components/QuantityModal'
+import NumericField from '../components/NumericField'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
-import { FiSearch, FiShoppingCart, FiPrinter, FiX, FiArrowLeft, FiCreditCard, FiDollarSign, FiSunset, FiPackage, FiPlus } from 'react-icons/fi'
+import { FiSearch, FiShoppingCart, FiPrinter, FiX, FiArrowLeft, FiCreditCard, FiDollarSign, FiSunset, FiPackage, FiPlus, FiClipboard as FiClipboardList } from 'react-icons/fi'
 
 function formatQty(qty) {
   return Number.isInteger(qty) ? String(qty) : qty.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
 }
 
 export default function POSPage() {
+  const navigate = useNavigate()
   const [activeCategory, setActiveCategory] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const mainRef = useRef(null)
@@ -34,6 +37,7 @@ export default function POSPage() {
   const [rzizaPrixAchat, setRzizaPrixAchat] = useState('3.5')
   const [rzizaBon, setRzizaBon] = useState(null)
   const [clearReceipt, setClearReceipt] = useState(null)
+  const [pendingRzizaOrders, setPendingRzizaOrders] = useState(0)
 
   // Dès que le reçu de vidage est prêt à l'écran, on lance l'impression automatiquement.
   useEffect(() => {
@@ -47,9 +51,10 @@ export default function POSPage() {
     subtotal, remise, remiseAmount, total, setDiscount } = useCart()
 
   const refreshStock = useCallback(async () => {
-    const [stockData, frigo] = await Promise.all([getStock(), getActiveFrigoBatches()])
+    const [stockData, frigo, rzizaTasks] = await Promise.all([getStock(), getActiveFrigoBatches(), getAtelierTasks('rziza')])
     setStock(stockData)
     setFrigoBatches(frigo)
+    setPendingRzizaOrders(rzizaTasks.length)
   }, [])
   useEffect(() => {
     refreshStock()
@@ -233,10 +238,9 @@ export default function POSPage() {
         </div>
         <div className="p-5 pt-4 border-t border-dashed border-[#D9A86C] bg-[#FFE8D6]">
           <div className="flex items-center gap-2 mb-3">
-            <input type="number" placeholder="Remise %" value={discountInput}
-              onChange={(e) => setDiscountInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
-              className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#E7CCB4] rounded-lg text-diana-brownDark placeholder-[#B68C6C] focus:outline-none focus:border-[#C89A5C]" />
+            <NumericField value={discountInput} onChange={setDiscountInput} placeholder="Remise %"
+              title="Remise %" unit="%" allowDecimal={false}
+              className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#E7CCB4] rounded-lg text-diana-brownDark text-left focus:outline-none focus:border-[#C89A5C]" />
             <button onClick={applyDiscount}
               className="px-3 py-1.5 text-xs bg-[#C89A5C]/15 text-[#8B6A3A] border border-[#C89A5C]/40 rounded-lg hover:bg-[#C89A5C]/25 transition-colors">
               Appliquer
@@ -269,6 +273,13 @@ export default function POSPage() {
           <button onClick={() => setShowRzizaForm(true)}
             className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-gold/40 hover:text-diana-gold transition-colors">
             <FiPackage size={14} /> Achat Rziza
+          </button>
+          <button onClick={() => navigate('/commande-rziza')}
+            className="relative flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-gold/40 hover:text-diana-gold transition-colors">
+            <FiClipboardList size={14} /> Commande Rziza
+            {pendingRzizaOrders > 0 && (
+              <span className="ml-0.5 bg-diana-accent/20 text-diana-accentLight text-[10px] font-bold px-1.5 py-0.5 rounded-full">{pendingRzizaOrders}</span>
+            )}
           </button>
           {isAdmin && (
             <button onClick={handleClearPerishables}
@@ -420,13 +431,13 @@ export default function POSPage() {
               <form onSubmit={handleAddRziza} className="space-y-3">
                 <div>
                   <label className="text-xs text-[#5C4326] mb-1 block">Quantité livrée</label>
-                  <input type="number" min="0" step="0.01" value={rzizaQty} onChange={(e) => setRzizaQty(e.target.value)} autoFocus
-                    className="w-full px-3 py-2.5 text-sm bg-white border border-[#D9A86C] rounded-lg text-[#3A2A18] focus:outline-none focus:border-[#C89A5C]" />
+                  <NumericField value={rzizaQty} onChange={setRzizaQty} title="Quantité livrée" unit="pièce(s)" autoFocus
+                    className="w-full px-3 py-2.5 text-sm bg-white border border-[#D9A86C] rounded-lg text-[#3A2A18] text-left focus:outline-none focus:border-[#C89A5C]" />
                 </div>
                 <div>
                   <label className="text-xs text-[#5C4326] mb-1 block">Prix d'achat / unité (DH)</label>
-                  <input type="number" min="0" step="0.01" value={rzizaPrixAchat} onChange={(e) => setRzizaPrixAchat(e.target.value)}
-                    className="w-full px-3 py-2.5 text-sm bg-white border border-[#D9A86C] rounded-lg text-[#3A2A18] focus:outline-none focus:border-[#C89A5C]" />
+                  <NumericField value={rzizaPrixAchat} onChange={setRzizaPrixAchat} title="Prix d'achat / unité" unit="DH"
+                    className="w-full px-3 py-2.5 text-sm bg-white border border-[#D9A86C] rounded-lg text-[#3A2A18] text-left focus:outline-none focus:border-[#C89A5C]" />
                 </div>
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <button type="submit" className="py-3 rounded-xl bg-[#8B5A2B] text-white font-bold hover:brightness-110 transition-all active:scale-[0.98]">
