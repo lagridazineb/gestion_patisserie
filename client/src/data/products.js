@@ -298,12 +298,8 @@ export const ALL_PRODUCTS = Object.entries(PRODUCTS).flatMap(([catId, prods]) =>
   prods.map((p) => ({ ...p, category: catId }))
 );
 
-// Catégories de gâteaux pour lesquelles on peut ajouter une personnalisation
-// (texte à écrire sur le gâteau + photo de référence, ex: anniversaire)
 export const CUSTOMIZABLE_CATEGORIES = ["cake_design", "entremet", "gateaux_kg"];
 
-// Certains ateliers couvrent plusieurs catégories de produits à la fois.
-// Le préparateur "Pâtisserie" gère aussi les Entremets (même stock/production).
 export const ATELIER_CATEGORY_GROUPS = {
   patisserie: ["patisserie", "entremet", "gateaux_kg"],
 };
@@ -312,7 +308,6 @@ export function getAtelierCategories(atelier) {
   return ATELIER_CATEGORY_GROUPS[atelier] || [atelier];
 }
 
-// Composition du "Plateau sale" (salé) : liste unique, sélection d'un nombre fixe d'articles
 export const SALE_PLATEAU_COMPONENTS = [
   { id: "sale_minipizza", name: "Mini Pizza", arabic: "ميني بيتزا" },
   { id: "sale_bastilla_poulet", name: "Bastilla poulet", arabic: "بيسطيلة دجاج" },
@@ -323,9 +318,6 @@ export const SALE_PLATEAU_COMPONENTS = [
   { id: "sale_briouat_poulet", name: "Briouat poulet", arabic: "بروات دجاج" },
 ];
 
-// Les plateaux de Gâteau Marocain n'ont pas leur propre stock : ils sont composés
-// d'Amande (g2) et de Sable (g3) en kg. Vendre un plateau déduit directement le stock
-// d'Amande/Sable selon SON grammage exact (pas une estimation par pièce).
 export const AMANDE_KG_ID = "g2"
 export const SABLE_KG_ID = "g3"
 // amandeKg / sableKg = poids réel (en kg) d'amande / de sable utilisé par plateau vendu.
@@ -342,10 +334,6 @@ export const PLATEAU_COMPOSITION = {
 export const SALE_PLATEAU_COMPOSITIONS = {
   s14: 6, // Plateau sale
 };
-
-// --- Cake Design : "Layer hXX" ---
-// Chaque type "Layer hXX" (hauteur) propose 5 tailles (diamètre 10 à 30), chacune à un prix
-// fixe = diamètre × 10 DH (10 -> 100DH, 15 -> 150DH, 20 -> 200DH, 25 -> 250DH, 30 -> 300DH).
 export const LAYER_DIAMETERS = [10, 15, 20, 25, 30]
 export function getLayerVariants(layerHeight) {
   return LAYER_DIAMETERS.map((d) => ({
@@ -419,9 +407,7 @@ export const MOROCCAN_CAKE_DIVISION_TYPES = [
   "Seulement Gazelle"
 ];
 
-// Produits vendus au kg qui utilisent la composition générique "diviser en combien de
-// sortes" (1 à 12), chacun avec sa propre liste de saveurs.
 export const MOROCCAN_GENERIC_KG_COMPONENTS = {
-  g2: MOROCCAN_AMANDE_COMPONENTS, // Amande kg
-  g3: MOROCCAN_SABLE_COMPONENTS,  // Sable kg
+  g2: MOROCCAN_AMANDE_COMPONENTS,
+  g3: MOROCCAN_SABLE_COMPONENTS, 
 };
