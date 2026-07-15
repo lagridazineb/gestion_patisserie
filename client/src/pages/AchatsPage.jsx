@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiPlus, FiTrash2, FiShoppingBag, FiPrinter, FiPackage, FiCalendar } from 'react-icons/fi'
 import { getPurchases, addPurchase, removePurchase, subscribeToStockUpdates, getRzizaDeliveries, addRzizaDelivery, removeRzizaDelivery, sameDay } from '../data/stockStore'
+import NumericField from '../components/NumericField'
 import { useNotification } from '../context/NotificationContext'
 
 export default function AchatsPage() {
@@ -101,8 +102,8 @@ export default function AchatsPage() {
             className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
           <input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="Fournisseur (facultatif)"
             className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
-          <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Montant (DH)"
-            className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
+          <NumericField value={amount} onChange={setAmount} placeholder="Montant (DH)" title="Montant" unit="DH"
+            className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream text-left focus:outline-none focus:border-diana-gold/50" />
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
             className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50" />
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (facultatif)"
@@ -125,12 +126,12 @@ export default function AchatsPage() {
             Achat payé personnellement par l'admin, hors caisse — n'affecte ni le solde net ni les achats généraux. Vente en caisse : 5.50 DH. La quantité livrée est ajoutée directement au stock de la caisse (accessible aussi côté caissier, sans code).
           </p>
           <form onSubmit={handleAddRziza} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-            <input type="number" min="0" step="0.01" value={rzizaQty} onChange={(e) => setRzizaQty(e.target.value)} placeholder="Quantité livrée"
-              className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
+            <NumericField value={rzizaQty} onChange={setRzizaQty} placeholder="Quantité livrée" title="Quantité livrée" unit="pièce(s)"
+              className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream text-left focus:outline-none focus:border-diana-gold/50" />
             <div className="flex items-center gap-2">
               <label className="text-xs text-diana-brown shrink-0">Prix d'achat/u.</label>
-              <input type="number" min="0" step="0.01" value={rzizaPrixAchat} onChange={(e) => setRzizaPrixAchat(e.target.value)}
-                className="flex-1 min-w-0 px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50" />
+              <NumericField value={rzizaPrixAchat} onChange={setRzizaPrixAchat} title="Prix d'achat / unité" unit="DH"
+                className="flex-1 min-w-0 px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream text-left focus:outline-none focus:border-diana-gold/50" />
             </div>
             <button type="submit"
               className="flex items-center justify-center gap-2 bg-diana-gold text-diana-dark py-2.5 rounded-xl text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
