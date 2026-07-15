@@ -54,7 +54,8 @@ export default function LoginPage() {
               <label className="block text-xs text-diana-brown mb-1.5 ml-1">Email</label>
               <div className="relative">
                 <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={16} />
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.com"
+                <input type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.com"
+                  autoCapitalize="none" autoCorrect="off" spellCheck="false"
                   className="w-full pl-11 pr-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" required autoComplete="username" />
               </div>
             </div>
@@ -63,6 +64,7 @@ export default function LoginPage() {
               <div className="relative">
                 <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={16} />
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
+                  autoCapitalize="none" autoCorrect="off" spellCheck="false"
                   className="w-full pl-11 pr-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" required autoComplete="current-password" />
               </div>
             </div>
