@@ -9,6 +9,7 @@ import {
 import { useNotification } from '../context/NotificationContext'
 import { useAuth } from '../context/AuthContext'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
+import KeyboardField from '../components/KeyboardField'
 import {
   FiArrowLeft, FiSearch, FiCheckCircle, FiTrash2, FiDollarSign, FiCreditCard, FiPrinter,
 } from 'react-icons/fi'
@@ -121,8 +122,8 @@ export default function SuiviCommandesPage() {
         {tab === 'pretes' && (
           <div className="relative max-w-md mb-6">
             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
-            <input value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher par n° de ticket, nom ou téléphone..."
+            <KeyboardField value={search} onChange={setSearch}
+              placeholder="Rechercher par n° de ticket, nom ou téléphone..." subtitle="Recherche"
               className="w-full pl-11 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
           </div>
         )}
