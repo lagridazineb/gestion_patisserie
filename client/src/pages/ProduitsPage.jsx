@@ -4,6 +4,7 @@ import { FiSearch, FiPlus, FiTrash2, FiEdit3, FiImage, FiTag } from 'react-icons
 import { ALL_PRODUCTS, LEAF_CATEGORIES } from '../data/products'
 import { useNotification } from '../context/NotificationContext'
 import NumericField from '../components/NumericField'
+import KeyboardField from '../components/KeyboardField'
 
 export default function ProduitsPage() {
   const [products, setProducts] = useState(ALL_PRODUCTS)
@@ -60,8 +61,8 @@ export default function ProduitsPage() {
         </motion.div>
         <div className="relative max-w-md mb-6">
           <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
-          <input type="text" placeholder="Rechercher un produit..." value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+          <KeyboardField placeholder="Rechercher un produit..." value={searchQuery} onChange={setSearchQuery}
+            subtitle="Recherche produit"
             className="w-full pl-12 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -98,7 +99,8 @@ export default function ProduitsPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs text-diana-brown mb-1.5">Nom du produit</label>
-                    <input type="text" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    <KeyboardField value={formData.name} onChange={(v) => setFormData(prev => ({ ...prev, name: v }))}
+                      subtitle="Nom du produit"
                       className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" placeholder="Nom du produit" />
                   </div>
                   <div>
@@ -115,7 +117,8 @@ export default function ProduitsPage() {
                   </div>
                   <div>
                     <label className="block text-xs text-diana-brown mb-1.5">URL de l'image (optionnel)</label>
-                    <input type="text" value={formData.image} onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                    <KeyboardField value={formData.image} onChange={(v) => setFormData(prev => ({ ...prev, image: v }))}
+                      subtitle="URL de l'image"
                       className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" placeholder="https://..." />
                   </div>
                 </div>
