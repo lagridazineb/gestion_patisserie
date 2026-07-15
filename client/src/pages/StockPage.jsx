@@ -9,6 +9,7 @@ import {
   getEodSettings, setEodTime, clearPerishableStock, checkAutoClosing, PERISHABLE_CATEGORIES, resetAllStock,
   removeProductionEntry, sameDay, getRzizaDeliveries,
 } from '../data/stockStore'
+import NumericField from '../components/NumericField'
 
 export default function StockPage() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -286,9 +287,8 @@ export default function StockPage() {
                             <td className="px-6 py-4 text-center">
                               {editingId === product.id ? (
                                 <div className="flex items-center justify-center gap-2">
-                                  <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(product.id)}
-                                    className="w-20 px-2 py-1 text-center bg-diana-dark border border-diana-gold/30 rounded-lg text-sm text-diana-cream focus:outline-none" autoFocus step="any" />
+                                  <NumericField value={editValue} onChange={setEditValue} title={product.name} unit={product.unit === 'kg' ? 'kg' : 'pièce(s)'}
+                                    className="w-20 px-2 py-1 text-center bg-diana-dark border border-diana-gold/30 rounded-lg text-sm text-diana-cream focus:outline-none" autoFocus />
                                   <button onClick={() => handleSaveEdit(product.id)} className="text-green-400 text-xs">✓</button>
                                 </div>
                               ) : (
@@ -335,9 +335,8 @@ export default function StockPage() {
                       <div className="flex items-center justify-between">
                         {editingId === product.id ? (
                           <div className="flex items-center gap-2">
-                            <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(product.id)}
-                              className="w-20 px-2 py-1.5 text-center bg-diana-dark border border-diana-gold/30 rounded-lg text-sm text-diana-cream focus:outline-none" autoFocus step="any" />
+                            <NumericField value={editValue} onChange={setEditValue} title={product.name} unit={product.unit === 'kg' ? 'kg' : 'pièce(s)'}
+                              className="w-20 px-2 py-1.5 text-center bg-diana-dark border border-diana-gold/30 rounded-lg text-sm text-diana-cream focus:outline-none" autoFocus />
                             <button onClick={() => handleSaveEdit(product.id)} className="text-green-400 text-sm px-2">✓</button>
                           </div>
                         ) : (
