@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { FiTrendingUp, FiDollarSign, FiCreditCard, FiPackage, FiPlus, FiArrowRight, FiCalendar } from 'react-icons/fi'
 import { getDailyBilan, getFondsCaisse, addFondCaisse, subscribeToStockUpdates, sameDay } from '../data/stockStore'
+import NumericField from '../components/NumericField'
 import { useNotification } from '../context/NotificationContext'
 
 export default function BilanPage() {
@@ -118,9 +119,8 @@ export default function BilanPage() {
               <form onSubmit={handleAddFond} className="mb-3">
                 <label className="text-xs text-diana-brown mb-1 block">Montant à déposer</label>
                 <div className="flex gap-2">
-                  <input type="number" min="0" step="0.01" value={fondAmount}
-                    onChange={(e) => setFondAmount(e.target.value)} placeholder="Ex: 1000"
-                    className="flex-1 min-w-0 px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
+                  <NumericField value={fondAmount} onChange={setFondAmount} placeholder="Ex: 1000" title="Montant à déposer" unit="DH"
+                    className="flex-1 min-w-0 px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream text-left focus:outline-none focus:border-diana-gold/50" />
                   <button type="submit"
                     className="shrink-0 flex items-center justify-center gap-1.5 bg-diana-gold text-diana-dark py-2.5 px-4 rounded-xl text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
                     <FiPlus size={15} /> Déposer
