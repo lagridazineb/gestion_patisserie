@@ -249,67 +249,67 @@ export default function CommandesPage() {
       <div className="flex flex-col lg:flex-row h-full">
 
         {/* LEFT: Client & Réservation */}
-        <aside className="w-full lg:w-[320px] bg-diana-card border-r border-diana-border p-5 flex flex-col gap-5 shrink-0 lg:h-full lg:overflow-y-auto">
+        <aside className="w-full lg:w-[260px] bg-diana-card border-r border-diana-border p-4 flex flex-col gap-3 shrink-0 lg:h-full lg:overflow-y-auto">
           <button onClick={() => navigate('/commandes/suivi')}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-600/90 text-white py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
-            <FiTruck size={16} /> Commandes prêtes
+            className="w-full flex items-center justify-center gap-2 bg-emerald-600/90 text-white py-2 rounded-xl text-xs font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
+            <FiTruck size={14} /> Commandes prêtes
             {readyCount > 0 && <span className="ml-1 bg-white/25 rounded-full px-2 py-0.5 text-xs">{readyCount}</span>}
           </button>
 
           <div>
-            <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">Client & Réservation</p>
-            <h3 className="font-fraunces text-lg text-diana-cream mb-4">Détails de la commande</h3>
+            <p className="text-[10px] tracking-[2px] uppercase text-diana-brown mb-1">Client & Réservation</p>
+            <h3 className="font-fraunces text-sm text-diana-cream mb-3">Détails de la commande</h3>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="relative">
-                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
+                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={13} />
                 <KeyboardField value={clientName} onChange={setClientName}
-                  placeholder="Nom Client / Vendeur / Table... *" subtitle="Nom client"
-                  className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 ${clientName.trim() === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
+                  placeholder="Nom Client... *" subtitle="Nom client"
+                  className={`w-full pl-9 pr-3 py-1.5 text-xs bg-diana-dark/30 border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 ${clientName.trim() === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
               </div>
               <div className="relative">
-                <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
+                <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={13} />
                 <KeyboardField value={clientPhone} onChange={setClientPhone}
-                  placeholder="Numéro de téléphone client" subtitle="Téléphone client"
-                  className="w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
+                  placeholder="Téléphone" subtitle="Téléphone client"
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
               </div>
               <div>
-                <label className="text-xs text-diana-brown mb-1 block">Date de livraison *</label>
+                <label className="text-[10px] text-diana-brown mb-0.5 block">Date livraison *</label>
                 <div className="relative">
-                  <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
+                  <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={13} />
                   <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)}
-                    className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 ${deliveryDate === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
+                    className={`w-full pl-9 pr-3 py-1.5 text-xs bg-diana-dark/30 border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 ${deliveryDate === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-diana-brown mb-1 block">Heure de livraison *</label>
+                <label className="text-[10px] text-diana-brown mb-0.5 block">Heure livraison *</label>
                 <div className="relative">
-                  <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
+                  <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={13} />
                   <input type="time" value={deliveryTime} onChange={(e) => setDeliveryTime(e.target.value)}
-                    className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 ${deliveryTime === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
+                    className={`w-full pl-9 pr-3 py-1.5 text-xs bg-diana-dark/30 border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 ${deliveryTime === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-diana-brown mb-1 block flex items-center gap-1.5"><FiFileText size={13}/> Note / Détails spéciaux</label>
-                <KeyboardTextarea value={note} onChange={setNote} rows={3}
-                  placeholder="Taille, saveur, allergies..." subtitle="Note / Détails spéciaux"
-                  className="w-full px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 resize-none" />
+                <label className="text-[10px] text-diana-brown mb-0.5 block flex items-center gap-1"><FiFileText size={11}/> Note</label>
+                <KeyboardTextarea value={note} onChange={setNote} rows={2}
+                  placeholder="Détails..." subtitle="Note"
+                  className="w-full px-3 py-1.5 text-xs bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 resize-none" />
               </div>
               {!isFormComplete && (
-                <p className="flex items-center gap-1.5 text-xs text-diana-danger"><FiAlertCircle size={13} /> Nom, date et heure de livraison requis (*)</p>
+                <p className="flex items-center gap-1 text-[10px] text-diana-danger"><FiAlertCircle size={11} /> Nom, date et heure requis</p>
               )}
             </div>
           </div>
         </aside>
 
         {/* CENTER: Catégories / Produits */}
-        <main className="flex-1 p-4 sm:p-8 overflow-y-auto lg:h-full">
+        <main className="flex-1 p-4 sm:p-5 overflow-y-auto lg:h-full">
           <AnimatePresence mode="wait">
             {!activeCategory ? (
               <motion.div key="categories" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-2">Nouvelle réservation</p>
-                <h2 className="font-fraunces text-3xl font-medium mb-8 text-diana-cream">Catégories</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-5">
+                <p className="text-[10px] tracking-[2px] uppercase text-diana-brown mb-1">Nouvelle réservation</p>
+                <h2 className="font-fraunces text-xl font-medium mb-5 text-diana-cream">Catégories</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
                   {CATEGORIES.map((cat, index) => (
                     <motion.button key={cat.id}
                       initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -317,13 +317,13 @@ export default function CommandesPage() {
                       onClick={() => { setActiveCategory(cat.id); setActiveSubcategory(null) }}
                       className="cat-card bg-diana-card border border-diana-border rounded-2xl overflow-hidden text-left cursor-pointer text-diana-cream hover:border-diana-gold/30">
                       {cat.image && (
-                        <div className="w-full h-28 sm:h-32 overflow-hidden bg-diana-darker">
+                        <div className="w-full h-20 sm:h-24 overflow-hidden bg-diana-darker">
                           <img src={cat.image} alt={cat.label} className="w-full h-full object-cover" loading="lazy" />
                         </div>
                       )}
-                      <div className="p-4 sm:p-5">
-                        <p className="font-fraunces text-base sm:text-lg font-medium mb-1">{cat.label}</p>
-                        <p className="text-xs text-diana-brown">
+                      <div className="p-3 sm:p-4">
+                        <p className="font-fraunces text-sm font-medium mb-0.5">{cat.label}</p>
+                        <p className="text-[10px] text-diana-brown">
                           {cat.children ? `${cat.children.length} sous-catégories` : `${PRODUCTS[cat.id]?.length || 0} produits`}
                         </p>
                       </div>
@@ -334,11 +334,11 @@ export default function CommandesPage() {
             ) : hasChildren && !activeSubcategory ? (
               <motion.div key={`${activeCategory}-children`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                 <button onClick={() => setActiveCategory(null)}
-                  className="flex items-center gap-2 text-diana-gold text-sm mb-6 hover:text-diana-goldLight transition-colors">
-                  <FiArrowLeft size={16} /> Retour aux catégories
+                  className="flex items-center gap-2 text-diana-gold text-sm mb-4 hover:text-diana-goldLight transition-colors">
+                  <FiArrowLeft size={16} /> Retour
                 </button>
-                <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">{currentCategory?.label}</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-5">
+                <h2 className="font-fraunces text-xl font-medium mb-4 text-diana-cream">{currentCategory?.label}</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
                   {currentCategory.children.map((sub, index) => (
                     <motion.button key={sub.id}
                       initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -346,13 +346,13 @@ export default function CommandesPage() {
                       onClick={() => setActiveSubcategory(sub.id)}
                       className="cat-card bg-diana-card border border-diana-border rounded-2xl overflow-hidden text-left cursor-pointer text-diana-cream hover:border-diana-gold/30">
                       {sub.image && (
-                        <div className="w-full h-28 sm:h-32 overflow-hidden bg-diana-darker">
+                        <div className="w-full h-20 sm:h-24 overflow-hidden bg-diana-darker">
                           <img src={sub.image} alt={sub.label} className="w-full h-full object-cover" loading="lazy" />
                         </div>
                       )}
-                      <div className="p-4 sm:p-5">
-                        <p className="font-fraunces text-base sm:text-lg font-medium mb-1">{sub.label}</p>
-                        <p className="text-xs text-diana-brown">{PRODUCTS[sub.id]?.length || 0} produits</p>
+                      <div className="p-3 sm:p-4">
+                        <p className="font-fraunces text-sm font-medium mb-0.5">{sub.label}</p>
+                        <p className="text-[10px] text-diana-brown">{PRODUCTS[sub.id]?.length || 0} produits</p>
                       </div>
                     </motion.button>
                   ))}
@@ -361,25 +361,25 @@ export default function CommandesPage() {
             ) : (
               <motion.div key={leafCategoryId} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                 <button onClick={() => hasChildren ? setActiveSubcategory(null) : setActiveCategory(null)}
-                  className="flex items-center gap-2 text-diana-gold text-sm mb-6 hover:text-diana-goldLight transition-colors">
-                  <FiArrowLeft size={16} /> Retour {hasChildren ? `à ${currentCategory.label}` : 'aux catégories'}
+                  className="flex items-center gap-2 text-diana-gold text-sm mb-4 hover:text-diana-goldLight transition-colors">
+                  <FiArrowLeft size={16} /> Retour {hasChildren ? `à ${currentCategory.label}` : ''}
                 </button>
-                <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">{leafCategory?.label}</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3 sm:gap-4">
+                <h2 className="font-fraunces text-xl font-medium mb-4 text-diana-cream">{leafCategory?.label}</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
                   {PRODUCTS[leafCategoryId]?.map((prod) => (
                     <motion.button key={prod.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                       whileHover={{ y: -3 }} whileTap={{ scale: 0.97 }} onClick={() => handleProductClick({ ...prod, category: leafCategoryId })}
-                      className="prod-card bg-diana-card border border-diana-border rounded-xl p-3 sm:p-5 text-left cursor-pointer text-diana-cream hover:border-diana-gold/50">
+                      className="prod-card bg-diana-card border border-diana-border rounded-xl p-3 text-left cursor-pointer text-diana-cream hover:border-diana-gold/50">
                       {prod.image && (
-                        <div className="w-full h-20 sm:h-28 mb-2 sm:mb-3 rounded-lg overflow-hidden bg-diana-dark">
+                        <div className="w-full h-16 sm:h-20 mb-2 rounded-lg overflow-hidden bg-diana-dark">
                           <img src={prod.image} alt={prod.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
                         </div>
                       )}
-                      <p className="text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2 leading-snug line-clamp-2">{prod.name}</p>
-                      <p className="font-fraunces text-base sm:text-lg text-diana-gold mb-1">
+                      <p className="text-xs font-semibold mb-1 leading-snug line-clamp-2">{prod.name}</p>
+                      <p className="font-fraunces text-sm text-diana-gold mb-0.5">
                         {prod.price > 0 ? `${prod.price.toFixed(2)} DH` : 'Prix sur devis'}{prod.unit === 'kg' ? ' / kg' : ''}
                       </p>
-                      <p className="text-[10px] sm:text-xs font-medium text-diana-brown">Stock: {stock[prod.id] ?? 0}</p>
+                      <p className="text-[10px] font-medium text-diana-brown">Stock: {stock[prod.id] ?? 0}</p>
                     </motion.button>
                   ))}
                 </div>
@@ -388,52 +388,58 @@ export default function CommandesPage() {
           </AnimatePresence>
         </main>
 
-        {/* RIGHT: Résumé de commande */}
-        <aside className="w-full lg:w-[360px] bg-[#FFE8D6] text-diana-brownDark flex flex-col shrink-0 lg:h-full lg:overflow-y-auto">
-          <div className="p-5 pb-3 flex items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C89A5C]/15 text-[#8B6A3A] text-xs font-semibold">
-              <FiUser size={13} /> {user ? `Commande ${user.name}` : 'Commande'}
+        {/* RIGHT: Résumé de commande - ORDER SUMMARY IS BIG, PAYMENT IS COMPACT */}
+        <aside className="w-full lg:w-[320px] bg-[#FFE8D6] text-diana-brownDark flex flex-col shrink-0 lg:h-full lg:overflow-hidden">
+
+          {/* Header - compact */}
+          <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2 border-b border-dashed border-[#D9A86C]">
+            <span className="flex items-center gap-1 px-2 py-1 rounded bg-[#C89A5C]/15 text-[#8B6A3A] text-[10px] font-semibold">
+              <FiUser size={11} /> {user ? `Cmd ${user.name}` : 'Commande'}
             </span>
             {user ? (
               <button onClick={() => { logout(); navigate('/') }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-diana-danger/10 text-diana-danger text-xs font-semibold hover:bg-diana-danger/20 transition-colors">
-                <FiLogOut size={13} /> Déconnexion
+                className="flex items-center gap-1 px-2 py-1 rounded bg-diana-danger/10 text-diana-danger text-[10px] font-semibold hover:bg-diana-danger/20 transition-colors">
+                <FiLogOut size={11} /> Déco
               </button>
             ) : (
               <Link to="/login"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C89A5C] text-white text-xs font-semibold hover:bg-[#B88443] transition-colors">
-                <FiLogIn size={13} /> Connexion
+                className="flex items-center gap-1 px-2 py-1 rounded bg-[#C89A5C] text-white text-[10px] font-semibold hover:bg-[#B88443] transition-colors">
+                <FiLogIn size={11} /> Co
               </Link>
             )}
           </div>
 
-          <div className="px-5">
-            <p className="font-fraunces text-lg font-medium text-diana-brownDark mb-3">Résumé de commande</p>
+          {/* === RÉSUMÉ DE COMMANDE - GRANDE PARTIE VISIBLE === */}
+          <div className="px-4 pt-2 pb-1">
+            <p className="font-fraunces text-sm font-medium text-diana-brownDark">Résumé de commande</p>
           </div>
 
-          <div className="flex-1 px-5 min-h-0 max-h-[35vh] lg:max-h-none overflow-y-auto">
+          <div className="flex-1 px-4 min-h-0 overflow-y-auto">
             {order.length === 0 ? (
-              <p className="text-sm italic text-[#B68C6C] py-6 text-center">Aucun article sélectionné</p>
+              <div className="flex flex-col items-center justify-center py-8 text-[#B68C6C]">
+                <FiFileText size={28} className="mb-2 opacity-40" />
+                <p className="text-xs italic">Aucun article</p>
+              </div>
             ) : (
               <div className="border-t border-dashed border-[#D9A86C] pt-2">
-                <div className="grid grid-cols-[1fr,auto,auto] gap-2 text-xs font-semibold text-diana-brownDark pb-2">
+                <div className="grid grid-cols-[1fr,auto,auto] gap-2 text-[10px] font-semibold text-diana-brownDark pb-1.5">
                   <span>Article</span><span>Qté</span><span className="text-right">Prix</span>
                 </div>
                 <AnimatePresence mode="popLayout">
                   {order.map((item) => (
                     <motion.div key={item.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -30 }}
-                      className="grid grid-cols-[1fr,auto,auto] gap-2 items-center py-2 border-b border-[#E7CCB4] text-sm">
+                      className="grid grid-cols-[1fr,auto,auto] gap-2 items-center py-1.5 border-b border-[#E7CCB4] text-xs">
                       <span className="truncate flex items-center gap-1">
                         {item.name}
-                        {(item.customNote || item.customImage) && <FiFileText size={11} className="text-emerald-600 shrink-0" title="Personnalisé" />}
+                        {(item.customNote || item.customImage) && <FiFileText size={9} className="text-emerald-600 shrink-0" title="Personnalisé" />}
                       </span>
                       <button onClick={() => handleEditOrderQty(item)}
-                        className="px-2 py-1 rounded-md border border-[#C89A5C] text-xs font-semibold hover:bg-[#C89A5C] hover:text-white transition-colors">
+                        className="px-1.5 py-0.5 rounded border border-[#C89A5C] text-[10px] font-semibold hover:bg-[#C89A5C] hover:text-white transition-colors">
                         {formatQty(item.qty)}{item.unit === 'kg' ? 'kg' : ''}
                       </button>
-                      <span className="flex items-center gap-1.5 justify-end">
+                      <span className="flex items-center gap-1 justify-end">
                         {itemTotal(item).toFixed(2)} DH
-                        <button onClick={() => removeItem(item.id)} className="text-diana-danger hover:text-red-700"><FiX size={13} /></button>
+                        <button onClick={() => removeItem(item.id)} className="text-diana-danger hover:text-red-700"><FiX size={11} /></button>
                       </span>
                     </motion.div>
                   ))}
@@ -442,44 +448,51 @@ export default function CommandesPage() {
             )}
           </div>
 
-          <div className="p-5 pt-3">
+          {/* === PARTIE PAIEMENT - PETITE ET COMPACTE === */}
+          <div className="p-3 pt-2 border-t border-dashed border-[#D9A86C] bg-[#FFE8D6] shrink-0">
+
+            {/* Cancel button - small */}
             <button onClick={handleCancelOrder}
-              className="w-full mb-4 py-2.5 rounded-xl text-sm font-semibold text-diana-danger bg-diana-danger/10 hover:bg-diana-danger/20 transition-colors">
+              className="w-full mb-2 py-1.5 rounded-lg text-[10px] font-semibold text-diana-danger bg-diana-danger/10 hover:bg-diana-danger/20 transition-colors">
               Annuler commande
             </button>
 
-            <div className="bg-white border border-[#E7CCB4] rounded-xl p-3.5 mb-4">
-              <div className="flex justify-between items-baseline mb-3">
-                <span className="font-fraunces text-sm text-diana-brownDark">Total</span>
-                <span className="font-fraunces text-2xl font-semibold text-diana-brownDark">{subtotal.toFixed(2)} <span className="text-sm font-normal">DH</span></span>
+            {/* Total & Avance - compact single line */}
+            <div className="bg-white border border-[#E7CCB4] rounded-lg p-2.5 mb-2">
+              <div className="flex justify-between items-baseline mb-1.5">
+                <span className="font-fraunces text-xs text-diana-brownDark">Total</span>
+                <span className="font-fraunces text-lg font-semibold text-diana-brownDark">{subtotal.toFixed(2)} <span className="text-[10px] font-normal">DH</span></span>
               </div>
 
-              <label className="text-xs text-[#8B6A3A] mb-1 block">Avance</label>
-              <NumericField value={avance} onChange={setAvance} placeholder="0.00" title="Avance" unit="DH"
-                className="w-full mb-3 px-3 py-2 text-sm bg-[#FFF6EC] border border-[#E7CCB4] rounded-lg text-diana-brownDark text-left focus:outline-none focus:border-[#C89A5C]" />
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[10px] text-[#8B6A3A] shrink-0">Avance</span>
+                <NumericField value={avance} onChange={setAvance} placeholder="0.00" title="Avance" unit="DH"
+                  className="flex-1 px-2 py-1 text-[10px] bg-[#FFF6EC] border border-[#E7CCB4] rounded text-diana-brownDark text-left focus:outline-none focus:border-[#C89A5C]" />
+              </div>
 
-              <div className="flex justify-between items-baseline pt-2 border-t border-[#E7CCB4]">
-                <span className="text-sm text-diana-brownDark">Reste à payer</span>
-                <span className="text-lg font-semibold text-diana-danger">{resteAPayer.toFixed(2)} DH</span>
+              <div className="flex justify-between items-baseline pt-1 border-t border-[#E7CCB4]">
+                <span className="text-[10px] text-diana-brownDark">Reste</span>
+                <span className="text-xs font-semibold text-diana-danger">{resteAPayer.toFixed(2)} DH</span>
               </div>
             </div>
 
-            <p className="text-xs text-[#8B6A3A] mb-2">
-              Mode de paiement actuel : <span className="font-medium text-diana-brownDark">{paymentMode === 'cash' ? 'Espèces' : paymentMode === 'card' ? 'TPE' : 'Non spécifié'}</span>
+            {/* Payment mode - very compact */}
+            <p className="text-[10px] text-[#8B6A3A] mb-1">
+              Mode: <span className="font-medium text-diana-brownDark">{paymentMode === 'cash' ? 'Espèces' : paymentMode === 'card' ? 'TPE' : '—'}</span>
             </p>
-            <div className="grid grid-cols-2 gap-2.5 mb-4">
+            <div className="grid grid-cols-2 gap-1.5 mb-2">
               <button onClick={() => setPaymentMode('cash')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${paymentMode === 'cash' ? 'bg-[#C89A5C] text-white' : 'bg-[#C89A5C]/15 text-[#8B6A3A] border border-[#C89A5C]/40'}`}>
-                <FiDollarSign size={15} /> Espèces
+                className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-semibold transition-all active:scale-[0.98] ${paymentMode === 'cash' ? 'bg-[#C89A5C] text-white' : 'bg-[#C89A5C]/15 text-[#8B6A3A] border border-[#C89A5C]/40'}`}>
+                <FiDollarSign size={12} /> Espèces
               </button>
               <button onClick={() => setPaymentMode('card')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${paymentMode === 'card' ? 'bg-diana-brownDark text-white' : 'bg-diana-brownDark/10 text-diana-brownDark border border-diana-brownDark/20'}`}>
-                <FiCreditCard size={15} /> TPE
+                className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-semibold transition-all active:scale-[0.98] ${paymentMode === 'card' ? 'bg-diana-brownDark text-white' : 'bg-diana-brownDark/10 text-diana-brownDark border border-diana-brownDark/20'}`}>
+                <FiCreditCard size={12} /> TPE
               </button>
             </div>
 
             <button onClick={handleValidate} disabled={!canValidate}
-              className="w-full py-3.5 rounded-xl text-sm font-semibold bg-diana-brownDark text-white hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
+              className="w-full py-2.5 rounded-xl text-xs font-semibold bg-diana-brownDark text-white hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
               Valider la commande
             </button>
           </div>
