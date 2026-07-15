@@ -34,8 +34,7 @@
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
-}
-@media print {
+}@media print {
 
   html,
   body {
@@ -44,7 +43,6 @@
     padding: 0;
     background: #fff;
     color: #000;
-
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -60,23 +58,95 @@
 
   .receipt-print {
     position: absolute;
-    left: 0;
     top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+
     width: 72mm;
-    padding: 4mm;
-    background: white;
-    color: black;
+    padding: 5mm;
+
+    background: #fff;
+    color: #000;
+
     font-family: "Courier New", monospace;
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 1.35;
+
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+
     box-shadow: none;
     border: none;
+  }
+
+  /* Nom de la pâtisserie */
+  .receipt-print h1 {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 900;
+    margin: 0 0 4px;
+  }
+
+  /* Date + ticket */
+  .receipt-print h2,
+  .receipt-print h3,
+  .receipt-print p {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    margin: 2px 0;
+  }
+
+  /* Produits */
+  .receipt-print table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+
+  .receipt-print td {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 3px 0;
+  }
+
+  .receipt-print td:first-child {
+    text-align: left;
+  }
+
+  .receipt-print td:last-child {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* Lignes */
+  .receipt-print hr {
+    border: none;
+    border-top: 1px dashed #000;
+    margin: 8px 0;
+  }
+
+  /* Total */
+  .receipt-print .total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    font-size: 17px;
+    font-weight: 900;
+
+    margin-top: 10px;
+  }
+
+  /* Merci */
+  .receipt-print .footer {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 13px;
+    font-weight: 700;
   }
 
   @page {
     size: 80mm auto;
     margin: 0;
   }
-
 }
