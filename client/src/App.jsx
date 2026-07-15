@@ -17,6 +17,7 @@ import AchatsPage from './pages/AchatsPage'
 import BilanPage from './pages/BilanPage'
 import BilanCaissePage from './pages/BilanCaissePage'
 import SuiviCommandesPage from './pages/SuiviCommandesPage'
+import CommandeRzizaPage from './pages/CommandeRzizaPage'
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, isAuthenticated, isLoading } = useAuth()
@@ -51,6 +52,13 @@ function SuiviRoute() {
   return <SuiviCommandesPage />
 }
 
+function CommandeRzizaRoute() {
+  const { user, isLoading } = useAuth()
+  if (isLoading) return <div className="min-h-screen bg-diana-dark flex items-center justify-center text-diana-gold">Chargement...</div>
+  if (user?.role === 'preparateur') return <Navigate to="/preparateur" replace />
+  return <CommandeRzizaPage />
+}
+
 export default function App() {
   return (
     <Routes>
@@ -63,6 +71,7 @@ export default function App() {
         <Route path="produits" element={<ProtectedRoute allowedRoles={['admin']}><ProduitsPage /></ProtectedRoute>} />
         <Route path="commandes" element={<CommandeRoute />} />
         <Route path="commandes/suivi" element={<SuiviRoute />} />
+        <Route path="commande-rziza" element={<CommandeRzizaRoute />} />
         <Route path="historique" element={<ProtectedRoute allowedRoles={['admin']}><HistoriquePage /></ProtectedRoute>} />
         <Route path="ventes" element={<ProtectedRoute allowedRoles={['admin']}><VentesPage /></ProtectedRoute>} />
         <Route path="remboursement" element={<ProtectedRoute allowedRoles={['admin']}><RemboursementPage /></ProtectedRoute>} />
