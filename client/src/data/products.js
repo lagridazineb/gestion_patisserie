@@ -243,9 +243,6 @@ export const PRODUCTS = {
     { id: "pa3", name: "Cheesecake", price: 18.00, unit: "piece", image: "https://vente.gstdianna.ma/images/chezcakeorio.jpg", stock: 0 },
     { id: "pa4", name: "Chocolat noir", price: 15.00, unit: "piece", image: "https://vente.gstdianna.ma/images/chococoeurentremet.jpg", stock: 0 },
     { id: "pa5", name: "Coeur", price: 15.00, unit: "piece", image: "https://vente.gstdianna.ma/images/bolefromboiz.jpg", stock: 0 },
-    { id: "pa6", name: "Tranche 18", price: 18.00, unit: "piece", image: "tranche18.jpeg", stock: 0 },
-    { id: "pa7", name: "Tranche 20", price: 20.00, unit: "piece", image: "", stock: 0 },
-    { id: "pa8", name: "Tranche 13", price: 13.00, unit: "piece", image: "", stock: 0 },
   ],
   patisserie_cafe: [
     { id: "pc1", name: "Boule", price: 18.00, unit: "piece", image: "https://vente.gstdianna.ma/images/bolchocolat.jpg", stock: 0 },
@@ -262,7 +259,7 @@ export const PRODUCTS = {
     { id: "pc12", name: "Tranche special", price: 14.50, unit: "piece", image: "https://vente.gstdianna.ma/images/snikers.jpg", stock: 0 },
   ],
   sale: [
-    { id: "s1", name: "Pizza", price: 6.00, unit: "piece", image: "https://vente.gstdianna.ma/images/pizza.jpg", stock: 0 },
+    { id: "s1", name: "Pizza", price: 7.00, unit: "piece", image: "https://vente.gstdianna.ma/images/pizza.jpg", stock: 0 },
     { id: "s2", name: "Briwat poulet", price: 12.00, unit: "piece", image: "https://vente.gstdianna.ma/images/briwatpoulet.jpg", stock: 0 },
     { id: "s3", name: "Nem poulet", price: 12.00, unit: "piece", image: "https://vente.gstdianna.ma/images/nempoulet.jpg", stock: 0 },
     { id: "s4", name: "Nem poulet épinards", price: 12.00, unit: "piece", image: "https://vente.gstdianna.ma/images/nempouletepinag.jpg", stock: 0 },
@@ -298,8 +295,40 @@ export const ALL_PRODUCTS = Object.entries(PRODUCTS).flatMap(([catId, prods]) =>
   prods.map((p) => ({ ...p, category: catId }))
 );
 
+// Combine le catalogue de base (figé dans ce fichier) avec la surcouche renvoyée par
+// GET /api/products (produits ajoutés par l'admin, modifications, masquages), pour obtenir
+// la liste "réellement à jour" des produits. Fonction pure : ne modifie rien, ne fait aucun appel.
+export function mergeProductOverlay({ customProducts = [], edits = [], deletedIds = [] } = {}) {
+  const editsById = Object.fromEntries(edits.map((e) => [e.productId, e]))
+  const deletedSet = new Set(deletedIds)
+
+  const base = ALL_PRODUCTS
+    .filter((p) => !deletedSet.has(p.id))
+    .map((p) => {
+      const edit = editsById[p.id]
+      if (!edit) return p
+      return {
+        ...p,
+        name: edit.name ?? p.name,
+        price: edit.price ?? p.price,
+        category: edit.category ?? p.category,
+        image: edit.image !== undefined && edit.image !== null ? edit.image : p.image,
+      }
+    })
+
+  const custom = customProducts
+    .filter((p) => !deletedSet.has(p.id))
+    .map((p) => ({ unit: 'piece', stock: 0, ...p }))
+
+  return [...base, ...custom]
+}
+
+// Catégories de gâteaux pour lesquelles on peut ajouter une personnalisation
+// (texte à écrire sur le gâteau + photo de référence, ex: anniversaire)
 export const CUSTOMIZABLE_CATEGORIES = ["cake_design", "entremet", "gateaux_kg"];
 
+// Certains ateliers couvrent plusieurs catégories de produits à la fois.
+// Le préparateur "Pâtisserie" gère aussi les Entremets (même stock/production).
 export const ATELIER_CATEGORY_GROUPS = {
   patisserie: ["patisserie", "entremet", "gateaux_kg"],
 };
@@ -308,6 +337,7 @@ export function getAtelierCategories(atelier) {
   return ATELIER_CATEGORY_GROUPS[atelier] || [atelier];
 }
 
+// Composition du "Plateau sale" (salé) : liste unique, sélection d'un nombre fixe d'articles
 export const SALE_PLATEAU_COMPONENTS = [
   { id: "sale_minipizza", name: "Mini Pizza", arabic: "ميني بيتزا" },
   { id: "sale_bastilla_poulet", name: "Bastilla poulet", arabic: "بيسطيلة دجاج" },
@@ -318,6 +348,9 @@ export const SALE_PLATEAU_COMPONENTS = [
   { id: "sale_briouat_poulet", name: "Briouat poulet", arabic: "بروات دجاج" },
 ];
 
+// Les plateaux de Gâteau Marocain n'ont pas leur propre stock : ils sont composés
+// d'Amande (g2) et de Sable (g3) en kg. Vendre un plateau déduit directement le stock
+// d'Amande/Sable selon SON grammage exact (pas une estimation par pièce).
 export const AMANDE_KG_ID = "g2"
 export const SABLE_KG_ID = "g3"
 // amandeKg / sableKg = poids réel (en kg) d'amande / de sable utilisé par plateau vendu.
@@ -334,6 +367,10 @@ export const PLATEAU_COMPOSITION = {
 export const SALE_PLATEAU_COMPOSITIONS = {
   s14: 6, // Plateau sale
 };
+
+// --- Cake Design : "Layer hXX" ---
+// Chaque type "Layer hXX" (hauteur) propose 5 tailles (diamètre 10 à 30), chacune à un prix
+// fixe = diamètre × 10 DH (10 -> 100DH, 15 -> 150DH, 20 -> 200DH, 25 -> 250DH, 30 -> 300DH).
 export const LAYER_DIAMETERS = [10, 15, 20, 25, 30]
 export function getLayerVariants(layerHeight) {
   return LAYER_DIAMETERS.map((d) => ({
@@ -399,6 +436,11 @@ export const MOROCCAN_CAKE_COMPOSITIONS = {
   g15: { amande: 2, sable: 2 },
   g16: { amande: 1, sable: 3 },
   g17: { amande: 1, sable: 5 },
+  // Grand plateau amande / sable : même sélection (liste de saveurs) que Mini plateau,
+  // avec un nombre de pièces adapté au format "grand" (~2x le mini). À ajuster ici si le
+  // nombre exact de pièces par grand plateau est différent.
+  g18: { amande: 8, sable: 0 }, // Grand plateau amande
+  g19: { amande: 0, sable: 8 }, // Grand plateau sable
 };
 
 export const MOROCCAN_CAKE_DIVISION_TYPES = [
@@ -407,7 +449,9 @@ export const MOROCCAN_CAKE_DIVISION_TYPES = [
   "Seulement Gazelle"
 ];
 
+// Produits vendus au kg qui utilisent la composition générique "diviser en combien de
+// sortes" (1 à 12), chacun avec sa propre liste de saveurs.
 export const MOROCCAN_GENERIC_KG_COMPONENTS = {
-  g2: MOROCCAN_AMANDE_COMPONENTS,
-  g3: MOROCCAN_SABLE_COMPONENTS, 
+  g2: MOROCCAN_AMANDE_COMPONENTS, // Amande kg
+  g3: MOROCCAN_SABLE_COMPONENTS,  // Sable kg
 };
