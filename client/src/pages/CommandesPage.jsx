@@ -526,7 +526,7 @@ export default function CommandesPage() {
                 <h3 className="font-fraunces text-xl font-medium">Commande enregistrée</h3>
                 <p className="text-sm text-[#8B6A3A] mt-1">Reçu à remettre au client</p>
               </div>
-              <div className="bg-white rounded-xl p-4 mb-6 text-xs border border-[#E7CCB4]">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-[#E7CCB4]">
                 <div className="text-center border-b border-dashed border-[#E7CCB4] pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                   <p className="text-[#8B6A3A]">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
