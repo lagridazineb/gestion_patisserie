@@ -387,7 +387,7 @@ export default function POSPage() {
                 <h3 className="font-fraunces text-xl font-medium">Paiement réussi !</h3>
                 <p className="text-sm text-diana-brown mt-1">{paymentType === 'cash' ? 'Paiement en espèces' : 'Paiement par carte'}</p>
               </div>
-              <div className="bg-white rounded-xl p-4 mb-6 text-xs border border-diana-creamDark">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-diana-creamDark">
                 <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                   <p className="text-diana-brown">{new Date().toLocaleDateString('fr-FR')} {new Date().toLocaleTimeString('fr-FR')}</p>
@@ -405,8 +405,9 @@ export default function POSPage() {
                     <div className="flex justify-between text-emerald-700 mt-1"><span>Monnaie rendue</span><span>{changeGiven.toFixed(2)} DH</span></div>
                   )}
                 </div>
+                <p className="text-center text-diana-brown mt-3 pt-2 border-t border-dashed border-diana-creamDark">Merci de votre visite !</p>
               </div>
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-2.5 print:hidden">
                 <button onClick={handlePrint}
                   className="flex items-center justify-center gap-2 bg-diana-dark text-diana-cream py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
                   <FiPrinter size={16} /> Imprimer le reçu
@@ -462,7 +463,7 @@ export default function POSPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4" onClick={() => setRzizaBon(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
                 <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                   <p className="text-diana-brown">Bon de livraison — Rziza</p>
@@ -498,7 +499,7 @@ export default function POSPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setClearReceipt(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
                 <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                   <p className="text-diana-brown">{clearReceipt.label}</p>
