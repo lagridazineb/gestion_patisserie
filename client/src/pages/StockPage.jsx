@@ -10,6 +10,7 @@ import {
   removeProductionEntry, sameDay, getRzizaDeliveries,
 } from '../data/stockStore'
 import NumericField from '../components/NumericField'
+import KeyboardField from '../components/KeyboardField'
 
 export default function StockPage() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -247,8 +248,8 @@ export default function StockPage() {
             )}
             <div className="relative max-w-md mb-6">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
-              <input type="text" placeholder="Rechercher un produit..." value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+              <KeyboardField placeholder="Rechercher un produit..." value={searchQuery} onChange={setSearchQuery}
+                subtitle="Recherche produit"
                 className="w-full pl-12 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors" />
             </div>
 
@@ -421,8 +422,8 @@ export default function StockPage() {
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <div className="relative flex-1 min-w-[200px]">
                 <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
-                <input type="text" placeholder="Rechercher (produit, préparateur...)" value={productionSearch}
-                  onChange={(e) => setProductionSearch(e.target.value)}
+                <KeyboardField placeholder="Rechercher (produit, préparateur...)" value={productionSearch} onChange={setProductionSearch}
+                  subtitle="Recherche"
                   className="w-full pl-10 pr-3 py-2.5 text-sm bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
               </div>
               <div className="flex items-center gap-2">
