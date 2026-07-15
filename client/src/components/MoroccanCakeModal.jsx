@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiX, FiCheck } from 'react-icons/fi'
+import { FiX } from 'react-icons/fi'
+import KeyboardField from '../components/KeyboardField'
 import {
   MOROCCAN_SABLE_COMPONENTS,
   MOROCCAN_AMANDE_COMPONENTS,
@@ -11,7 +12,7 @@ import {
 
 export default function MoroccanCakeModal({ open, product, qty, onConfirm, onCancel }) {
   const [targetQty, setTargetQty] = useState(qty || 1)
-  
+
   // States for Cornet Gazelle
   const [divisionType, setDivisionType] = useState('Cornet ET Gazelle')
   const [comp1, setComp1] = useState('')
@@ -120,7 +121,7 @@ export default function MoroccanCakeModal({ open, product, qty, onConfirm, onCan
       customNote = `Composition (${numSortes} sorte${numSortes > 1 ? 's' : ''}) : ` +
         sorteRows.map((row) => `${row.component} (${(parseFloat(row.qty) || 0).toFixed(2)} kg)`).join(', ')
     }
-    
+
     onConfirm({ customNote }, targetQty)
   }
 
@@ -158,7 +159,7 @@ export default function MoroccanCakeModal({ open, product, qty, onConfirm, onCan
                   <p className="text-xs text-diana-brown text-center leading-relaxed">
                     Veuillez sélectionner le type de division et détailler la composition en Kilogrammes. Le total doit faire {targetQty.toFixed(2)} kg.
                   </p>
-                  
+
                   {/* Division Type */}
                   <div className="bg-diana-dark/10 border border-diana-border/40 p-4 rounded-xl">
                     <label className="block text-xs font-semibold text-center text-diana-brown mb-1.5 uppercase tracking-wide">
@@ -193,9 +194,14 @@ export default function MoroccanCakeModal({ open, product, qty, onConfirm, onCan
                         <option value="Cornet">Cornet</option>
                         <option value="Gazelle">Gazelle</option>
                       </select>
-                      <input type="number" step="any" min="0" placeholder="0.00" value={comp1Qty}
-                        onChange={(e) => setComp1Qty(e.target.value)}
-                        className="w-full px-3 py-2 bg-diana-dark border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 text-sm" />
+                      <KeyboardField
+                        value={comp1Qty}
+                        onChange={setComp1Qty}
+                        placeholder="0.00"
+                        title="Quantité composant 1"
+                        unit="kg"
+                        className="w-full px-3 py-2 bg-diana-dark border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 text-sm"
+                      />
                     </div>
 
                     {/* Row 2 (only shown if not "Seulement ...") */}
@@ -207,9 +213,14 @@ export default function MoroccanCakeModal({ open, product, qty, onConfirm, onCan
                           <option value="Cornet">Cornet</option>
                           <option value="Gazelle">Gazelle</option>
                         </select>
-                        <input type="number" step="any" min="0" placeholder="0.00" value={comp2Qty}
-                          onChange={(e) => setComp2Qty(e.target.value)}
-                          className="w-full px-3 py-2 bg-diana-dark border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 text-sm" />
+                        <KeyboardField
+                          value={comp2Qty}
+                          onChange={setComp2Qty}
+                          placeholder="0.00"
+                          title="Quantité composant 2"
+                          unit="kg"
+                          className="w-full px-3 py-2 bg-diana-dark border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 text-sm"
+                        />
                       </div>
                     )}
                   </div>
@@ -317,9 +328,14 @@ export default function MoroccanCakeModal({ open, product, qty, onConfirm, onCan
                             <option key={c.id} value={c.arabic}>{c.arabic}</option>
                           ))}
                         </select>
-                        <input type="number" step="any" min="0" placeholder="0.00" value={row.qty}
-                          onChange={(e) => updateSorteRow(i, 'qty', e.target.value)}
-                          className="w-full px-3 py-2 bg-diana-dark border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 text-sm" />
+                        <KeyboardField
+                          value={row.qty}
+                          onChange={(val) => updateSorteRow(i, 'qty', val)}
+                          placeholder="0.00"
+                          title={`Quantité composant ${i + 1}`}
+                          unit="kg"
+                          className="w-full px-3 py-2 bg-diana-dark border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 text-sm"
+                        />
                       </div>
                     ))}
                   </div>
@@ -342,9 +358,14 @@ export default function MoroccanCakeModal({ open, product, qty, onConfirm, onCan
                     <label className="block text-xs font-bold text-diana-brown mb-1.5">
                       Quantité ({product.unit === 'kg' ? 'Kg' : 'pièces'})
                     </label>
-                    <input type="number" min="0.01" step="any" value={targetQty}
-                      onChange={(e) => setTargetQty(parseFloat(e.target.value) || 0)}
-                      className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50 text-sm font-semibold" required />
+                    <KeyboardField
+                      value={String(targetQty)}
+                      onChange={(val) => setTargetQty(parseFloat(val) || 0)}
+                      placeholder="0.00"
+                      title="Quantité"
+                      unit={product.unit === 'kg' ? 'kg' : 'pièce(s)'}
+                      className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50 text-sm font-semibold"
+                    />
                   </div>
                 </div>
               )}
@@ -356,7 +377,7 @@ export default function MoroccanCakeModal({ open, product, qty, onConfirm, onCan
                 className="py-3 rounded-xl text-sm font-bold text-white bg-gray-600 hover:bg-gray-700 transition-colors uppercase tracking-wider">
                 Annuler
               </button>
-              
+
               {isCornetGazelle && (
                 <button onClick={handleConfirm} disabled={!isGazelleValid}
                   className={`py-3 rounded-xl text-sm font-bold transition-all uppercase tracking-wider ${isGazelleValid ? 'bg-diana-gold text-white hover:brightness-110' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>
