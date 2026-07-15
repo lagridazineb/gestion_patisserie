@@ -1,240 +1,286 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiPlus, FiTrash2, FiShoppingBag, FiPrinter, FiPackage, FiCalendar } from 'react-icons/fi'
-import { getPurchases, addPurchase, removePurchase, subscribeToStockUpdates, getRzizaDeliveries, addRzizaDelivery, removeRzizaDelivery, sameDay } from '../data/stockStore'
+import { FiSearch, FiRotateCcw, FiCheckCircle, FiAlertCircle, FiCalendar, FiShoppingBag, FiPackage } from 'react-icons/fi'
+import {
+  findSaleByTicket, getRefundableQty, processRefund,
+  findReservationByTicket, getCommandeRefundableQty, processCommandeRefund,
+  getReservations, getRefunds, getSalesLog, subscribeToStockUpdates, sameDay,
+} from '../data/stockStore'
 import NumericField from '../components/NumericField'
 import KeyboardField from '../components/KeyboardField'
 import { useNotification } from '../context/NotificationContext'
 
-export default function AchatsPage() {
+function formatQty(qty) {
+  const n = Number(qty) || 0
+  return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+}
+
+export default function RemboursementPage() {
   const { addNotification } = useNotification()
-  const [purchases, setPurchases] = useState([])
-  const [rziza, setRziza] = useState([])
-  const [rzizaBon, setRzizaBon] = useState(null)
-  const [rzizaDate, setRzizaDate] = useState('')
+  const [tab, setTab] = useState('vente') // 'vente' | 'commande'
+  const [ticketInput, setTicketInput] = useState('')
+  const [sale, setSale] = useState(null)
+  const [reservation, setReservation] = useState(null)
+  const [notFound, setNotFound] = useState(false)
+  const [refundQtys, setRefundQtys] = useState({}) // { itemId: qty à rembourser }
+  const [calDate, setCalDate] = useState('')
+
+  const [refunds, setRefunds] = useState([])
+  const [reservations, setReservations] = useState([])
+  const [sales, setSales] = useState([])
   const refresh = useCallback(async () => {
-    const [purchasesData, rzizaData] = await Promise.all([getPurchases(), getRzizaDeliveries()])
-    setPurchases(purchasesData)
-    setRziza(rzizaData)
+    const [refundsData, reservationsData, salesData] = await Promise.all([getRefunds(), getReservations(), getSalesLog()])
+    setRefunds(refundsData)
+    setReservations(reservationsData)
+    setSales(salesData)
   }, [])
   useEffect(() => {
     refresh()
     return subscribeToStockUpdates(refresh)
   }, [refresh])
 
-  const [label, setLabel] = useState('')
-  const [supplier, setSupplier] = useState('')
-  const [amount, setAmount] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [note, setNote] = useState('')
+  const current = tab === 'vente' ? sale : reservation
 
-  const [rzizaQty, setRzizaQty] = useState('')
-  const [rzizaPrixAchat, setRzizaPrixAchat] = useState('3.5')
+  const switchTab = (t) => {
+    setTab(t); setSale(null); setReservation(null); setNotFound(false); setRefundQtys({}); setTicketInput('')
+  }
 
-  const handleAddRziza = async (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault()
-    const qty = parseFloat(rzizaQty)
-    if (isNaN(qty) || qty <= 0) {
-      addNotification('Quantité invalide', 'error')
-      return
+    if (tab === 'vente') {
+      const found = await findSaleByTicket(ticketInput)
+      setSale(found); setReservation(null)
+      setNotFound(!found)
+    } else {
+      const found = await findReservationByTicket(ticketInput)
+      setReservation(found); setSale(null)
+      setNotFound(!found)
     }
-    const entry = await addRzizaDelivery({ quantity: qty, prixAchat: parseFloat(rzizaPrixAchat) || 3.5, prixVente: 5.5 })
-    setRzizaQty('')
-    refresh()
-    setRzizaBon(entry)
-    addNotification('Livraison Rziza enregistrée', 'success')
+    setRefundQtys({})
   }
 
-  const handleRemoveRziza = async (id) => {
-    await removeRzizaDelivery(id)
-    refresh()
-    addNotification('Livraison Rziza supprimée', 'success')
+  const pickReservation = (r) => {
+    setReservation(r); setSale(null); setNotFound(false); setRefundQtys({})
+    setTicketInput(String(r.ticketNumber))
   }
 
-  const handleAdd = async (e) => {
-    e.preventDefault()
-    const amt = parseFloat(amount)
-    if (!label.trim() || isNaN(amt) || amt <= 0) {
-      addNotification('Renseignez au moins une désignation et un montant valide', 'error')
-      return
+  const pickSale = (s) => {
+    setSale(s); setReservation(null); setNotFound(false); setRefundQtys({})
+    setTicketInput(String(s.ticketNumber))
+  }
+
+  const setQtyFor = (itemId, value, max) => {
+    let v = parseFloat(value)
+    if (isNaN(v) || v < 0) v = 0
+    if (v > max) v = max
+    setRefundQtys((prev) => ({ ...prev, [itemId]: v }))
+  }
+
+  const setMaxFor = (itemId, max) => setRefundQtys((prev) => ({ ...prev, [itemId]: max }))
+
+  const refundEntries = current ? current.items.map((item) => {
+    const remaining = tab === 'vente' ? getRefundableQty(current, item.id) : getCommandeRefundableQty(current, item.id)
+    return { item, remaining, qty: refundQtys[item.id] || 0 }
+  }) : []
+
+  const totalRefund = refundEntries.reduce((sum, r) => sum + (r.qty || 0) * (Number(r.item.price) || 0), 0)
+  const hasSelection = refundEntries.some((r) => r.qty > 0)
+
+  const handleConfirmRefund = async () => {
+    const items = refundEntries.filter((r) => r.qty > 0).map((r) => ({ id: r.item.id, qty: r.qty }))
+    const result = tab === 'vente' ? await processRefund(sale.ticketNumber, items) : await processCommandeRefund(reservation.ticketNumber, items)
+    if (result.success) {
+      addNotification(`Remboursement de ${result.amount.toFixed(2)} DH effectué`, 'success')
+      if (tab === 'vente') setSale(result.sale)
+      else setReservation(result.reservation)
+      setRefundQtys({})
+      refresh()
+    } else {
+      addNotification(result.error || 'Erreur lors du remboursement', 'error')
     }
-    await addPurchase({ label: label.trim(), supplier: supplier.trim(), amount: amt, date, note: note.trim() })
-    addNotification('Achat enregistré', 'success')
-    setLabel(''); setSupplier(''); setAmount(''); setNote('')
-    refresh()
   }
 
-  const handleRemove = async (id) => {
-    await removePurchase(id)
-    refresh()
-    addNotification('Achat supprimé', 'success')
-  }
+  // Toutes les commandes ayant reçu une avance, filtrables par date — pour retrouver un
+  // "ticket d'avance" sans connaître son numéro par cœur.
+  const avanceTickets = useMemo(() => {
+    const list = reservations.filter((r) => (r.avanceInitiale ?? r.avance ?? 0) > 0)
+    if (!calDate) return list
+    return list.filter((r) => sameDay(r.createdAt, calDate))
+  }, [reservations, calDate])
 
-  const total = purchases.reduce((sum, p) => sum + p.amount, 0)
-  const totalToday = purchases.filter((p) => p.date === new Date().toISOString().slice(0, 10)).reduce((sum, p) => sum + p.amount, 0)
-
-  const filteredRziza = useMemo(() => {
-    if (!rzizaDate) return rziza
-    return rziza.filter((r) => sameDay(r.timestamp, rzizaDate))
-  }, [rziza, rzizaDate])
-  const rzizaTotalDu = filteredRziza.reduce((s, r) => s + r.montantDu, 0)
+  // Tous les tickets de caisse, filtrables par date — pour retrouver un ticket sans en
+  // connaître le numéro par cœur.
+  const dateSales = useMemo(() => {
+    if (!calDate) return sales
+    return sales.filter((s) => sameDay(s.timestamp, calDate))
+  }, [sales, calDate])
 
   return (
     <div className="h-full overflow-y-auto p-8">
       <div className="max-w-4xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">Admin</p>
-          <h2 className="font-fraunces text-3xl font-medium text-diana-cream">Gestion des achats</h2>
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+          <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">Caisse</p>
+          <h2 className="font-fraunces text-3xl font-medium text-diana-cream">Remboursement</h2>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          <div className="bg-diana-card border border-diana-border rounded-2xl p-5">
-            <p className="text-xs text-diana-brown mb-1">Total des achats (tout historique)</p>
-            <p className="font-fraunces text-2xl text-diana-cream">{total.toFixed(2)} DH</p>
-          </div>
-          <div className="bg-diana-card border border-diana-border rounded-2xl p-5">
-            <p className="text-xs text-diana-brown mb-1">Achats aujourd'hui</p>
-            <p className="font-fraunces text-2xl text-diana-accentLight">{totalToday.toFixed(2)} DH</p>
-          </div>
+        <div className="flex bg-diana-card border border-diana-border rounded-xl p-1 mb-6 w-fit">
+          <button onClick={() => switchTab('vente')}
+            className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${tab === 'vente' ? 'bg-diana-gold text-diana-darker' : 'text-diana-brown hover:text-diana-cream'}`}>
+            <FiShoppingBag size={12} /> Vente (ticket caisse)
+          </button>
+          <button onClick={() => switchTab('commande')}
+            className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${tab === 'commande' ? 'bg-diana-gold text-diana-darker' : 'text-diana-brown hover:text-diana-cream'}`}>
+            <FiPackage size={12} /> Commande
+          </button>
         </div>
 
-        <form onSubmit={handleAdd} className="bg-diana-card border border-diana-border rounded-2xl p-5 mb-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <KeyboardField value={label} onChange={setLabel} placeholder="Désignation (ex: Farine 25kg)" subtitle="Désignation"
-            className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
-          <KeyboardField value={supplier} onChange={setSupplier} placeholder="Fournisseur (facultatif)" subtitle="Fournisseur"
-            className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
-          <NumericField value={amount} onChange={setAmount} placeholder="Montant (DH)" title="Montant" unit="DH"
-            className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream text-left focus:outline-none focus:border-diana-gold/50" />
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50" />
-          <KeyboardField value={note} onChange={setNote} placeholder="Note (facultatif)" subtitle="Note"
-            className="sm:col-span-2 px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
+        <form onSubmit={handleSearch} className="flex items-center gap-2 mb-4 max-w-md">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
+            <KeyboardField value={ticketInput} onChange={setTicketInput}
+              placeholder={tab === 'vente' ? 'Numéro de ticket (ex: 12)' : 'Numéro de commande (ex: 30)'}
+              subtitle="Numéro"
+              className="w-full pl-11 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
+          </div>
           <button type="submit"
-            className="sm:col-span-2 flex items-center justify-center gap-2 bg-diana-gold text-diana-dark py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
-            <FiPlus size={16} /> Ajouter l'achat
+            className="px-5 py-3 bg-diana-gold text-diana-dark rounded-xl text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
+            Rechercher
           </button>
         </form>
 
-        {/* RZIZA — fournisseur externe : la personne vient vendre son Rziza chez nous.
-            L'achat est payé par l'admin personnellement, jamais par la caisse : aucune
-            influence sur le solde net ni sur les achats généraux ci-dessous. */}
-        <div className="bg-diana-card border border-diana-gold/30 rounded-2xl p-5 mb-8">
-          <div className="flex items-center gap-2 mb-1">
-            <FiPackage className="text-diana-gold" size={16} />
-            <h3 className="font-fraunces text-lg text-diana-cream">Rziza — fournisseur externe</h3>
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <FiCalendar className="text-diana-brown" size={15} />
+            <input type="date" value={calDate} onChange={(e) => setCalDate(e.target.value)}
+              className="px-3 py-2 text-sm bg-diana-card border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50" />
+            {calDate && (
+              <button onClick={() => setCalDate('')} className="text-xs text-diana-brown hover:text-diana-gold underline">Toutes les dates</button>
+            )}
+            <span className="text-xs text-diana-brown ml-1">
+              {tab === 'vente'
+                ? `Tous les tickets de caisse ${calDate ? 'de ce jour-là' : ''} (${dateSales.length})`
+                : `Tous les tickets d'avance ${calDate ? 'de ce jour-là' : ''} (${avanceTickets.length})`}
+            </span>
           </div>
-          <p className="text-xs text-diana-brownLight mb-4">
-            Achat payé personnellement par l'admin, hors caisse — n'affecte ni le solde net ni les achats généraux. Vente en caisse : 5.50 DH. La quantité livrée est ajoutée directement au stock de la caisse (accessible aussi côté caissier, sans code).
-          </p>
-          <form onSubmit={handleAddRziza} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-            <NumericField value={rzizaQty} onChange={setRzizaQty} placeholder="Quantité livrée" title="Quantité livrée" unit="pièce(s)"
-              className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream text-left focus:outline-none focus:border-diana-gold/50" />
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-diana-brown shrink-0">Prix d'achat/u.</label>
-              <NumericField value={rzizaPrixAchat} onChange={setRzizaPrixAchat} title="Prix d'achat / unité" unit="DH"
-                className="flex-1 min-w-0 px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream text-left focus:outline-none focus:border-diana-gold/50" />
-            </div>
-            <button type="submit"
-              className="flex items-center justify-center gap-2 bg-diana-gold text-diana-dark py-2.5 rounded-xl text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
-              <FiPlus size={15} /> Enregistrer + Bon
-            </button>
-          </form>
-
-          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-            <div className="flex items-center gap-2">
-              <FiCalendar className="text-diana-brown" size={14} />
-              <input type="date" value={rzizaDate} onChange={(e) => setRzizaDate(e.target.value)}
-                className="px-3 py-1.5 text-xs bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50" />
-              {rzizaDate && (
-                <button onClick={() => setRzizaDate('')} className="text-xs text-diana-brown hover:text-diana-gold underline">Toutes les dates</button>
-              )}
-            </div>
-            <p className="text-xs text-diana-brown">Total dû {rzizaDate ? 'ce jour-là' : '(tout historique)'} : <span className="font-semibold text-diana-cream">{rzizaTotalDu.toFixed(2)} DH</span></p>
-          </div>
-
-          {filteredRziza.length > 0 && (
-            <div className="space-y-2">
-              <AnimatePresence mode="popLayout">
-                {filteredRziza.map((r) => (
-                  <motion.div key={r.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -20 }}
-                    className="flex items-center justify-between bg-diana-dark/20 border border-diana-border/50 rounded-xl px-4 py-2.5">
-                    <div className="min-w-0">
-                      <p className="text-sm text-diana-cream">{r.quantity} unité(s) × {r.prixAchat.toFixed(2)} DH</p>
-                      <p className="text-xs text-diana-brown">
-                        {new Date(r.timestamp).toLocaleDateString('fr-FR')} à {new Date(r.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                        {' · '}<span className="text-diana-accentLight font-medium">Non payé</span>
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0 pl-3">
-                      <span className="text-sm font-semibold text-diana-brown">{r.montantDu.toFixed(2)} DH dû</span>
-                      <button onClick={() => setRzizaBon(r)} className="text-diana-gold hover:text-diana-goldLight" title="Voir / imprimer le bon"><FiPrinter size={14} /></button>
-                      <button onClick={() => handleRemoveRziza(r.id)} className="text-diana-danger hover:text-red-700"><FiTrash2 size={14} /></button>
-                    </div>
-                  </motion.div>
+          {tab === 'vente' ? (
+            dateSales.length > 0 && (
+              <div className="max-h-52 overflow-y-auto space-y-1.5 pr-1">
+                {dateSales.map((s) => (
+                  <button key={s.id} onClick={() => pickSale(s)}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg border text-left transition-colors ${sale?.id === s.id ? 'border-diana-gold bg-diana-gold/10' : 'border-diana-border bg-diana-card hover:border-diana-gold/40'}`}>
+                    <span className="text-sm text-diana-cream">Ticket n°{String(s.ticketNumber).padStart(3, '0')}</span>
+                    <span className="text-xs text-diana-brown">{(Number(s.total) || 0).toFixed(2)} DH · {new Date(s.timestamp).toLocaleDateString('fr-FR')} {new Date(s.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </button>
                 ))}
-              </AnimatePresence>
-            </div>
+              </div>
+            )
+          ) : (
+            avanceTickets.length > 0 && (
+              <div className="max-h-52 overflow-y-auto space-y-1.5 pr-1">
+                {avanceTickets.map((r) => (
+                  <button key={r.id} onClick={() => pickReservation(r)}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg border text-left transition-colors ${reservation?.id === r.id ? 'border-diana-gold bg-diana-gold/10' : 'border-diana-border bg-diana-card hover:border-diana-gold/40'}`}>
+                    <span className="text-sm text-diana-cream">#{r.ticketNumber} · {r.clientName}</span>
+                    <span className="text-xs text-diana-brown">Avance {(Number(r.avanceInitiale ?? r.avance) || 0).toFixed(2)} DH · {new Date(r.createdAt).toLocaleDateString('fr-FR')}</span>
+                  </button>
+                ))}
+              </div>
+            )
           )}
         </div>
 
-        {/* BON RZIZA — reçu imprimable marqué "Non payé" */}
-        <AnimatePresence>
-          {rzizaBon && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setRzizaBon(null)}>
-              <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
-                className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
-                  <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
-                    <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
-                    <p className="text-diana-brown">Bon de livraison — Rziza</p>
-                    <p className="text-diana-brown">{new Date(rzizaBon.timestamp).toLocaleDateString('fr-FR')} à {new Date(rzizaBon.timestamp).toLocaleTimeString('fr-FR')}</p>
-                  </div>
-                  <div className="flex justify-between py-1"><span>Quantité livrée</span><span>{rzizaBon.quantity}</span></div>
-                  <div className="flex justify-between py-1"><span>Prix d'achat / unité</span><span>{rzizaBon.prixAchat.toFixed(2)} DH</span></div>
-                  <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
-                    <div className="flex justify-between font-semibold"><span>Montant dû</span><span>{rzizaBon.montantDu.toFixed(2)} DH</span></div>
-                    <div className="flex justify-between text-diana-accentLight font-semibold mt-1"><span>Statut</span><span>NON PAYÉ</span></div>
-                  </div>
-                  <p className="text-diana-brown italic mt-3 text-center">Réglé personnellement — sans lien avec la caisse</p>
+        {notFound && (
+          <div className="flex items-center gap-2 text-diana-danger text-sm mb-6">
+            <FiAlertCircle size={16} /> {tab === 'vente' ? 'Aucune vente trouvée pour ce numéro de ticket.' : 'Aucune commande trouvée pour ce numéro.'}
+          </div>
+        )}
+
+        <AnimatePresence mode="wait">
+          {current && (
+            <motion.div key={current.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="bg-diana-card border border-diana-border rounded-2xl p-6 mb-8">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div>
+                  <p className="font-fraunces text-lg text-diana-cream">
+                    {tab === 'vente' ? `Ticket n°${String(current.ticketNumber).padStart(3, '0')}` : `Commande #${current.ticketNumber} · ${current.clientName}`}
+                  </p>
+                  <p className="text-xs text-diana-brown">
+                    {new Date(tab === 'vente' ? current.timestamp : current.createdAt).toLocaleDateString('fr-FR')} {new Date(tab === 'vente' ? current.timestamp : current.createdAt).toLocaleTimeString('fr-FR')}
+                    {tab === 'vente' && <> · {current.paymentType === 'cash' ? 'Espèces' : current.paymentType === 'card' ? 'TPE' : 'Paiement non précisé'}</>}
+                  </p>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => window.print()}
-                    className="flex-1 flex items-center justify-center gap-2 bg-diana-dark text-diana-cream py-2.5 rounded-xl text-sm font-semibold hover:brightness-110 transition-all print:hidden">
-                    <FiPrinter size={15} /> Imprimer
-                  </button>
-                  <button onClick={() => setRzizaBon(null)}
-                    className="flex-1 bg-white text-diana-brown border border-diana-border py-2.5 rounded-xl text-sm font-semibold print:hidden">
-                    Fermer
-                  </button>
-                </div>
-              </motion.div>
+                <span className="text-sm text-diana-gold font-semibold">Total {(Number(current.total) || 0).toFixed(2)} DH</span>
+              </div>
+
+              <div className="space-y-3 mb-6">
+                {refundEntries.map(({ item, remaining, qty }) => (
+                  <div key={item.id} className="flex items-center justify-between gap-3 py-2 border-b border-diana-border/60 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-diana-cream truncate">{item.name}</p>
+                      <p className="text-xs text-diana-brown">
+                        {tab === 'vente' ? 'Vendu' : 'Commandé'} : {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''} à {(Number(item.price) || 0).toFixed(2)} DH
+                        {remaining < item.qty && <span className="text-diana-danger"> · déjà remboursé : {formatQty(item.qty - remaining)}</span>}
+                      </p>
+                    </div>
+                    {remaining <= 0 ? (
+                      <span className="text-xs text-diana-brownLight italic">Entièrement remboursé</span>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <NumericField value={qty || ''} onChange={(v) => setQtyFor(item.id, v, remaining)} placeholder="0"
+                          title={item.name} unit={item.unit === 'kg' ? 'kg' : 'pièce(s)'} allowDecimal={item.unit === 'kg'}
+                          className="w-20 px-2 py-1.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream text-right focus:outline-none focus:border-diana-gold/50" />
+                        <button onClick={() => setMaxFor(item.id, remaining)}
+                          className="text-xs px-2.5 py-1.5 rounded-lg bg-diana-gold/10 text-diana-gold border border-diana-gold/30 hover:bg-diana-gold/20 transition-colors">
+                          Tout ({formatQty(remaining)}{item.unit === 'kg' ? ' kg' : ''})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-diana-border">
+                <span className="text-sm text-diana-brown">Montant à rembourser</span>
+                <span className="font-fraunces text-2xl text-diana-danger font-semibold">{totalRefund.toFixed(2)} DH</span>
+              </div>
+              {tab === 'commande' && (
+                <p className="text-[11px] text-diana-brownLight mt-2">
+                  Rembourser une catégorie retire son montant du total de la commande{!current.soldePaid && ' et du reste à payer'}, et l'argent est déduit du solde net de la caisse.
+                </p>
+              )}
+
+              <button onClick={handleConfirmRefund} disabled={!hasSelection}
+                className="w-full mt-5 flex items-center justify-center gap-2 bg-diana-danger text-white py-3.5 rounded-xl text-sm font-semibold hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
+                <FiRotateCcw size={16} /> Confirmer le remboursement
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-3">Achats généraux (hors Rziza)</p>
-        {purchases.length === 0 ? (
-          <p className="text-sm italic text-diana-brownLight flex items-center gap-2"><FiShoppingBag /> Aucun achat enregistré</p>
-        ) : (
-          <div className="space-y-2.5">
-            <AnimatePresence mode="popLayout">
-              {purchases.map((p) => (
-                <motion.div key={p.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -20 }}
-                  className="flex items-center justify-between bg-diana-card border border-diana-border rounded-xl px-4 py-3">
+        <div>
+          <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-3">Remboursements récents</p>
+          {refunds.length === 0 ? (
+            <p className="text-sm italic text-diana-brownLight">Aucun remboursement enregistré</p>
+          ) : (
+            <div className="space-y-2.5">
+              {refunds.slice(0, 20).map((r) => (
+                <div key={r.id} className="flex items-center justify-between bg-diana-card border border-diana-border rounded-xl px-4 py-3">
                   <div className="min-w-0">
-                    <p className="text-sm text-diana-cream font-medium">{p.label}</p>
-                    <p className="text-xs text-diana-brown">{p.supplier && `${p.supplier} · `}{new Date(p.date).toLocaleDateString('fr-FR')}{p.note && ` · ${p.note}`}</p>
+                    <p className="text-sm text-diana-cream flex items-center gap-1.5">
+                      <FiCheckCircle size={13} className="text-diana-danger" />
+                      {r.type === 'commande' ? 'Commande' : 'Ticket'} n°{String(r.ticketNumber).padStart(3, '0')}
+                    </p>
+                    <p className="text-xs text-diana-brown truncate">{r.items.map((i) => `${i.name} ×${formatQty(i.qty)}`).join(', ')}</p>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0 pl-3">
-                    <span className="text-sm font-semibold text-diana-accentLight">-{p.amount.toFixed(2)} DH</span>
-                    <button onClick={() => handleRemove(p.id)} className="text-diana-danger hover:text-red-700"><FiTrash2 size={14} /></button>
+                  <div className="text-right shrink-0 pl-3">
+                    <p className="text-sm font-semibold text-diana-danger">-{(Number(r.amount) || 0).toFixed(2)} DH</p>
+                    <p className="text-[10px] text-diana-brownLight">{new Date(r.timestamp).toLocaleDateString('fr-FR')}</p>
                   </div>
-                </motion.div>
+                </div>
               ))}
-            </AnimatePresence>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
