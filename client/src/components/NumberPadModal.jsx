@@ -7,15 +7,34 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back']
 // Clavier numérique en popup, générique — utilisé partout où on doit saisir un nombre
 // (quantité, prix, montant, remise...) à la place du clavier natif du téléphone/PC,
 // qui pose parfois problème (mauvais layout, se ferme, recouvre l'écran...).
-export default function NumberPadModal({ open, title, subtitle, unit, initialValue, allowDecimal = true, onConfirm, onCancel }) {
+export default function NumberPadModal({ open, title, subtitle, unit, initialValue, allowDecimal = true, prefill = false, onConfirm, onCancel }) {
   const [value, setValue] = useState('')
+  // Quand prefill est actif, la valeur de départ est affichée "sélectionnée" (en surbrillance) :
+  // le premier chiffre tapé la remplace entièrement, exactement comme si on sélectionnait tout
+  // le texte d'un champ avant de taper par-dessus.
+  const [selected, setSelected] = useState(false)
 
   useEffect(() => {
-    // Démarre toujours vide : taper "2" ne doit pas donner "12" à cause d'une valeur pré-remplie.
-    if (open) setValue('')
-  }, [open])
+    if (!open) return
+    if (prefill && initialValue !== undefined && initialValue !== null && initialValue !== '') {
+      setValue(String(initialValue))
+      setSelected(true)
+    } else {
+      // Démarre vide : taper "2" ne doit pas donner "12" à cause d'une valeur pré-remplie.
+      setValue('')
+      setSelected(false)
+    }
+  }, [open, prefill, initialValue])
 
   const press = (key) => {
+    if (selected) {
+      // Une valeur "sélectionnée" : la première frappe remplace tout, comme dans un vrai champ texte.
+      setSelected(false)
+      if (key === 'back') { setValue(''); return }
+      if (key === '.') { if (allowDecimal) setValue('0.'); return }
+      setValue(key === '0' ? '0' : key)
+      return
+    }
     if (key === 'back') { setValue((v) => v.slice(0, -1)); return }
     if (key === '.') {
       if (!allowDecimal) return
@@ -26,7 +45,7 @@ export default function NumberPadModal({ open, title, subtitle, unit, initialVal
     setValue((v) => (v === '0' ? key : v + key))
   }
 
-  const clearAll = () => setValue('')
+  const clearAll = () => { setValue(''); setSelected(false) }
   const numeric = parseFloat(value)
   const isValid = !isNaN(numeric) && numeric >= 0
   const confirm = () => { if (isValid) onConfirm(numeric) }
@@ -56,10 +75,11 @@ export default function NumberPadModal({ open, title, subtitle, unit, initialVal
             </div>
 
             <div className="px-5 pt-4 pb-2">
-              <div className="bg-diana-dark/40 border border-diana-border rounded-xl px-4 py-3 text-right">
-                <span className="font-fraunces text-3xl text-diana-gold tabular-nums">{value === '' ? '0' : value}</span>
+              <div className={`border rounded-xl px-4 py-3 text-right transition-colors ${selected ? 'bg-diana-gold/25 border-diana-gold' : 'bg-diana-dark/40 border-diana-border'}`}>
+                <span className={`font-fraunces text-3xl tabular-nums ${selected ? 'text-diana-gold bg-diana-gold/30 rounded px-1' : 'text-diana-gold'}`}>{value === '' ? '0' : value}</span>
                 {unit && <span className="ml-1.5 text-xs text-diana-brown">{unit}</span>}
               </div>
+              {selected && <p className="text-[10px] text-diana-brownLight mt-1 text-right">Tapez pour remplacer le montant</p>}
             </div>
 
             <div className="px-5 pb-5 pt-2 grid grid-cols-3 gap-2">
