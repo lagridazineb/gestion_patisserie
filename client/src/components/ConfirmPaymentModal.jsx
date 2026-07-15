@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import NumericField from './NumericField'
 
 // Modal "Confirmer le paiement" — même structure que la maquette d'origine
 // (Méthode / Montant à payer / Montant reçu / Monnaie à rendre / Confirmer-Annuler)
@@ -45,8 +46,8 @@ export default function ConfirmPaymentModal({ open, method, amountDue, onConfirm
 
             <div className="flex items-center justify-between gap-3 mb-3">
               <label className="font-semibold text-[#5C4326] shrink-0">Montant reçu (DH):</label>
-              <input type="number" step="0.01" min="0" value={received}
-                onChange={(e) => setReceived(e.target.value)}
+              <NumericField value={received} onChange={setReceived} prefill
+                title="Montant reçu" subtitle="Confirmer le paiement" unit="DH"
                 className="w-32 px-3 py-2 bg-white border border-[#D9A86C] rounded-lg text-right text-lg font-semibold text-[#3A2A18] focus:outline-none focus:border-[#C89A5C]" />
             </div>
 
