@@ -5,6 +5,7 @@ import { useNotification } from '../context/NotificationContext'
 import { PRODUCTS, ATELIERS, getAtelierCategories } from '../data/products'
 import { getStock, addProduction, getProductionLog, subscribeToStockUpdates, getAtelierTasks, getAtelierDoneTasks, markAtelierDone, getActiveFrigoBatches } from '../data/stockStore'
 import { FiBox, FiPlus, FiCheck, FiClock, FiCalendar, FiPackage, FiClipboard, FiUser, FiPhone, FiEye, FiCheckCircle, FiXCircle, FiScissors, FiGrid } from 'react-icons/fi'
+import NumericField from '../components/NumericField'
 
 export default function PreparateurPage() {
   const { user } = useAuth()
@@ -284,15 +285,10 @@ export default function PreparateurPage() {
               </div>
               <div>
                 <label className="block text-xs text-diana-brown mb-1.5">Quantité fabriquée</label>
-                <input type="text" inputMode="decimal" value={quantity}
-                  onChange={(e) => {
-                    // N'autorise que chiffres, virgule et point (les deux séparateurs décimaux) —
-                    // comportement identique quel que soit le navigateur ou la langue du clavier.
-                    const v = e.target.value.replace(/[^0-9.,]/g, '')
-                    setQuantity(v)
-                  }}
-                  placeholder="Ex: 400 ou 1,5"
-                  className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" required />
+                <NumericField value={quantity} onChange={setQuantity} placeholder="Ex: 400 ou 1,5"
+                  title={ (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)?.name || 'Quantité' }
+                  unit={ (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)?.unit === 'kg' ? 'kg' : 'pièce(s)' }
+                  className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream text-left focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="min-w-0">
