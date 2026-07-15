@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { FiMail, FiLock, FiLogIn } from 'react-icons/fi'
+import KeyboardField from '../components/KeyboardField'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -54,18 +55,18 @@ export default function LoginPage() {
               <label className="block text-xs text-diana-brown mb-1.5 ml-1">Email</label>
               <div className="relative">
                 <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={16} />
-                <input type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.com"
-                  autoCapitalize="none" autoCorrect="off" spellCheck="false"
-                  className="w-full pl-11 pr-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" required autoComplete="username" />
+                <KeyboardField type="email" value={email} onChange={setEmail} placeholder="votre@email.com"
+                  subtitle="Email"
+                  className="w-full pl-11 pr-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" required />
               </div>
             </div>
             <div>
               <label className="block text-xs text-diana-brown mb-1.5 ml-1">Mot de passe</label>
               <div className="relative">
                 <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={16} />
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
-                  autoCapitalize="none" autoCorrect="off" spellCheck="false"
-                  className="w-full pl-11 pr-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" required autoComplete="current-password" />
+                <KeyboardField type="password" value={password} onChange={setPassword} placeholder="••••••••"
+                  subtitle="Mot de passe"
+                  className="w-full pl-11 pr-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" required />
               </div>
             </div>
             <button type="submit" disabled={isLoading}
