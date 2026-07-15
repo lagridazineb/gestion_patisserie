@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { FiSearch, FiPlus, FiTrash2, FiEdit3, FiImage, FiTag } from 'react-icons/fi'
 import { ALL_PRODUCTS, LEAF_CATEGORIES } from '../data/products'
 import { useNotification } from '../context/NotificationContext'
+import NumericField from '../components/NumericField'
 
 export default function ProduitsPage() {
   const [products, setProducts] = useState(ALL_PRODUCTS)
@@ -102,8 +103,8 @@ export default function ProduitsPage() {
                   </div>
                   <div>
                     <label className="block text-xs text-diana-brown mb-1.5">Prix (DH)</label>
-                    <input type="number" step="0.01" value={formData.price} onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                      className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" placeholder="0.00" />
+                    <NumericField value={formData.price} onChange={(v) => setFormData(prev => ({ ...prev, price: v }))} placeholder="0.00" title="Prix" unit="DH"
+                      className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream text-left focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" />
                   </div>
                   <div>
                     <label className="block text-xs text-diana-brown mb-1.5">Catégorie</label>
