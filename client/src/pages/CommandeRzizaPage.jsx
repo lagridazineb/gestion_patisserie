@@ -107,7 +107,7 @@ export default function CommandeRzizaPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setReceipt(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
                 <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                   <p className="text-diana-brown">Commande fournisseur — Rziza</p>
