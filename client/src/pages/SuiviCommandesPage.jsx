@@ -239,7 +239,7 @@ export default function SuiviCommandesPage() {
                 <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3"><span className="text-2xl">✓</span></div>
                 <h3 className="font-fraunces text-xl font-medium">Solde encaissé</h3>
               </div>
-              <div className="bg-white rounded-xl p-4 mb-6 text-xs border border-[#E7CCB4]">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-[#E7CCB4]">
                 <div className="text-center border-b border-dashed border-[#E7CCB4] pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                   <p className="text-[#8B6A3A]">Ticket n°{receipt.ticketNumber}</p>
