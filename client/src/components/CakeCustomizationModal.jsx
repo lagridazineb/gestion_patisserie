@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiX, FiImage, FiTrash2 } from 'react-icons/fi'
+import KeyboardTextarea from './KeyboardTextarea'
 
 export default function CakeCustomizationModal({ open, product, qty = 1, onConfirm, onSkip }) {
   const [note, setNote] = useState('')
@@ -85,8 +86,8 @@ export default function CakeCustomizationModal({ open, product, qty = 1, onConfi
             <div className="px-5 pt-4 pb-2 space-y-3">
               <div>
                 <label className="text-xs text-diana-brown mb-1 block">Texte à écrire sur le gâteau</label>
-                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
-                  placeholder='Ex: "Joyeux Anniversaire Sara"'
+                <KeyboardTextarea value={note} onChange={setNote} rows={2}
+                  placeholder='Ex: "Joyeux Anniversaire Sara"' subtitle="Texte à écrire sur le gâteau"
                   className="w-full px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 resize-none" />
               </div>
               <div>
