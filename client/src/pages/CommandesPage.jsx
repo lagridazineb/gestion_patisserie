@@ -8,6 +8,7 @@ import {
   getStock, subscribeToStockUpdates, getReservations, addReservation,
   isReservationFullyReady,
 } from '../data/stockStore'
+import NumericField from '../components/NumericField'
 import QuantityModal from '../components/QuantityModal'
 import CakeCustomizationModal from '../components/CakeCustomizationModal'
 import MoroccanCakeModal from '../components/MoroccanCakeModal'
@@ -452,9 +453,8 @@ export default function CommandesPage() {
               </div>
 
               <label className="text-xs text-[#8B6A3A] mb-1 block">Avance</label>
-              <input type="number" min="0" value={avance} onChange={(e) => setAvance(e.target.value)}
-                placeholder="0.00"
-                className="w-full mb-3 px-3 py-2 text-sm bg-[#FFF6EC] border border-[#E7CCB4] rounded-lg text-diana-brownDark focus:outline-none focus:border-[#C89A5C]" />
+              <NumericField value={avance} onChange={setAvance} placeholder="0.00" title="Avance" unit="DH"
+                className="w-full mb-3 px-3 py-2 text-sm bg-[#FFF6EC] border border-[#E7CCB4] rounded-lg text-diana-brownDark text-left focus:outline-none focus:border-[#C89A5C]" />
 
               <div className="flex justify-between items-baseline pt-2 border-t border-[#E7CCB4]">
                 <span className="text-sm text-diana-brownDark">Reste à payer</span>
