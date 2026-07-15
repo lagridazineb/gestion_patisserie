@@ -1,8 +1,11 @@
 import React, { useState } from 'react'
 import NumberPadModal from './NumberPadModal'
 
+// Remplacement direct de <input type="number">, en gardant la même logique value/onChange
+// (onChange reçoit directement la nouvelle valeur en string, comme e.target.value ferait).
+// Ouvre un clavier numérique en popup au lieu du clavier natif du téléphone/PC.
 export default function NumericField({
-  value, onChange, placeholder, title, subtitle, unit, allowDecimal = true, className = '', autoFocus,
+  value, onChange, placeholder, title, subtitle, unit, allowDecimal = true, className = '', autoFocus, prefill = false,
 }) {
   const [open, setOpen] = useState(false)
 
@@ -21,6 +24,7 @@ export default function NumericField({
         unit={unit}
         initialValue={value}
         allowDecimal={allowDecimal}
+        prefill={prefill}
         onConfirm={(n) => { onChange(String(n)); setOpen(false) }}
         onCancel={() => setOpen(false)}
       />
