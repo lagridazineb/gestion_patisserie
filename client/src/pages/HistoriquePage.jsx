@@ -144,7 +144,7 @@ export default function HistoriquePage() {
                   <button onClick={() => setSelected(null)} className="text-diana-brown hover:text-diana-dark"><FiX size={18} /></button>
                 </div>
 
-                <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
                   <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
                     <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                     <p className="text-diana-brown">
