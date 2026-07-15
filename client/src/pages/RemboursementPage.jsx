@@ -6,6 +6,7 @@ import {
   findReservationByTicket, getCommandeRefundableQty, processCommandeRefund,
   getReservations, getRefunds, getSalesLog, subscribeToStockUpdates, sameDay,
 } from '../data/stockStore'
+import NumericField from '../components/NumericField'
 import { useNotification } from '../context/NotificationContext'
 
 function formatQty(qty) {
@@ -223,9 +224,8 @@ export default function RemboursementPage() {
                       <span className="text-xs text-diana-brownLight italic">Entièrement remboursé</span>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <input type="number" min="0" max={remaining} step={item.unit === 'kg' ? '0.01' : '1'}
-                          value={qty || ''} placeholder="0"
-                          onChange={(e) => setQtyFor(item.id, e.target.value, remaining)}
+                        <NumericField value={qty || ''} onChange={(v) => setQtyFor(item.id, v, remaining)} placeholder="0"
+                          title={item.name} unit={item.unit === 'kg' ? 'kg' : 'pièce(s)'} allowDecimal={item.unit === 'kg'}
                           className="w-20 px-2 py-1.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream text-right focus:outline-none focus:border-diana-gold/50" />
                         <button onClick={() => setMaxFor(item.id, remaining)}
                           className="text-xs px-2.5 py-1.5 rounded-lg bg-diana-gold/10 text-diana-gold border border-diana-gold/30 hover:bg-diana-gold/20 transition-colors">
