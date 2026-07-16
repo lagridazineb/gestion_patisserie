@@ -9,7 +9,6 @@ import {
 import { useNotification } from '../context/NotificationContext'
 import { useAuth } from '../context/AuthContext'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
-import KeyboardField from '../components/KeyboardField'
 import {
   FiArrowLeft, FiSearch, FiCheckCircle, FiTrash2, FiDollarSign, FiCreditCard, FiPrinter,
 } from 'react-icons/fi'
@@ -122,8 +121,8 @@ export default function SuiviCommandesPage() {
         {tab === 'pretes' && (
           <div className="relative max-w-md mb-6">
             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
-            <KeyboardField value={search} onChange={setSearch}
-              placeholder="Rechercher par n° de ticket, nom ou téléphone..." subtitle="Recherche"
+            <input value={search} onChange={(e) => setSearch(e.target.value)} dir="auto" lang="fr"
+              placeholder="Rechercher par n° de ticket, nom ou téléphone..."
               className="w-full pl-11 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
           </div>
         )}
@@ -239,7 +238,7 @@ export default function SuiviCommandesPage() {
                 <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3"><span className="text-2xl">✓</span></div>
                 <h3 className="font-fraunces text-xl font-medium">Solde encaissé</h3>
               </div>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-[#E7CCB4]">
+              <div className="bg-white rounded-xl p-4 mb-6 text-xs border border-[#E7CCB4]">
                 <div className="text-center border-b border-dashed border-[#E7CCB4] pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                   <p className="text-[#8B6A3A]">Ticket n°{receipt.ticketNumber}</p>
