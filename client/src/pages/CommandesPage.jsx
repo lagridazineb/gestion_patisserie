@@ -274,13 +274,13 @@ export default function CommandesPage() {
               <div className="relative">
                 <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
                 <input value={clientName} onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Nom Client / Vendeur / Table... *"
+                  placeholder="Nom Client / Vendeur / Table... *" dir="auto" lang="fr"
                   className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 ${clientName.trim() === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
               </div>
               <div className="relative">
                 <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
                 <input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)}
-                  placeholder="Numéro de téléphone client"
+                  placeholder="Numéro de téléphone client" type="tel" dir="ltr" lang="fr"
                   className="w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
               </div>
               <div>
@@ -301,7 +301,7 @@ export default function CommandesPage() {
               </div>
               <div>
                 <label className="text-xs text-diana-brown mb-1 block flex items-center gap-1.5"><FiFileText size={13}/> Note / Détails spéciaux</label>
-                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3}
+                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} dir="auto" lang="fr"
                   placeholder="Taille, saveur, allergies..."
                   className="w-full px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 resize-none" />
               </div>
