@@ -11,6 +11,7 @@ const { pool, testConnection } = require('./config/db')
 
 const app = express()
 const PORT = process.env.PORT || 3001
+app.set('trust proxy', 1)
 
 // En-têtes de sécurité standards (cache le framework utilisé, bloque le MIME-sniffing,
 // désactive le chargement dans une iframe étrangère, etc.)
