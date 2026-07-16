@@ -23,8 +23,11 @@ export async function adjustStock(productId, delta) {
 }
 
 // --- Production (préparateurs) ---
-export async function getProductionLog(atelier) {
-  const { data } = await apiClient.get('/production', { params: atelier ? { atelier } : {} })
+export async function getProductionLog(atelier, date) {
+  const params = {}
+  if (atelier) params.atelier = atelier
+  if (date) params.date = date
+  const { data } = await apiClient.get('/production', { params })
   return data.productions.map((p) => ({
     id: p.id, productId: p.product_id, product: p.product_name, quantity: Number(p.quantity),
     category: p.category, price: p.price !== null ? Number(p.price) : null, atelier: p.atelier,
