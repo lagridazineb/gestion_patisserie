@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiClock, FiSearch, FiCalendar, FiPrinter, FiX, FiUser, FiPhone, FiShoppingBag, FiPackage } from 'react-icons/fi'
 import { getSalesLog, getReservations, subscribeToStockUpdates, sameDay } from '../data/stockStore'
-import KeyboardField from '../components/KeyboardField'
 
 function formatQty(qty) {
   return Number.isInteger(qty) ? String(qty) : qty.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
@@ -73,8 +72,8 @@ export default function HistoriquePage() {
           </div>
           <div className="relative flex-1 min-w-[200px]">
             <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
-            <KeyboardField placeholder="Rechercher (n° ticket, client, produit...)" value={search} onChange={setSearch}
-              subtitle="Recherche"
+            <input type="text" placeholder="Rechercher (n° ticket, client, produit...)" value={search} dir="auto" lang="fr"
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-3 py-2.5 text-sm bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
           </div>
           <div className="flex items-center gap-2">
@@ -144,7 +143,7 @@ export default function HistoriquePage() {
                   <button onClick={() => setSelected(null)} className="text-diana-brown hover:text-diana-dark"><FiX size={18} /></button>
                 </div>
 
-                <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
                   <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
                     <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                     <p className="text-diana-brown">
