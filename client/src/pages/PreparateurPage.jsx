@@ -2,11 +2,19 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
-import { ATELIERS, getAtelierCategories, mergeProductsByCategory } from '../data/products'
+import { getAtelierCategories, mergeProductsByCategory } from '../data/products'
 import { getProductOverlay } from '../api/products'
 import { getStock, addProduction, getProductionLog, subscribeToStockUpdates, getAtelierTasks, getAtelierDoneTasks, markAtelierDone, getActiveFrigoBatches } from '../data/stockStore'
 import { FiBox, FiPlus, FiCheck, FiClock, FiCalendar, FiPackage, FiClipboard, FiUser, FiPhone, FiEye, FiCheckCircle, FiXCircle, FiScissors, FiGrid } from 'react-icons/fi'
 import NumericField from '../components/NumericField'
+
+// Traduction arabe des ateliers — utilisée UNIQUEMENT sur cette page (le préparateur voit tout
+// en arabe), sans toucher aux libellés français utilisés côté Admin/Caissier ailleurs dans l'app.
+const ATELIER_LABELS_AR = {
+  pain: 'الخبز', viennoiserie: 'المعجنات', patisserie: 'الحلويات', patisserie_cafe: 'الحلويات/المقهى',
+  sale: 'المالح', gateau_maroc: 'الحلويات المغربية', entremet: 'الكيك الدائري', gateaux_kg: 'الكيك بالكيلو',
+  cake_design: 'تصميم الكيك', melange: 'المزيج',
+}
 
 export default function PreparateurPage() {
   const { user } = useAuth()
@@ -100,7 +108,7 @@ export default function PreparateurPage() {
     for (const c of relevant) {
       await markAtelierDone(reservationId, c)
     }
-    addNotification('Préparation marquée comme terminée', 'success')
+    addNotification('تم تحديد التحضير كمنتهي', 'success')
     refresh()
   }
 
@@ -124,19 +132,19 @@ export default function PreparateurPage() {
     })
     setSelectedProduct('')
     setQuantity('')
-    addNotification(`Production enregistrée: ${product.name} +${qty}`, 'success')
+    addNotification(`تم تسجيل الإنتاج: ${product.name} +${qty}`, 'success')
     refresh()
   }
 
-  const atelierLabel = ATELIERS.find(a => a.id === user?.atelier)?.label || user?.atelier
+  const atelierLabel = ATELIER_LABELS_AR[user?.atelier] || user?.atelier
 
   return (
-    <div className="h-full overflow-y-auto p-4 sm:p-8">
+    <div dir="rtl" className="h-full overflow-y-auto p-4 sm:p-8">
       <div className="max-w-5xl mx-auto">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 sm:mb-8">
-          <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">Atelier</p>
+          <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">الورشة</p>
           <h2 className="font-fraunces text-2xl sm:text-3xl font-medium text-diana-cream">{atelierLabel}</h2>
-          <p className="text-sm text-diana-brown mt-1">Bienvenue, {user?.name}. Enregistrez votre production ci-dessous.</p>
+          <p className="text-sm text-diana-brown mt-1">أهلاً، {user?.name}. سجّل إنتاجك في الأسفل.</p>
         </motion.div>
 
         {(() => {
@@ -151,13 +159,13 @@ export default function PreparateurPage() {
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-xl bg-diana-accent/10 flex items-center justify-center"><FiClipboard className="text-diana-accentLight" size={20} /></div>
             <div>
-              <h3 className="font-fraunces text-lg text-diana-cream">Commandes à préparer</h3>
-              <p className="text-xs text-diana-brown">Articles réservés par un client, à préparer pour votre atelier</p>
+              <h3 className="font-fraunces text-lg text-diana-cream">الطلبات الجاهزة للتحضير</h3>
+              <p className="text-xs text-diana-brown">منتجات حجزها الزبناء، يجب تحضيرها لورشتك</p>
             </div>
             {displayTasks.length > 0 && <span className="ml-auto bg-diana-accent/15 text-diana-accentLight text-xs font-semibold px-2.5 py-1 rounded-full">{displayTasks.length}</span>}
           </div>
           {displayTasks.length === 0 ? (
-            <p className="text-sm italic text-diana-brownLight text-center py-6">Aucune commande en attente pour votre atelier</p>
+            <p className="text-sm italic text-diana-brownLight text-center py-6">لا توجد طلبات في الانتظار لورشتك</p>
           ) : (
             <div className="space-y-3">
               {displayTasks.map((task) => {
@@ -174,25 +182,25 @@ export default function PreparateurPage() {
                       </div>
                       <button onClick={() => handleMarkDone(task.id)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/90 text-white text-xs font-semibold hover:brightness-110 transition-all active:scale-[0.98] shrink-0">
-                        <FiCheck size={13} /> Terminé
+                        <FiCheck size={13} /> منتهي
                       </button>
                     </div>
                     <ul className="text-sm text-diana-brownLight space-y-2 mb-2">
                       {atelierItems.map((i) => (
                         <li key={i.id}>
-                          <div>• {i.name} × {Number.isInteger(i.qty) ? i.qty : i.qty.toFixed(2)}{i.unit === 'kg' ? ' kg' : ''}</div>
+                          <div>• {i.name} × {Number.isInteger(i.qty) ? i.qty : i.qty.toFixed(2)}{i.unit === 'kg' ? ' كغ' : ''}</div>
                           {(i.customNote || i.customImage) && (
                             <div className="ml-3 mt-1.5 p-2.5 rounded-lg bg-diana-accent/10 border border-diana-accent/20">
                               {i.customNote && <p className="text-xs text-diana-accentLight font-medium">✍️ "{i.customNote}"</p>}
                               {i.customImage && (
-                                <img src={i.customImage} alt="Référence gâteau" className="mt-2 w-full max-w-[180px] h-24 object-cover rounded-md border border-diana-border" />
+                                <img src={i.customImage} alt="صورة مرجعية للكيك" className="mt-2 w-full max-w-[180px] h-24 object-cover rounded-md border border-diana-border" />
                               )}
                             </div>
                           )}
                         </li>
                       ))}
                     </ul>
-                    {task.note && <p className="text-xs text-diana-brown italic">Note : {task.note}</p>}
+                    {task.note && <p className="text-xs text-diana-brown italic">ملاحظة: {task.note}</p>}
                   </div>
                 )
               })}
@@ -207,13 +215,13 @@ export default function PreparateurPage() {
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center"><FiCheck className="text-emerald-400" size={20} /></div>
             <div>
-              <h3 className="font-fraunces text-lg text-diana-cream">Commandes terminées</h3>
-              <p className="text-xs text-diana-brown">Cliquez sur "Prête" pour voir si le client a déjà réglé, sans afficher le prix</p>
+              <h3 className="font-fraunces text-lg text-diana-cream">الطلبات المنتهية</h3>
+              <p className="text-xs text-diana-brown">اضغط على "جاهزة" لمعرفة إذا كان الزبون قد أدى الثمن، دون إظهار السعر</p>
             </div>
             {displayDoneTasks.length > 0 && <span className="ml-auto bg-emerald-500/15 text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded-full">{displayDoneTasks.length}</span>}
           </div>
           {displayDoneTasks.length === 0 ? (
-            <p className="text-sm italic text-diana-brownLight text-center py-6">Aucune commande terminée pour le moment</p>
+            <p className="text-sm italic text-diana-brownLight text-center py-6">لا توجد طلبات منتهية حالياً</p>
           ) : (
             <div className="space-y-2.5">
               {displayDoneTasks.map((t) => {
@@ -222,22 +230,22 @@ export default function PreparateurPage() {
                   <div key={t.id} className="bg-diana-dark/40 border border-diana-border/40 rounded-xl p-3.5 flex items-center justify-between gap-3 flex-wrap">
                     <div>
                       <p className="text-sm font-semibold text-diana-cream flex items-center gap-1.5"><FiUser size={13} /> {t.clientName}</p>
-                      <p className="text-xs text-diana-brown mt-0.5">Ticket n°{String(t.ticketNumber).padStart(3, '0')}</p>
+                      <p className="text-xs text-diana-brown mt-0.5">التذكرة رقم {String(t.ticketNumber).padStart(3, '0')}</p>
                     </div>
                     {revealed ? (
                       t.soldePaid ? (
                         <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg">
-                          <FiCheckCircle size={13} /> Encaissée
+                          <FiCheckCircle size={13} /> تم الأداء
                         </span>
                       ) : (
                         <span className="flex items-center gap-1.5 text-xs font-semibold text-diana-accentLight bg-diana-accent/10 px-3 py-1.5 rounded-lg">
-                          <FiXCircle size={13} /> Non encaissée
+                          <FiXCircle size={13} /> لم يتم الأداء
                         </span>
                       )
                     ) : (
                       <button onClick={() => toggleStatus(t.id)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-diana-gold/15 text-diana-gold border border-diana-gold/30 text-xs font-semibold hover:bg-diana-gold/25 transition-colors">
-                        <FiEye size={13} /> Prête
+                        <FiEye size={13} /> جاهزة
                       </button>
                     )}
                   </div>
@@ -255,27 +263,27 @@ export default function PreparateurPage() {
             className="bg-diana-card border border-diana-border rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-diana-gold/10 flex items-center justify-center"><FiBox className="text-diana-gold" size={20} /></div>
-              <h3 className="font-fraunces text-lg text-diana-cream">Nouvelle production</h3>
+              <h3 className="font-fraunces text-lg text-diana-cream">إنتاج جديد</h3>
             </div>
             {isPatisserie && (
               <div className="flex bg-diana-dark/30 border border-diana-border rounded-xl p-1 mb-5 w-fit flex-wrap">
                 <button type="button" onClick={() => setPrepTab('tranche')}
                   className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${prepTab === 'tranche' ? 'bg-diana-gold text-diana-darker' : 'text-diana-brown hover:text-diana-cream'}`}>
-                  <FiScissors size={12} /> Tranche
+                  <FiScissors size={12} /> شريحة
                 </button>
                 <button type="button" onClick={() => setPrepTab('entremets')}
                   className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${prepTab === 'entremets' ? 'bg-diana-gold text-diana-darker' : 'text-diana-brown hover:text-diana-cream'}`}>
-                  <FiGrid size={12} /> Entremets circulaires <span className="opacity-70">({entremetProducts.length})</span>
+                  <FiGrid size={12} /> الكيك الدائري <span className="opacity-70">({entremetProducts.length})</span>
                 </button>
                 <button type="button" onClick={() => setPrepTab('kg')}
                   className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${prepTab === 'kg' ? 'bg-diana-gold text-diana-darker' : 'text-diana-brown hover:text-diana-cream'}`}>
-                  <FiClipboard size={12} /> Gâteau par kg
+                  <FiClipboard size={12} /> الكيك بالكيلو
                 </button>
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs text-diana-brown mb-1.5 font-bold uppercase tracking-wide">Produit (Cliquer pour sélectionner)</label>
+                <label className="block text-xs text-diana-brown mb-1.5 font-bold uppercase tracking-wide">المنتج (اضغط للاختيار)</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4 max-h-[320px] overflow-y-auto p-1.5 bg-diana-dark/20 border border-diana-border/30 rounded-xl">
                   {visibleProducts.map((p) => {
                     const todayQty = getTodayProduction(p.id)
@@ -289,23 +297,23 @@ export default function PreparateurPage() {
                           </div>
                         )}
                         <p className="text-[11px] font-bold text-diana-cream leading-tight line-clamp-2 mb-1">{p.name}</p>
-                        <p className="text-[9px] font-bold text-diana-gold uppercase tracking-wider">Fait: {todayQty} {p.unit === 'kg' ? 'kg' : 'pc'}</p>
+                        <p className="text-[9px] font-bold text-diana-gold uppercase tracking-wider">أُنجز: {todayQty} {p.unit === 'kg' ? 'كغ' : 'قطعة'}</p>
                       </button>
                     )
                   })}
                 </div>
-                {!selectedProduct && <p className="text-[11px] text-diana-danger font-semibold mb-2">⚠️ Veuillez sélectionner un produit dans la grille ci-dessus.</p>}
+                {!selectedProduct && <p className="text-[11px] text-diana-danger font-semibold mb-2">⚠️ الرجاء اختيار منتج من القائمة أعلاه.</p>}
               </div>
               <div>
-                <label className="block text-xs text-diana-brown mb-1.5">Quantité fabriquée</label>
-                <NumericField value={quantity} onChange={setQuantity} placeholder="Ex: 400 ou 1,5"
-                  title={ (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)?.name || 'Quantité' }
-                  unit={ (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)?.unit === 'kg' ? 'kg' : 'pièce(s)' }
+                <label className="block text-xs text-diana-brown mb-1.5">الكمية المصنوعة</label>
+                <NumericField value={quantity} onChange={setQuantity} placeholder="مثال: 400 أو 1.5"
+                  title={ (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)?.name || 'الكمية' }
+                  unit={ (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)?.unit === 'kg' ? 'كغ' : 'قطعة' }
                   className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream text-left focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="min-w-0">
-                  <label className="block text-xs text-diana-brown mb-1.5">Date</label>
+                  <label className="block text-xs text-diana-brown mb-1.5">التاريخ</label>
                   <div className="relative">
                     <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={14} />
                     <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
@@ -313,7 +321,7 @@ export default function PreparateurPage() {
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <label className="block text-xs text-diana-brown mb-1.5">Heure</label>
+                  <label className="block text-xs text-diana-brown mb-1.5">الوقت</label>
                   <div className="relative">
                     <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={14} />
                     <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
@@ -323,7 +331,7 @@ export default function PreparateurPage() {
               </div>
               <button type="submit"
                 className="w-full flex items-center justify-center gap-2 bg-diana-gold text-diana-dark py-3.5 rounded-xl text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98] mt-2">
-                <FiPlus size={16} /> Enregistrer la production
+                <FiPlus size={16} /> تسجيل الإنتاج
               </button>
             </form>
           </motion.div>
@@ -331,14 +339,14 @@ export default function PreparateurPage() {
             className="bg-diana-card border border-diana-border rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center"><FiCheck className="text-blue-400" size={20} /></div>
-              <h3 className="font-fraunces text-lg text-diana-cream">Historique de production</h3>
+              <h3 className="font-fraunces text-lg text-diana-cream">سجل الإنتاج</h3>
             </div>
             <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
               <AnimatePresence>
                 {productions.length === 0 ? (
                   <div className="text-center py-10 text-diana-brownLight">
                     <FiBox size={32} className="mx-auto mb-3 opacity-30" />
-                    <p className="text-sm italic">Aucune production enregistrée</p>
+                    <p className="text-sm italic">لا يوجد إنتاج مسجل</p>
                   </div>
                 ) : (
                   productions.map((prod) => (
@@ -363,7 +371,7 @@ export default function PreparateurPage() {
           className="bg-diana-card border border-diana-border rounded-2xl p-5 sm:p-6 mt-6">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-xl bg-diana-gold/10 flex items-center justify-center"><FiPackage className="text-diana-gold" size={20} /></div>
-            <h3 className="font-fraunces text-lg text-diana-cream">Stock actuel en magasin (Global) — {isPatisserie ? (prepTab === 'tranche' ? 'Tranche' : prepTab === 'entremets' ? 'Entremets circulaires' : 'Gâteau par kg') : atelierLabel}</h3>
+            <h3 className="font-fraunces text-lg text-diana-cream">المخزون الحالي في المحل (عام) — {isPatisserie ? (prepTab === 'tranche' ? 'شريحة' : prepTab === 'entremets' ? 'الكيك الدائري' : 'الكيك بالكيلو') : atelierLabel}</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {visibleProducts.map((p) => {
@@ -378,7 +386,7 @@ export default function PreparateurPage() {
               return (
                 <div key={p.id} className="flex items-center justify-between gap-3 bg-diana-dark/50 border border-diana-border/30 rounded-xl px-4 py-3">
                   <span className="text-sm text-diana-cream truncate pr-2">{p.name}</span>
-                  <span className={`text-sm font-semibold shrink-0 ${isLow ? 'text-diana-danger' : 'text-diana-gold'}`}>{qty} {(prepTab === 'kg' || prepTab === 'entremets') ? (qty > 1 ? 'gâteaux' : 'gâteau') : (p.unit === 'kg' ? 'kg' : '')}</span>
+                  <span className={`text-sm font-semibold shrink-0 ${isLow ? 'text-diana-danger' : 'text-diana-gold'}`}>{qty} {(prepTab === 'kg' || prepTab === 'entremets') ? 'قطعة' : (p.unit === 'kg' ? 'كغ' : '')}</span>
                 </div>
               )
             })}
