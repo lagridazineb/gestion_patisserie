@@ -1,46 +1,47 @@
 import React, { useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiHome, FiBarChart2, FiBox, FiShoppingBag, FiClipboard, FiClock, FiDollarSign, FiLogOut, FiMenu, FiX, FiUser, FiChevronRight, FiLogIn, FiRotateCcw, FiShoppingCart, FiPieChart, FiCalendar, FiTrash2, FiArrowLeft } from 'react-icons/fi'
+import { FiHome, FiBarChart2, FiBox, FiShoppingBag, FiClipboard, FiClock, FiDollarSign, FiLogOut, FiMenu, FiX, FiUser, FiChevronRight, FiLogIn, FiRotateCcw, FiShoppingCart, FiPieChart, FiCalendar, FiTrash2, FiArrowLeft, FiGlobe } from 'react-icons/fi'
 
 const adminNavItems = [
-  { path: '/', icon: FiHome, label: 'Caisse' },
-  { path: '/bilan', icon: FiPieChart, label: 'Bilan & Dépôts' },
-  { path: '/bilan-caisse', icon: FiCalendar, label: 'Commande' },
-  { path: '/commandes/suivi', icon: FiClipboard, label: 'Suivi commandes' },
-  { path: '/stock', icon: FiBox, label: 'Stock' },
-  { path: '/stock-vide', icon: FiTrash2, label: 'Stock vidé' },
-  { path: '/produits', icon: FiShoppingBag, label: 'Produits' },
-  { path: '/historique', icon: FiClock, label: 'Historique' },
-  { path: '/ventes', icon: FiDollarSign, label: 'Ventes' },
-  { path: '/remboursement', icon: FiRotateCcw, label: 'Remboursement' },
-  { path: '/achats', icon: FiShoppingCart, label: 'Achats' },
+  { path: '/', icon: FiHome, key: 'caisse' },
+  { path: '/bilan', icon: FiPieChart, key: 'bilan' },
+  { path: '/bilan-caisse', icon: FiCalendar, key: 'commande' },
+  { path: '/commandes/suivi', icon: FiClipboard, key: 'suiviCommandes' },
+  { path: '/stock', icon: FiBox, key: 'stock' },
+  { path: '/stock-vide', icon: FiTrash2, key: 'stockVide' },
+  { path: '/produits', icon: FiShoppingBag, key: 'produits' },
+  { path: '/historique', icon: FiClock, key: 'historique' },
+  { path: '/ventes', icon: FiDollarSign, key: 'ventes' },
+  { path: '/remboursement', icon: FiRotateCcw, key: 'remboursement' },
+  { path: '/achats', icon: FiShoppingCart, key: 'achats' },
 ]
 
 const preparateurNavItems = [
-  { path: '/preparateur', icon: FiBox, label: 'الإنتاج' },
+  { path: '/preparateur', icon: FiBox, key: 'production' },
 ]
 
 const caissierNavItems = [
-  { path: '/', icon: FiHome, label: 'Caisse' },
-  { path: '/commandes', icon: FiCalendar, label: 'Commande' },
-  { path: '/commandes/suivi', icon: FiClipboard, label: 'Suivi commandes' },
+  { path: '/', icon: FiHome, key: 'caisse' },
+  { path: '/commandes', icon: FiCalendar, key: 'commande' },
+  { path: '/commandes/suivi', icon: FiClipboard, key: 'suiviCommandes' },
 ]
 
 export default function Layout() {
   const { user, isAuthenticated, logout } = useAuth()
+  const { t, lang, toggleLang } = useLanguage()
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const navItems = user?.role === 'admin' ? adminNavItems : user?.role === 'caissier' ? caissierNavItems : preparateurNavItems
-  const isPreparateur = user?.role === 'preparateur'
 
   const handleLogout = () => { logout(); setSidebarOpen(false); navigate('/') }
   const handleLogin = () => { setSidebarOpen(false); navigate('/login') }
 
   return (
-    <div dir={isPreparateur ? 'rtl' : 'ltr'} className="flex h-screen bg-diana-dark overflow-hidden">
+    <div className="flex h-screen bg-diana-dark overflow-hidden">
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
@@ -50,10 +51,10 @@ export default function Layout() {
           >
             <div className="p-6 border-b border-diana-border">
               <div className="flex items-center gap-3">
-                <img src="/logo.png" alt="Pâtisserie Dianna" className="w-14 h-14 object-contain shrink-0" />
+                <img src="/logo.png" alt={t('common.appName')} className="w-14 h-14 object-contain shrink-0" />
                 <div>
-                  <h1 className="font-fraunces text-xl font-medium text-diana-cream">Pâtisserie Dianna</h1>
-                  <p className="text-[10px] tracking-[2px] uppercase text-diana-brown">Boulangerie · Café</p>
+                  <h1 className="font-fraunces text-xl font-medium text-diana-cream">{t('common.appName')}</h1>
+                  <p className="text-[10px] tracking-[2px] uppercase text-diana-brown">{t('nav.boulangerieCafe')}</p>
                 </div>
               </div>
             </div>
@@ -67,7 +68,7 @@ export default function Layout() {
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150
                           ${isActive ? 'bg-diana-gold/15 text-diana-gold border border-diana-gold/20' : 'text-diana-brownLight hover:text-diana-cream hover:bg-diana-border/50'}`}>
                         <item.icon size={18} />
-                        <span>{item.label}</span>
+                        <span>{t(`nav.${item.key}`)}</span>
                         {isActive && <FiChevronRight size={14} className="ml-auto" />}
                       </Link>
                     )
@@ -80,23 +81,32 @@ export default function Layout() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-diana-cream">{user?.name}</p>
-                      <p className="text-xs text-diana-brown capitalize">{user?.role === 'admin' ? 'Administrateur' : isPreparateur ? 'عامل التحضير' : 'Préparateur'}</p>
+                      <p className="text-xs text-diana-brown capitalize">{user?.role === 'admin' ? t('nav.administrateur') : user?.role === 'caissier' ? t('nav.caissier') : t('nav.preparateur')}</p>
                     </div>
                   </div>
+                  <button onClick={toggleLang}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-diana-brownLight hover:bg-diana-border/50 hover:text-diana-cream transition-colors mb-1">
+                    <FiGlobe size={16} />
+                    <span>{t('common.langButtonLabel')}</span>
+                  </button>
                   <button onClick={handleLogout}
                     className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-diana-accentLight hover:bg-diana-accent/10 transition-colors">
                     <FiLogOut size={16} />
-                    <span>{isPreparateur ? 'تسجيل الخروج' : 'Déconnexion'}</span>
+                    <span>{t('nav.deconnexion')}</span>
                   </button>
                 </div>
               </>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
                 <FiUser size={32} className="text-diana-brown mb-3 opacity-50" />
-                <p className="text-sm text-diana-brown mb-5">Connectez-vous en tant qu'administrateur ou préparateur pour accéder à votre espace.</p>
+                <p className="text-sm text-diana-brown mb-5">{t('nav.connecteMessage')}</p>
                 <button onClick={handleLogin}
-                  className="w-full flex items-center justify-center gap-2 bg-diana-gold text-diana-darker py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
-                  <FiLogIn size={16} /> Connexion
+                  className="w-full flex items-center justify-center gap-2 bg-diana-gold text-diana-darker py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98] mb-3">
+                  <FiLogIn size={16} /> {t('nav.connexion')}
+                </button>
+                <button onClick={toggleLang}
+                  className="w-full flex items-center justify-center gap-2 bg-diana-dark border border-diana-border text-diana-brownLight py-2.5 rounded-xl text-sm font-medium hover:text-diana-cream hover:border-diana-gold/30 transition-colors">
+                  <FiGlobe size={15} /> {t('common.langButtonLabel')}
                 </button>
               </div>
             )}
@@ -114,32 +124,38 @@ export default function Layout() {
           <div className="flex items-center gap-2">
             <button onClick={() => setSidebarOpen(true)} className="p-2 text-diana-cream"><FiMenu size={22} /></button>
             {user?.role === 'admin' && location.pathname !== '/' && (
-              <Link to="/" title="Retour à la Caisse"
+              <Link to="/" title={t('nav.retourCaisse')}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-diana-brownLight hover:text-diana-gold hover:bg-diana-border/50 transition-colors text-xs font-medium">
-                <FiArrowLeft size={16} /> <span className="hidden sm:inline">Caisse</span>
+                <FiArrowLeft size={16} /> <span className="hidden sm:inline">{t('nav.caisse')}</span>
               </Link>
             )}
           </div>
           <span className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Pâtisserie Dianna" className="w-16 h-16 object-contain" />
-            <span className="font-fraunces text-lg text-diana-cream hidden sm:block">Pâtisserie Dianna</span>
+            <img src="/logo.png" alt={t('common.appName')} className="w-16 h-16 object-contain" />
+            <span className="font-fraunces text-lg text-diana-cream hidden sm:block">{t('common.appName')}</span>
           </span>
           <div className="flex flex-col items-end gap-1.5">
-            {isAuthenticated ? (
-              <Link to={user?.role === 'admin' ? '/bilan' : user?.role === 'preparateur' ? '/preparateur' : '/'}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-diana-gold/15 border border-diana-gold/20 text-diana-gold text-xs font-medium">
-                <FiUser size={14} /> {user?.name}
-              </Link>
-            ) : (
-              <button onClick={handleLogin}
-                className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-diana-gold text-diana-darker text-xs sm:text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
-                <FiLogIn size={14} /> Connexion
+            <div className="flex items-center gap-2">
+              <button onClick={toggleLang} title={t('common.langButtonLabel')}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-diana-dark border border-diana-border text-diana-brownLight text-xs font-semibold hover:text-diana-gold hover:border-diana-gold/40 transition-colors">
+                <FiGlobe size={14} /> {lang === 'fr' ? 'AR' : 'FR'}
               </button>
-            )}
+              {isAuthenticated ? (
+                <Link to={user?.role === 'admin' ? '/bilan' : user?.role === 'preparateur' ? '/preparateur' : '/'}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-diana-gold/15 border border-diana-gold/20 text-diana-gold text-xs font-medium">
+                  <FiUser size={14} /> {user?.name}
+                </Link>
+              ) : (
+                <button onClick={handleLogin}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-diana-gold text-diana-darker text-xs sm:text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
+                  <FiLogIn size={14} /> {t('nav.connexion')}
+                </button>
+              )}
+            </div>
             {location.pathname === '/' && (user?.role === 'admin' || user?.role === 'caissier') && (
               <Link to="/commandes"
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-diana-dark text-diana-cream border border-diana-border text-xs font-medium hover:border-diana-gold/40 hover:text-diana-gold transition-colors">
-                <FiClipboard size={14} /> Commande
+                <FiClipboard size={14} /> {t('nav.commande')}
               </Link>
             )}
           </div>
