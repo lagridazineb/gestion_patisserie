@@ -1,13 +1,13 @@
 // Catégories affichées dans la Caisse (POS) : liste plate, inchangée par rapport à l'origine.
 export const CATEGORIES_POS = [
-  { id: "pain", label: "Pain", image: "/category-images/pain.jpg" },
-  { id: "viennoiserie", label: "Viennoiserie", image: "/category-images/viennoiserie.jpg" },
-  { id: "millefeuille", label: "Millefeuille / Cake", image: "/category-images/millefeuille.jpg" },
-  { id: "gateau_maroc", label: "Gâteau Marocain", image: "/category-images/gateau_maroc.jpg" },
-  { id: "patisserie", label: "Pâtisserie", image: "/category-images/patisserie.jpg" },
-  { id: "sale", label: "Salé", image: "/category-images/sale.jpg" },
-  { id: "rziza", label: "Rziza", image: "/category-images/rziza.jpg" },
-  { id: "frigo_entremet", label: "Frigo Entremet", image: "/category-images/entremet.jpg" },
+  { id: "pain", label: "Pain", labelAr: "خبز", image: "/category-images/pain.jpg" },
+  { id: "viennoiserie", label: "Viennoiserie", labelAr: "معجنات", image: "/category-images/viennoiserie.jpg" },
+  { id: "millefeuille", label: "Millefeuille / Cake", labelAr: "ميل فوي / كيك", image: "/category-images/millefeuille.jpg" },
+  { id: "gateau_maroc", label: "Gâteau Marocain", labelAr: "الحلويات المغربية", image: "/category-images/gateau_maroc.jpg" },
+  { id: "patisserie", label: "Pâtisserie", labelAr: "الحلويات", image: "/category-images/patisserie.jpg" },
+  { id: "sale", label: "Salé", labelAr: "المالح", image: "/category-images/sale.jpg" },
+  { id: "rziza", label: "Rziza", labelAr: "رزيزة", image: "/category-images/rziza.jpg" },
+  { id: "frigo_entremet", label: "Frigo Entremet", labelAr: "فريجو أونتريمي", image: "/category-images/entremet.jpg" },
 ];
 
 // Catégories affichées uniquement dans la page "Commande" (grande commande / réservation) :
@@ -17,25 +17,27 @@ export const CATEGORIES_COMMANDE = [
   {
     id: "cake_design",
     label: "Cake Design",
+    labelAr: "تصميم الكيك",
     image: "/category-images/entremet.jpg",
   },
   {
     id: "gateaux",
     label: "Gâteaux",
+    labelAr: "الكيك",
     image: "/category-images/entremet.jpg",
     children: [
-      { id: "entremet", label: "Entremets", image: "/category-images/entremet.jpg" },
-      { id: "gateaux_kg", label: "Gâteaux Kg", image: "/category-images/gateau_maroc.jpg" },
+      { id: "entremet", label: "Entremets", labelAr: "الكيك الدائري", image: "/category-images/entremet.jpg" },
+      { id: "gateaux_kg", label: "Gâteaux Kg", labelAr: "الكيك بالكيلو", image: "/category-images/gateau_maroc.jpg" },
     ],
   },
-  { id: "gateau_maroc", label: "Gateaux marocain", image: "/category-images/gateau_maroc.jpg" },
-  { id: "millefeuille", label: "Millefeuille/Cake", image: "/category-images/millefeuille.jpg" },
-  { id: "pain", label: "Pain", image: "/category-images/pain.jpg" },
-  { id: "patisserie", label: "Patisserie", image: "/category-images/patisserie.jpg" },
-  { id: "patisserie_cafe", label: "Pâtisserie/Cafe", image: "/category-images/patisserie.jpg" },
-  { id: "sale", label: "Sale", image: "/category-images/sale.jpg" },
-  { id: "viennoiserie", label: "Viennoiserie", image: "/category-images/viennoiserie.jpg" },
-  { id: "rziza", label: "Rziza", image: "/category-images/rziza.jpg" },
+  { id: "gateau_maroc", label: "Gateaux marocain", labelAr: "الحلويات المغربية", image: "/category-images/gateau_maroc.jpg" },
+  { id: "millefeuille", label: "Millefeuille/Cake", labelAr: "ميل فوي / كيك", image: "/category-images/millefeuille.jpg" },
+  { id: "pain", label: "Pain", labelAr: "خبز", image: "/category-images/pain.jpg" },
+  { id: "patisserie", label: "Patisserie", labelAr: "الحلويات", image: "/category-images/patisserie.jpg" },
+  { id: "patisserie_cafe", label: "Pâtisserie/Cafe", labelAr: "الحلويات/المقهى", image: "/category-images/patisserie.jpg" },
+  { id: "sale", label: "Sale", labelAr: "المالح", image: "/category-images/sale.jpg" },
+  { id: "viennoiserie", label: "Viennoiserie", labelAr: "المعجنات", image: "/category-images/viennoiserie.jpg" },
+  { id: "rziza", label: "Rziza", labelAr: "رزيزة", image: "/category-images/rziza.jpg" },
 ];
 
 // "Frigo Entremet" (Caisse) : fusionne les Entremets circulaires ET les Gâteaux au kg
@@ -310,6 +312,7 @@ export function mergeProductOverlay({ customProducts = [], edits = [], deletedId
       return {
         ...p,
         name: edit.name ?? p.name,
+        nameAr: edit.nameAr ?? p.nameAr,
         price: edit.price ?? p.price,
         category: edit.category ?? p.category,
         image: edit.image !== undefined && edit.image !== null ? edit.image : p.image,
@@ -393,16 +396,16 @@ export function getLayerVariants(layerHeight) {
 }
 
 export const ATELIERS = [
-  { id: "pain", label: "Pain" },
-  { id: "viennoiserie", label: "Viennoiserie" },
-  { id: "patisserie", label: "Pâtisserie" },
-  { id: "patisserie_cafe", label: "Pâtisserie/Cafe" },
-  { id: "sale", label: "Salé" },
-  { id: "gateau_maroc", label: "Gâteau Marocain" },
-  { id: "entremet", label: "Entremets" },
-  { id: "gateaux_kg", label: "Gâteaux Kg" },
-  { id: "cake_design", label: "Cake Design" },
-  { id: "melange", label: "Mélange" },
+  { id: "pain", label: "Pain", labelAr: "الخبز" },
+  { id: "viennoiserie", label: "Viennoiserie", labelAr: "المعجنات" },
+  { id: "patisserie", label: "Pâtisserie", labelAr: "الحلويات" },
+  { id: "patisserie_cafe", label: "Pâtisserie/Cafe", labelAr: "الحلويات/المقهى" },
+  { id: "sale", label: "Salé", labelAr: "المالح" },
+  { id: "gateau_maroc", label: "Gâteau Marocain", labelAr: "الحلويات المغربية" },
+  { id: "entremet", label: "Entremets", labelAr: "الكيك الدائري" },
+  { id: "gateaux_kg", label: "Gâteaux Kg", labelAr: "الكيك بالكيلو" },
+  { id: "cake_design", label: "Cake Design", labelAr: "تصميم الكيك" },
+  { id: "melange", label: "Mélange", labelAr: "المزيج" },
 ];
 
 export const MOROCCAN_SABLE_COMPONENTS = [
