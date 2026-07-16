@@ -10,6 +10,8 @@ import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, cl
 import QuantityModal from '../components/QuantityModal'
 import NumericField from '../components/NumericField'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
+import { useLanguage } from '../context/LanguageContext'
+import { getProductDisplayName, getCategoryLabel } from '../i18n/productNames'
 import { FiSearch, FiShoppingCart, FiPrinter, FiX, FiArrowLeft, FiCreditCard, FiDollarSign, FiSunset, FiPackage, FiPlus, FiClipboard as FiClipboardList } from 'react-icons/fi'
 
 function formatQty(qty) {
@@ -18,6 +20,7 @@ function formatQty(qty) {
 
 export default function POSPage() {
   const navigate = useNavigate()
+  const { lang } = useLanguage()
   const [activeCategory, setActiveCategory] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const mainRef = useRef(null)
@@ -89,9 +92,10 @@ export default function POSPage() {
     return ALL_PRODUCTS.filter(p =>
       !p.excludeFromCaisse &&
       (p.name.toLowerCase().includes(q) ||
+      getProductDisplayName(p, lang).toLowerCase().includes(q) ||
       CATEGORIES.find(c => c.id === p.category)?.label.toLowerCase().includes(q))
     ).slice(0, 12)
-  }, [searchQuery])
+  }, [searchQuery, lang])
 
   // Ouvre le clavier numérique pour saisir/éditer une quantité (au lieu d'ajouter +1 directement)
   const openQuantityModal = (product, initialValue) => {
@@ -106,14 +110,14 @@ export default function POSPage() {
   const handleProductClick = (product) => {
     const available = displayStock(product)
     if (available <= 0) {
-      addNotification(`Rupture de stock : "${product.name}" n'est plus disponible`, 'error')
+      addNotification(lang === 'ar' ? `نفذ المخزون: "${getProductDisplayName(product, lang)}" غير متوفر حالياً` : `Rupture de stock : "${product.name}" n'est plus disponible`, 'error')
       return
     }
     // Frigo Entremet : chaque lot est UN gâteau entier et unique (stock max = 1), pas la
     // peine de demander une quantité — on l'ajoute directement au panier avec qty = 1.
     if (product.frigoEntremet) {
       setItemQuantity(product, 1)
-      addNotification(`${product.name} ajouté`, 'success')
+      addNotification(lang === 'ar' ? `تمت إضافة ${getProductDisplayName(product, lang)}` : `${product.name} ajouté`, 'success')
       return
     }
     const existing = order.find((i) => i.id === product.id)
@@ -128,7 +132,7 @@ export default function POSPage() {
     const product = qtyModalState.product
     setQtyModalState({ open: false, product: null, initialValue: 1 })
     setItemQuantity(product, qty)
-    addNotification(`${product.name} : ${formatQty(qty)} ${product.unit === 'kg' ? 'kg' : 'pièce(s)'}`, 'success')
+    addNotification(`${getProductDisplayName(product, lang)} : ${formatQty(qty)} ${product.unit === 'kg' ? (lang === 'ar' ? 'كغ' : 'kg') : (lang === 'ar' ? 'قطعة' : 'pièce(s)')}`, 'success')
   }
 
   const cancelQuantity = () => setQtyModalState({ open: false, product: null, initialValue: 1 })
@@ -233,7 +237,7 @@ export default function POSPage() {
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                     className="flex items-center justify-between py-3 border-b border-[#E7CCB4]">
                     <div className="flex-1 min-w-0 pr-2">
-                      <p className="text-sm font-semibold text-diana-brownDark truncate">{item.name}</p>
+                      <p className="text-sm font-semibold text-diana-brownDark truncate">{getProductDisplayName(item, lang)}</p>
                       <p className="text-xs text-[#8B6A3A]">{item.price.toFixed(2)} DH × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -328,7 +332,7 @@ export default function POSPage() {
           ) : !activeCategory ? (
             <motion.div key="categories" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-2">Notre carte</p>
-              <h2 className="font-fraunces text-3xl font-medium mb-8 text-diana-cream">Choisissez une catégorie</h2>
+              <h2 className="font-fraunces text-3xl font-medium mb-8 text-diana-cream">{lang === 'ar' ? 'اختر فئة' : 'Choisissez une catégorie'}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-5">
                 {CATEGORIES.map((cat, index) => (
                   <motion.button key={cat.id}
@@ -338,15 +342,15 @@ export default function POSPage() {
                     className="cat-card bg-diana-card border border-diana-border rounded-2xl overflow-hidden text-left cursor-pointer text-diana-cream hover:border-diana-gold/30">
                     {cat.image && (
                       <div className="w-full h-28 sm:h-32 overflow-hidden bg-diana-darker">
-                        <img src={cat.image} alt={cat.label} className="w-full h-full object-cover" loading="lazy" />
+                        <img src={cat.image} alt={getCategoryLabel(cat, lang)} className="w-full h-full object-cover" loading="lazy" />
                       </div>
                     )}
                     <div className="p-4 sm:p-5">
-                      <p className="font-fraunces text-base sm:text-lg font-medium mb-1">{cat.label}</p>
+                      <p className="font-fraunces text-base sm:text-lg font-medium mb-1">{getCategoryLabel(cat, lang)}</p>
                       <p className="text-xs text-diana-brown">
                         {cat.id === 'frigo_entremet'
                           ? frigoBatches.length
-                          : (PRODUCTS[cat.id]?.length || 0)} produits
+                          : (PRODUCTS[cat.id]?.length || 0)} {lang === 'ar' ? 'منتج' : 'produits'}
                       </p>
                     </div>
                   </motion.button>
@@ -358,10 +362,10 @@ export default function POSPage() {
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
               <button onClick={() => setActiveCategory(null)}
                 className="flex items-center gap-2 text-diana-gold text-sm mb-6 hover:text-diana-goldLight transition-colors">
-                <FiArrowLeft size={16} /> Retour à la carte
+                <FiArrowLeft size={16} /> {lang === 'ar' ? 'الرجوع إلى القائمة' : 'Retour à la carte'}
               </button>
               <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">
-                {CATEGORIES.find((c) => c.id === activeCategory)?.label}
+                {getCategoryLabel(CATEGORIES.find((c) => c.id === activeCategory), lang)}
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3 sm:gap-4">
                 {(activeCategory === 'frigo_entremet'
@@ -410,7 +414,7 @@ export default function POSPage() {
                 </div>
                 {order.map((item) => (
                   <div key={item.id} className="flex justify-between py-1">
-                    <span>{item.name} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</span>
+                    <span>{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</span>
                     <span>{(item.price * item.qty).toFixed(2)} DH</span>
                   </div>
                 ))}
@@ -522,7 +526,7 @@ export default function POSPage() {
                 <div className="space-y-1 mb-2">
                   {clearReceipt.entries.map((e) => (
                     <div key={e.productId} className="flex justify-between py-0.5">
-                      <span className="pr-2">{e.name} × {e.qty}</span>
+                      <span className="pr-2">{getProductDisplayName(e, lang)} × {e.qty}</span>
                       <span className="shrink-0">{e.value.toFixed(2)} DH</span>
                     </div>
                   ))}
@@ -551,7 +555,9 @@ export default function POSPage() {
 }
 
 function ProductCard({ product, stock = 0, onAdd }) {
+  const { lang } = useLanguage()
   const isOut = stock <= 0
+  const displayName = getProductDisplayName(product, lang)
   return (
     <motion.button layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
       whileHover={{ y: isOut ? 0 : -3 }} whileTap={{ scale: isOut ? 1 : 0.97 }}
@@ -560,19 +566,19 @@ function ProductCard({ product, stock = 0, onAdd }) {
         ${isOut ? 'border-diana-border/40 opacity-50' : 'border-diana-border text-diana-cream hover:border-diana-gold/50'}`}>
       {isOut && (
         <span className="absolute top-2 right-2 z-10 text-[9px] font-bold uppercase tracking-wide bg-diana-danger text-white px-2 py-1 rounded-full">
-          Rupture
+          {lang === 'ar' ? 'نفذ' : 'Rupture'}
         </span>
       )}
       {product.image && (
         <div className="w-full h-20 sm:h-28 mb-2 sm:mb-3 rounded-lg overflow-hidden bg-diana-dark">
-          <img src={product.image} alt={product.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
+          <img src={product.image} alt={displayName} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
         </div>
       )}
-      <p className="text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2 leading-snug line-clamp-2">{product.name}</p>
+      <p className="text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2 leading-snug line-clamp-2">{displayName}</p>
       <p className="font-fraunces text-base sm:text-lg text-diana-gold mb-1">
-        {product.price > 0 ? `${product.price.toFixed(2)} DH` : 'Prix sur devis'}{product.unit === 'kg' ? ' / kg' : ''}
+        {product.price > 0 ? `${product.price.toFixed(2)} DH` : (lang === 'ar' ? 'الثمن حسب الطلب' : 'Prix sur devis')}{product.unit === 'kg' ? ' / kg' : ''}
       </p>
-      <p className={`text-[10px] sm:text-xs font-medium ${isOut ? 'text-diana-danger' : 'text-diana-brown'}`}>Stock: {stock}</p>
+      <p className={`text-[10px] sm:text-xs font-medium ${isOut ? 'text-diana-danger' : 'text-diana-brown'}`}>{lang === 'ar' ? 'المخزون' : 'Stock'}: {stock}</p>
     </motion.button>
   )
 }
