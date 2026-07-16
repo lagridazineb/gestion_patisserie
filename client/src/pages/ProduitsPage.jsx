@@ -198,7 +198,7 @@ export default function ProduitsPage() {
           <>
             <div className="relative max-w-md mb-6">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
-              <input type="text" placeholder={t('produits.rechercherProduit')} value={searchQuery}
+              <input type="text" placeholder={t('produits.rechercherProduit')} value={searchQuery} dir="auto" lang="fr"
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors" />
             </div>
@@ -239,7 +239,7 @@ export default function ProduitsPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs text-diana-brown mb-1.5">{t('produits.nomProduit')}</label>
-                    <input type="text" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    <input type="text" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} dir="ltr" lang="fr"
                       className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" placeholder={t('produits.nomProduit')} />
                   </div>
                   <div>
