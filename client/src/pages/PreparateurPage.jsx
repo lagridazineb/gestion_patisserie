@@ -21,7 +21,10 @@ export default function PreparateurPage() {
   const [revealedStatus, setRevealedStatus] = useState({}) // { [reservationId]: true } — statut affiché après clic sur "Prête"
   const [selectedProduct, setSelectedProduct] = useState('')
   const [quantity, setQuantity] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5))
   // Pour le préparateur Pâtisserie uniquement : 3 sections séparées.
   const [prepTab, setPrepTab] = useState('tranche') // 'tranche' | 'entremets' | 'kg'
@@ -45,12 +48,13 @@ export default function PreparateurPage() {
     : atelierProducts
 
   const refresh = useCallback(async () => {
+    const today = new Date()
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     const [stockData, allProd, frigo] = await Promise.all([
-      getStock(), getProductionLog(), getActiveFrigoBatches(),
+      getStock(), getProductionLog(user?.atelier, todayStr), getActiveFrigoBatches(),
     ])
     setStock(stockData)
     setFrigoBatches(frigo)
-    const todayStr = new Date().toISOString().split('T')[0]
     setProductions(allProd.filter((p) => p.atelier === user?.atelier && p.date === todayStr))
     // Regroupe les tâches de toutes les catégories gérées par cet atelier (sans doublons)
     const taskLists = await Promise.all(atelierCategories.map((c) => getAtelierTasks(c)))
