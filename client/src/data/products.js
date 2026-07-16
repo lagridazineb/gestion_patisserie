@@ -323,6 +323,18 @@ export function mergeProductOverlay({ customProducts = [], edits = [], deletedId
   return [...base, ...custom]
 }
 
+// Même chose que mergeProductOverlay, mais regroupée par catégorie (comme l'export PRODUCTS
+// de base) — pratique pour les pages qui font `PRODUCTS[categoryId]` (Caisse, Commande, Stock).
+export function mergeProductsByCategory(overlay) {
+  const flat = mergeProductOverlay(overlay)
+  const grouped = {}
+  for (const p of flat) {
+    if (!grouped[p.category]) grouped[p.category] = []
+    grouped[p.category].push(p)
+  }
+  return grouped
+}
+
 // Catégories de gâteaux pour lesquelles on peut ajouter une personnalisation
 // (texte à écrire sur le gâteau + photo de référence, ex: anniversaire)
 export const CUSTOMIZABLE_CATEGORIES = ["cake_design", "entremet", "gateaux_kg"];
