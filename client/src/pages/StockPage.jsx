@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiSearch, FiPlus, FiMinus, FiEdit3, FiPackage, FiAlertTriangle, FiUsers, FiTrendingUp, FiBox, FiSunset, FiTrash2, FiX, FiCalendar, FiChevronDown, FiPrinter } from 'react-icons/fi'
-import { ALL_PRODUCTS, ATELIERS } from '../data/products'
+import { ATELIERS, mergeProductOverlay } from '../data/products'
+import { getProductOverlay } from '../api/products'
 import { useNotification } from '../context/NotificationContext'
 import {
   getStock, setProductStock, adjustStock, getProductionLog, getSalesLog, subscribeToStockUpdates,
@@ -10,7 +11,6 @@ import {
   removeProductionEntry, sameDay, getRzizaDeliveries,
 } from '../data/stockStore'
 import NumericField from '../components/NumericField'
-import KeyboardField from '../components/KeyboardField'
 
 export default function StockPage() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -27,7 +27,16 @@ export default function StockPage() {
   const [productionDate, setProductionDate] = useState('')
   const [preparateurDate, setPreparateurDate] = useState('')
   const [clearReceipt, setClearReceipt] = useState(null)
+  const [productOverlay, setProductOverlay] = useState({ customProducts: [], edits: [], deletedIds: [] })
   const { addNotification } = useNotification()
+
+  useEffect(() => {
+    const refreshOverlay = () => { getProductOverlay().then(setProductOverlay).catch(() => {}) }
+    refreshOverlay()
+    const unsubscribe = subscribeToStockUpdates(refreshOverlay, 15000)
+    return unsubscribe
+  }, [])
+  const ALL_PRODUCTS = useMemo(() => mergeProductOverlay(productOverlay), [productOverlay])
 
   // Dès que le reçu de vidage est prêt à l'écran, on lance l'impression automatiquement.
   useEffect(() => {
@@ -248,8 +257,8 @@ export default function StockPage() {
             )}
             <div className="relative max-w-md mb-6">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
-              <KeyboardField placeholder="Rechercher un produit..." value={searchQuery} onChange={setSearchQuery}
-                subtitle="Recherche produit"
+              <input type="text" placeholder="Rechercher un produit..." value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors" />
             </div>
 
@@ -422,8 +431,8 @@ export default function StockPage() {
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <div className="relative flex-1 min-w-[200px]">
                 <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
-                <KeyboardField placeholder="Rechercher (produit, préparateur...)" value={productionSearch} onChange={setProductionSearch}
-                  subtitle="Recherche"
+                <input type="text" placeholder="Rechercher (produit, préparateur...)" value={productionSearch}
+                  onChange={(e) => setProductionSearch(e.target.value)}
                   className="w-full pl-10 pr-3 py-2.5 text-sm bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
               </div>
               <div className="flex items-center gap-2">
@@ -467,7 +476,7 @@ export default function StockPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setClearReceipt(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+              <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
                 <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                   <p className="text-diana-brown">{clearReceipt.label}</p>
