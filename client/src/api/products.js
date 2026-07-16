@@ -7,13 +7,13 @@ export async function getProductOverlay() {
   return data
 }
 
-export async function createProduct({ name, price, category, image }) {
-  const { data } = await apiClient.post('/products', { name, price, category, image })
+export async function createProduct({ name, nameAr, price, category, image }) {
+  const { data } = await apiClient.post('/products', { name, nameAr, price, category, image })
   return data.product
 }
 
-export async function updateProduct(id, { name, price, category, image }) {
-  const { data } = await apiClient.put(`/products/${id}`, { name, price, category, image })
+export async function updateProduct(id, { name, nameAr, price, category, image }) {
+  const { data } = await apiClient.put(`/products/${id}`, { name, nameAr, price, category, image })
   return data.product
 }
 
