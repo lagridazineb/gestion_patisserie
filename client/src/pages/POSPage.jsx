@@ -4,11 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
-import { CATEGORIES_POS as CATEGORIES, PRODUCTS, ALL_PRODUCTS } from '../data/products'
+import { CATEGORIES_POS as CATEGORIES, mergeProductOverlay, mergeProductsByCategory } from '../data/products'
+import { getProductOverlay } from '../api/products'
 import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks } from '../data/stockStore'
 import QuantityModal from '../components/QuantityModal'
 import NumericField from '../components/NumericField'
-import KeyboardField from '../components/KeyboardField'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
 import { FiSearch, FiShoppingCart, FiPrinter, FiX, FiArrowLeft, FiCreditCard, FiDollarSign, FiSunset, FiPackage, FiPlus, FiClipboard as FiClipboardList } from 'react-icons/fi'
 
@@ -39,6 +39,21 @@ export default function POSPage() {
   const [rzizaBon, setRzizaBon] = useState(null)
   const [clearReceipt, setClearReceipt] = useState(null)
   const [pendingRzizaOrders, setPendingRzizaOrders] = useState(0)
+  const [productOverlay, setProductOverlay] = useState({ customProducts: [], edits: [], deletedIds: [] })
+
+  // Recharge la surcouche (produits ajoutés/modifiés/masqués depuis la page Produits) au
+  // chargement, puis régulièrement — pour voir sans recharger un produit ajouté par l'admin
+  // depuis un autre appareil.
+  useEffect(() => {
+    const refreshOverlay = () => { getProductOverlay().then(setProductOverlay).catch(() => {}) }
+    refreshOverlay()
+    const unsubscribe = subscribeToStockUpdates(refreshOverlay, 15000)
+    return unsubscribe
+  }, [])
+  // Catalogue réellement à jour = catalogue de base + surcouche serveur. Ombrage volontaire des
+  // noms PRODUCTS / ALL_PRODUCTS pour que tout le reste du fichier continue à fonctionner tel quel.
+  const ALL_PRODUCTS = useMemo(() => mergeProductOverlay(productOverlay), [productOverlay])
+  const PRODUCTS = useMemo(() => mergeProductsByCategory(productOverlay), [productOverlay])
 
   // Dès que le reçu de vidage est prêt à l'écran, on lance l'impression automatiquement.
   useEffect(() => {
@@ -292,8 +307,8 @@ export default function POSPage() {
         <div className="mb-6">
           <div className="relative max-w-md">
             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
-            <KeyboardField placeholder="Rechercher un produit..." value={searchQuery} onChange={setSearchQuery}
-              subtitle="Recherche produit"
+            <input type="text" placeholder="Rechercher un produit..." value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors" />
           </div>
         </div>
@@ -387,7 +402,7 @@ export default function POSPage() {
                 <h3 className="font-fraunces text-xl font-medium">Paiement réussi !</h3>
                 <p className="text-sm text-diana-brown mt-1">{paymentType === 'cash' ? 'Paiement en espèces' : 'Paiement par carte'}</p>
               </div>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-diana-creamDark">
+              <div className="bg-white rounded-xl p-4 mb-6 text-xs border border-diana-creamDark">
                 <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                   <p className="text-diana-brown">{new Date().toLocaleDateString('fr-FR')} {new Date().toLocaleTimeString('fr-FR')}</p>
@@ -405,9 +420,8 @@ export default function POSPage() {
                     <div className="flex justify-between text-emerald-700 mt-1"><span>Monnaie rendue</span><span>{changeGiven.toFixed(2)} DH</span></div>
                   )}
                 </div>
-                <p className="text-center text-diana-brown mt-3 pt-2 border-t border-dashed border-diana-creamDark">Merci de votre visite !</p>
               </div>
-              <div className="flex flex-col gap-2.5 print:hidden">
+              <div className="flex flex-col gap-2.5">
                 <button onClick={handlePrint}
                   className="flex items-center justify-center gap-2 bg-diana-dark text-diana-cream py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
                   <FiPrinter size={16} /> Imprimer le reçu
@@ -463,7 +477,7 @@ export default function POSPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4" onClick={() => setRzizaBon(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+              <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
                 <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                   <p className="text-diana-brown">Bon de livraison — Rziza</p>
@@ -499,7 +513,7 @@ export default function POSPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setClearReceipt(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+              <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
                 <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
                   <p className="text-diana-brown">{clearReceipt.label}</p>
