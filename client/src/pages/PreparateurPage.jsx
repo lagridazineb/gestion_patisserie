@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
-import { PRODUCTS, ATELIERS, getAtelierCategories } from '../data/products'
+import { ATELIERS, getAtelierCategories, mergeProductsByCategory } from '../data/products'
+import { getProductOverlay } from '../api/products'
 import { getStock, addProduction, getProductionLog, subscribeToStockUpdates, getAtelierTasks, getAtelierDoneTasks, markAtelierDone, getActiveFrigoBatches } from '../data/stockStore'
 import { FiBox, FiPlus, FiCheck, FiClock, FiCalendar, FiPackage, FiClipboard, FiUser, FiPhone, FiEye, FiCheckCircle, FiXCircle, FiScissors, FiGrid } from 'react-icons/fi'
 import NumericField from '../components/NumericField'
@@ -25,6 +26,14 @@ export default function PreparateurPage() {
   // Pour le préparateur Pâtisserie uniquement : 3 sections séparées.
   const [prepTab, setPrepTab] = useState('tranche') // 'tranche' | 'entremets' | 'kg'
   const isPatisserie = user?.atelier === 'patisserie'
+
+  const [productOverlay, setProductOverlay] = useState({ customProducts: [], edits: [], deletedIds: [] })
+  useEffect(() => {
+    const refreshOverlay = () => { getProductOverlay().then(setProductOverlay).catch(() => {}) }
+    refreshOverlay()
+    return subscribeToStockUpdates(refreshOverlay, 15000)
+  }, [])
+  const PRODUCTS = useMemo(() => mergeProductsByCategory(productOverlay), [productOverlay])
 
   const atelierCategories = user?.atelier ? getAtelierCategories(user.atelier) : []
   const atelierProducts = atelierCategories.flatMap((c) => (PRODUCTS[c] || []).map((p) => ({ ...p, category: c })))
