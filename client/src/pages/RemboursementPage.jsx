@@ -136,7 +136,7 @@ export default function RemboursementPage() {
         <form onSubmit={handleSearch} className="flex items-center gap-2 mb-4 max-w-md">
           <div className="relative flex-1">
             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
-            <input value={ticketInput} onChange={(e) => setTicketInput(e.target.value)}
+            <input value={ticketInput} onChange={(e) => setTicketInput(e.target.value)} dir="ltr" lang="fr"
               placeholder={tab === 'vente' ? 'Numéro de ticket (ex: 12)' : 'Numéro de commande (ex: 30)'}
               className="w-full pl-11 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
           </div>
