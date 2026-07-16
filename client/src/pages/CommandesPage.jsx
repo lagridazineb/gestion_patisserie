@@ -16,6 +16,8 @@ import MoroccanCakeModal from '../components/MoroccanCakeModal'
 import SalePlateauModal from '../components/SalePlateauModal'
 import LayerModal from '../components/LayerModal'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
+import { useLanguage } from '../context/LanguageContext'
+import { getProductDisplayName, getCategoryLabel } from '../i18n/productNames'
 import {
   FiTruck, FiUser, FiPhone, FiCalendar, FiClock, FiFileText,
   FiArrowLeft, FiCreditCard, FiDollarSign, FiLogOut, FiLogIn, FiX, FiAlertCircle, FiPrinter
@@ -29,6 +31,7 @@ export default function CommandesPage() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { addNotification } = useNotification()
+  const { lang } = useLanguage()
 
   // --- Panier de la réservation (indépendant de la caisse) ---
   const [order, setOrder] = useState([])
@@ -314,8 +317,8 @@ export default function CommandesPage() {
           <AnimatePresence mode="wait">
             {!activeCategory ? (
               <motion.div key="categories" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-2">Nouvelle réservation</p>
-                <h2 className="font-fraunces text-3xl font-medium mb-8 text-diana-cream">Catégories</h2>
+                <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-2">{lang === 'ar' ? 'حجز جديد' : 'Nouvelle réservation'}</p>
+                <h2 className="font-fraunces text-3xl font-medium mb-8 text-diana-cream">{lang === 'ar' ? 'الفئات' : 'Catégories'}</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-5">
                   {CATEGORIES.map((cat, index) => (
                     <motion.button key={cat.id}
@@ -325,13 +328,13 @@ export default function CommandesPage() {
                       className="cat-card bg-diana-card border border-diana-border rounded-2xl overflow-hidden text-left cursor-pointer text-diana-cream hover:border-diana-gold/30">
                       {cat.image && (
                         <div className="w-full h-28 sm:h-32 overflow-hidden bg-diana-darker">
-                          <img src={cat.image} alt={cat.label} className="w-full h-full object-cover" loading="lazy" />
+                          <img src={cat.image} alt={getCategoryLabel(cat, lang)} className="w-full h-full object-cover" loading="lazy" />
                         </div>
                       )}
                       <div className="p-4 sm:p-5">
-                        <p className="font-fraunces text-base sm:text-lg font-medium mb-1">{cat.label}</p>
+                        <p className="font-fraunces text-base sm:text-lg font-medium mb-1">{getCategoryLabel(cat, lang)}</p>
                         <p className="text-xs text-diana-brown">
-                          {cat.children ? `${cat.children.length} sous-catégories` : `${PRODUCTS[cat.id]?.length || 0} produits`}
+                          {cat.children ? `${cat.children.length} ${lang === 'ar' ? 'فئة فرعية' : 'sous-catégories'}` : `${PRODUCTS[cat.id]?.length || 0} ${lang === 'ar' ? 'منتج' : 'produits'}`}
                         </p>
                       </div>
                     </motion.button>
@@ -342,9 +345,9 @@ export default function CommandesPage() {
               <motion.div key={`${activeCategory}-children`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                 <button onClick={() => setActiveCategory(null)}
                   className="flex items-center gap-2 text-diana-gold text-sm mb-6 hover:text-diana-goldLight transition-colors">
-                  <FiArrowLeft size={16} /> Retour aux catégories
+                  <FiArrowLeft size={16} /> {lang === 'ar' ? 'الرجوع إلى الفئات' : 'Retour aux catégories'}
                 </button>
-                <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">{currentCategory?.label}</h2>
+                <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">{getCategoryLabel(currentCategory, lang)}</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-5">
                   {currentCategory.children.map((sub, index) => (
                     <motion.button key={sub.id}
@@ -354,12 +357,12 @@ export default function CommandesPage() {
                       className="cat-card bg-diana-card border border-diana-border rounded-2xl overflow-hidden text-left cursor-pointer text-diana-cream hover:border-diana-gold/30">
                       {sub.image && (
                         <div className="w-full h-28 sm:h-32 overflow-hidden bg-diana-darker">
-                          <img src={sub.image} alt={sub.label} className="w-full h-full object-cover" loading="lazy" />
+                          <img src={sub.image} alt={getCategoryLabel(sub, lang)} className="w-full h-full object-cover" loading="lazy" />
                         </div>
                       )}
                       <div className="p-4 sm:p-5">
-                        <p className="font-fraunces text-base sm:text-lg font-medium mb-1">{sub.label}</p>
-                        <p className="text-xs text-diana-brown">{PRODUCTS[sub.id]?.length || 0} produits</p>
+                        <p className="font-fraunces text-base sm:text-lg font-medium mb-1">{getCategoryLabel(sub, lang)}</p>
+                        <p className="text-xs text-diana-brown">{PRODUCTS[sub.id]?.length || 0} {lang === 'ar' ? 'منتج' : 'produits'}</p>
                       </div>
                     </motion.button>
                   ))}
@@ -369,9 +372,11 @@ export default function CommandesPage() {
               <motion.div key={leafCategoryId} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                 <button onClick={() => hasChildren ? setActiveSubcategory(null) : setActiveCategory(null)}
                   className="flex items-center gap-2 text-diana-gold text-sm mb-6 hover:text-diana-goldLight transition-colors">
-                  <FiArrowLeft size={16} /> Retour {hasChildren ? `à ${currentCategory.label}` : 'aux catégories'}
+                  <FiArrowLeft size={16} /> {lang === 'ar'
+                    ? (hasChildren ? `الرجوع إلى ${getCategoryLabel(currentCategory, lang)}` : 'الرجوع إلى الفئات')
+                    : `Retour ${hasChildren ? `à ${currentCategory.label}` : 'aux catégories'}`}
                 </button>
-                <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">{leafCategory?.label}</h2>
+                <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">{getCategoryLabel(leafCategory, lang)}</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3 sm:gap-4">
                   {PRODUCTS[leafCategoryId]?.map((prod) => (
                     <motion.button key={prod.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
@@ -379,12 +384,12 @@ export default function CommandesPage() {
                       className="prod-card bg-diana-card border border-diana-border rounded-xl p-3 sm:p-5 text-left cursor-pointer text-diana-cream hover:border-diana-gold/50">
                       {prod.image && (
                         <div className="w-full h-20 sm:h-28 mb-2 sm:mb-3 rounded-lg overflow-hidden bg-diana-dark">
-                          <img src={prod.image} alt={prod.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
+                          <img src={prod.image} alt={getProductDisplayName(prod, lang)} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
                         </div>
                       )}
-                      <p className="text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2 leading-snug line-clamp-2">{prod.name}</p>
+                      <p className="text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2 leading-snug line-clamp-2">{getProductDisplayName(prod, lang)}</p>
                       <p className="font-fraunces text-base sm:text-lg text-diana-gold mb-1">
-                        {prod.price > 0 ? `${prod.price.toFixed(2)} DH` : 'Prix sur devis'}{prod.unit === 'kg' ? ' / kg' : ''}
+                        {prod.price > 0 ? `${prod.price.toFixed(2)} DH` : (lang === 'ar' ? 'الثمن حسب الطلب' : 'Prix sur devis')}{prod.unit === 'kg' ? ' / kg' : ''}
                       </p>
                       <p className="text-[10px] sm:text-xs font-medium text-diana-brown">Stock: {stock[prod.id] ?? 0}</p>
                     </motion.button>
@@ -431,7 +436,7 @@ export default function CommandesPage() {
                     <motion.div key={item.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -30 }}
                       className="grid grid-cols-[1fr,auto,auto] gap-2 items-center py-2 border-b border-[#E7CCB4] text-sm">
                       <span className="truncate flex items-center gap-1">
-                        {item.name}
+                        {getProductDisplayName(item, lang)}
                         {(item.customNote || item.customImage) && <FiFileText size={11} className="text-emerald-600 shrink-0" title="Personnalisé" />}
                       </span>
                       <button onClick={() => handleEditOrderQty(item)}
@@ -547,13 +552,13 @@ export default function CommandesPage() {
                 <div className="border-t border-dashed border-[#E7CCB4] pt-2">
                   {lastReservation.items.map((item) => (
                     <div key={item.id} className="flex justify-between py-1">
-                      <span>{item.name} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}</span>
+                      <span>{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}</span>
                       <span>{itemTotal(item).toFixed(2)} DH</span>
                     </div>
                   ))}
                   {lastReservation.items.some((i) => i.customNote) && (
                     <p className="text-[10px] text-[#8B6A3A] italic mt-1">
-                      {lastReservation.items.filter((i) => i.customNote).map((i) => `* ${i.name} : "${i.customNote}"`).join(' — ')}
+                      {lastReservation.items.filter((i) => i.customNote).map((i) => `* ${getProductDisplayName(i, lang)} : "${i.customNote}"`).join(' — ')}
                     </p>
                   )}
                 </div>
