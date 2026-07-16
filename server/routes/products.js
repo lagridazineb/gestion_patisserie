@@ -15,10 +15,10 @@ router.get('/', authMiddleware, async (req, res) => {
     const [deleted] = await pool.query('SELECT product_id FROM deleted_products')
     res.json({
       customProducts: customProducts.map((p) => ({
-        id: p.id, name: p.name, price: Number(p.price), category: p.category, image: p.image, isCustom: true,
+        id: p.id, name: p.name, nameAr: p.name_ar || null, price: Number(p.price), category: p.category, image: p.image, isCustom: true,
       })),
       edits: edits.map((e) => ({
-        productId: e.product_id, name: e.name, price: e.price === null ? null : Number(e.price),
+        productId: e.product_id, name: e.name, nameAr: e.name_ar || null, price: e.price === null ? null : Number(e.price),
         category: e.category, image: e.image,
       })),
       deletedIds: deleted.map((d) => d.product_id),
@@ -32,16 +32,16 @@ router.get('/', authMiddleware, async (req, res) => {
 // Crée un nouveau produit (n'existe pas dans le catalogue de base).
 router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { name, price, category, image } = req.body
+    const { name, nameAr, price, category, image } = req.body
     if (!name || !category || isNaN(Number(price)) || Number(price) <= 0) {
       return res.status(400).json({ error: 'Nom, prix et catégorie requis' })
     }
     const id = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     await pool.query(
-      'INSERT INTO custom_products (id, name, price, category, image) VALUES (?, ?, ?, ?, ?)',
-      [id, name, Number(price), category, image || null]
+      'INSERT INTO custom_products (id, name, name_ar, price, category, image) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, name, nameAr || null, Number(price), category, image || null]
     )
-    res.json({ product: { id, name, price: Number(price), category, image: image || null, isCustom: true } })
+    res.json({ product: { id, name, nameAr: nameAr || null, price: Number(price), category, image: image || null, isCustom: true } })
   } catch (error) {
     console.error('Erreur POST /api/products :', error)
     res.status(500).json({ error: 'Erreur serveur' })
@@ -53,24 +53,24 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params
-    const { name, price, category, image } = req.body
+    const { name, nameAr, price, category, image } = req.body
     if (!name || !category || isNaN(Number(price)) || Number(price) <= 0) {
       return res.status(400).json({ error: 'Nom, prix et catégorie requis' })
     }
     const [existingCustom] = await pool.query('SELECT id FROM custom_products WHERE id = ?', [id])
     if (existingCustom.length > 0) {
       await pool.query(
-        'UPDATE custom_products SET name = ?, price = ?, category = ?, image = ? WHERE id = ?',
-        [name, Number(price), category, image || null, id]
+        'UPDATE custom_products SET name = ?, name_ar = ?, price = ?, category = ?, image = ? WHERE id = ?',
+        [name, nameAr || null, Number(price), category, image || null, id]
       )
-      return res.json({ product: { id, name, price: Number(price), category, image: image || null, isCustom: true } })
+      return res.json({ product: { id, name, nameAr: nameAr || null, price: Number(price), category, image: image || null, isCustom: true } })
     }
     await pool.query(
-      `INSERT INTO product_edits (product_id, name, price, category, image) VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE name = VALUES(name), price = VALUES(price), category = VALUES(category), image = VALUES(image)`,
-      [id, name, Number(price), category, image || null]
+      `INSERT INTO product_edits (product_id, name, name_ar, price, category, image) VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE name = VALUES(name), name_ar = VALUES(name_ar), price = VALUES(price), category = VALUES(category), image = VALUES(image)`,
+      [id, name, nameAr || null, Number(price), category, image || null]
     )
-    res.json({ product: { id, name, price: Number(price), category, image: image || null, isCustom: false } })
+    res.json({ product: { id, name, nameAr: nameAr || null, price: Number(price), category, image: image || null, isCustom: false } })
   } catch (error) {
     console.error('Erreur PUT /api/products/:id :', error)
     res.status(500).json({ error: 'Erreur serveur' })
