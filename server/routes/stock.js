@@ -73,6 +73,18 @@ router.post('/clear', authMiddleware, adminMiddleware, async (req, res) => {
       await setStock(p.id, 0)
     }
 
+    // Remet aussi à zéro le compteur "Fait" du préparateur pour ces produits : sans ça, le
+    // stock repasse à 0 mais l'historique de production du jour reste affiché tel quel côté
+    // préparateur jusqu'au changement de date calendaire.
+    const productIds = affectedProducts.map((p) => p.id).filter(Boolean)
+    if (productIds.length) {
+      const placeholders = productIds.map(() => '?').join(',')
+      await pool.query(
+        `DELETE FROM production_entries WHERE production_date = CURDATE() AND product_id IN (${placeholders})`,
+        productIds
+      )
+    }
+
     const id = Date.now()
     await pool.query(
       `INSERT INTO stock_clear_log (id, type, entries, total_quantity, total_value, product_count, created_at)
