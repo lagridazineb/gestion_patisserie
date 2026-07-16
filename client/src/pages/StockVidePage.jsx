@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { FiTrash2, FiCalendar, FiSearch } from 'react-icons/fi'
 import { getStockClearLog, subscribeToStockUpdates, sameDay } from '../data/stockStore'
-import KeyboardField from '../components/KeyboardField'
 
 function startOfWeek(d) {
   const date = new Date(d)
@@ -98,8 +97,8 @@ export default function StockVidePage() {
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <div className="relative flex-1 min-w-[200px]">
             <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
-            <KeyboardField placeholder="Rechercher un produit vidé..." value={search} onChange={setSearch}
-              subtitle="Recherche"
+            <input type="text" placeholder="Rechercher un produit vidé..." value={search} dir="auto" lang="fr"
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-3 py-2.5 text-sm bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
           </div>
           <div className="flex items-center gap-2">
