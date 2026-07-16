@@ -19,7 +19,7 @@ const adminNavItems = [
 ]
 
 const preparateurNavItems = [
-  { path: '/preparateur', icon: FiBox, label: 'Production' },
+  { path: '/preparateur', icon: FiBox, label: 'الإنتاج' },
 ]
 
 const caissierNavItems = [
@@ -34,12 +34,13 @@ export default function Layout() {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const navItems = user?.role === 'admin' ? adminNavItems : user?.role === 'caissier' ? caissierNavItems : preparateurNavItems
+  const isPreparateur = user?.role === 'preparateur'
 
   const handleLogout = () => { logout(); setSidebarOpen(false); navigate('/') }
   const handleLogin = () => { setSidebarOpen(false); navigate('/login') }
 
   return (
-    <div className="flex h-screen bg-diana-dark overflow-hidden">
+    <div dir={isPreparateur ? 'rtl' : 'ltr'} className="flex h-screen bg-diana-dark overflow-hidden">
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
@@ -79,13 +80,13 @@ export default function Layout() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-diana-cream">{user?.name}</p>
-                      <p className="text-xs text-diana-brown capitalize">{user?.role === 'admin' ? 'Administrateur' : 'Préparateur'}</p>
+                      <p className="text-xs text-diana-brown capitalize">{user?.role === 'admin' ? 'Administrateur' : isPreparateur ? 'عامل التحضير' : 'Préparateur'}</p>
                     </div>
                   </div>
                   <button onClick={handleLogout}
                     className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-diana-accentLight hover:bg-diana-accent/10 transition-colors">
                     <FiLogOut size={16} />
-                    <span>Déconnexion</span>
+                    <span>{isPreparateur ? 'تسجيل الخروج' : 'Déconnexion'}</span>
                   </button>
                 </div>
               </>
