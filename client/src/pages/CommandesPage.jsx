@@ -382,21 +382,21 @@ export default function CommandesPage() {
                     : `Retour ${hasChildren ? `à ${currentCategory.label}` : 'aux catégories'}`}
                 </button>
                 <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">{getCategoryLabel(leafCategory, lang)}</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3 sm:gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2 sm:gap-3">
                   {PRODUCTS[leafCategoryId]?.map((prod) => (
                     <motion.button key={prod.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                       whileHover={{ y: -3 }} whileTap={{ scale: 0.97 }} onClick={() => handleProductClick({ ...prod, category: leafCategoryId })}
-                      className="prod-card bg-diana-card border border-diana-border rounded-xl p-3 sm:p-5 text-left cursor-pointer text-diana-cream hover:border-diana-gold/50">
+                      className="prod-card bg-diana-card border border-diana-border rounded-xl p-2 sm:p-2.5 text-left cursor-pointer text-diana-cream hover:border-diana-gold/50">
                       {prod.image && (
-                        <div className="w-full h-20 sm:h-28 mb-2 sm:mb-3 rounded-lg overflow-hidden bg-diana-dark">
+                        <div className="w-full h-14 sm:h-20 mb-1.5 sm:mb-2 rounded-lg overflow-hidden bg-diana-dark">
                           <img src={prod.image} alt={getProductDisplayName(prod, lang)} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
                         </div>
                       )}
-                      <p className="text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2 leading-snug line-clamp-2">{getProductDisplayName(prod, lang)}</p>
-                      <p className="font-fraunces text-base sm:text-lg text-diana-gold mb-1">
+                      <p className="text-[11px] sm:text-xs font-semibold mb-1 leading-snug line-clamp-2">{getProductDisplayName(prod, lang)}</p>
+                      <p className="font-fraunces text-sm sm:text-base text-diana-gold mb-0.5">
                         {prod.price > 0 ? `${prod.price.toFixed(2)} DH` : (lang === 'ar' ? 'الثمن حسب الطلب' : 'Prix sur devis')}{prod.unit === 'kg' ? ' / kg' : ''}
                       </p>
-                      <p className="text-[10px] sm:text-xs font-medium text-diana-brown">Stock: {stock[prod.id] ?? 0}</p>
+                      <p className="text-[9px] sm:text-[10px] font-medium text-diana-brown">Stock: {stock[prod.id] ?? 0}</p>
                     </motion.button>
                   ))}
                 </div>
@@ -428,7 +428,7 @@ export default function CommandesPage() {
             <p className="font-fraunces text-lg font-medium text-diana-brownDark mb-3">Résumé de commande</p>
           </div>
 
-          <div className="flex-1 px-5 min-h-0 max-h-[35vh] lg:max-h-none overflow-y-auto">
+          <div className="flex-1 px-5 min-h-0 max-h-[50vh] lg:max-h-none overflow-y-auto">
             {order.length === 0 ? (
               <p className="text-sm italic text-[#B68C6C] py-6 text-center">Aucun article sélectionné</p>
             ) : (
@@ -459,44 +459,44 @@ export default function CommandesPage() {
             )}
           </div>
 
-          <div className="p-5 pt-3">
+          <div className="p-5 pt-2.5 shrink-0">
             <button onClick={handleCancelOrder}
-              className="w-full mb-4 py-2.5 rounded-xl text-sm font-semibold text-diana-danger bg-diana-danger/10 hover:bg-diana-danger/20 transition-colors">
+              className="w-full mb-2.5 py-2 rounded-xl text-sm font-semibold text-diana-danger bg-diana-danger/10 hover:bg-diana-danger/20 transition-colors">
               Annuler commande
             </button>
 
-            <div className="bg-white border border-[#E7CCB4] rounded-xl p-3.5 mb-4">
-              <div className="flex justify-between items-baseline mb-3">
+            <div className="bg-white border border-[#E7CCB4] rounded-xl p-2.5 mb-2.5">
+              <div className="flex justify-between items-baseline mb-2">
                 <span className="font-fraunces text-sm text-diana-brownDark">Total</span>
-                <span className="font-fraunces text-2xl font-semibold text-diana-brownDark">{subtotal.toFixed(2)} <span className="text-sm font-normal">DH</span></span>
+                <span className="font-fraunces text-xl font-semibold text-diana-brownDark">{subtotal.toFixed(2)} <span className="text-sm font-normal">DH</span></span>
               </div>
 
               <label className="text-xs text-[#8B6A3A] mb-1 block">Avance</label>
               <NumericField value={avance} onChange={setAvance} placeholder="0.00" title="Avance" unit="DH"
-                className="w-full mb-3 px-3 py-2 text-sm bg-[#FFF6EC] border border-[#E7CCB4] rounded-lg text-diana-brownDark text-left focus:outline-none focus:border-[#C89A5C]" />
+                className="w-full mb-2 px-3 py-1.5 text-sm bg-[#FFF6EC] border border-[#E7CCB4] rounded-lg text-diana-brownDark text-left focus:outline-none focus:border-[#C89A5C]" />
 
-              <div className="flex justify-between items-baseline pt-2 border-t border-[#E7CCB4]">
+              <div className="flex justify-between items-baseline pt-1.5 border-t border-[#E7CCB4]">
                 <span className="text-sm text-diana-brownDark">Reste à payer</span>
-                <span className="text-lg font-semibold text-diana-danger">{resteAPayer.toFixed(2)} DH</span>
+                <span className="text-base font-semibold text-diana-danger">{resteAPayer.toFixed(2)} DH</span>
               </div>
             </div>
 
-            <p className="text-xs text-[#8B6A3A] mb-2">
+            <p className="text-xs text-[#8B6A3A] mb-1.5">
               Mode de paiement actuel : <span className="font-medium text-diana-brownDark">{paymentMode === 'cash' ? 'Espèces' : paymentMode === 'card' ? 'TPE' : 'Non spécifié'}</span>
             </p>
-            <div className="grid grid-cols-2 gap-2.5 mb-4">
+            <div className="grid grid-cols-2 gap-2 mb-2.5">
               <button onClick={() => setPaymentMode('cash')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${paymentMode === 'cash' ? 'bg-[#C89A5C] text-white' : 'bg-[#C89A5C]/15 text-[#8B6A3A] border border-[#C89A5C]/40'}`}>
+                className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${paymentMode === 'cash' ? 'bg-[#C89A5C] text-white' : 'bg-[#C89A5C]/15 text-[#8B6A3A] border border-[#C89A5C]/40'}`}>
                 <FiDollarSign size={15} /> Espèces
               </button>
               <button onClick={() => setPaymentMode('card')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${paymentMode === 'card' ? 'bg-diana-brownDark text-white' : 'bg-diana-brownDark/10 text-diana-brownDark border border-diana-brownDark/20'}`}>
+                className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${paymentMode === 'card' ? 'bg-diana-brownDark text-white' : 'bg-diana-brownDark/10 text-diana-brownDark border border-diana-brownDark/20'}`}>
                 <FiCreditCard size={15} /> TPE
               </button>
             </div>
 
             <button onClick={handleValidate} disabled={!canValidate}
-              className="w-full py-3.5 rounded-xl text-sm font-semibold bg-diana-brownDark text-white hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
+              className="w-full py-3 rounded-xl text-sm font-semibold bg-diana-brownDark text-white hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
               Valider la commande
             </button>
           </div>
