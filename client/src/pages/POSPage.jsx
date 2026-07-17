@@ -308,14 +308,6 @@ export default function POSPage() {
             </button>
           )}
         </div>
-        <div className="mb-6">
-          <div className="relative max-w-md">
-            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
-            <input type="text" placeholder="Rechercher un produit..." value={searchQuery} dir="auto" lang="fr"
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors" />
-          </div>
-        </div>
         <AnimatePresence mode="wait">
           {searchQuery.trim() ? (
             <motion.div key="search" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
