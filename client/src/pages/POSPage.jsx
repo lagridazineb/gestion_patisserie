@@ -324,7 +324,7 @@ export default function POSPage() {
               {filteredProducts.length === 0 ? (
                 <p className="text-diana-brownLight italic">Aucun produit trouvé</p>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 sm:gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2 sm:gap-3">
                   {filteredProducts.map((prod) => <ProductCard key={prod.id} product={prod} stock={displayStock(prod)} onAdd={handleProductClick} />)}
                 </div>
               )}
@@ -367,7 +367,7 @@ export default function POSPage() {
               <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">
                 {getCategoryLabel(CATEGORIES.find((c) => c.id === activeCategory), lang)}
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3 sm:gap-4">
+              <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2 sm:gap-3">
                 {(activeCategory === 'frigo_entremet'
                   ? frigoBatches.map((b) => ({ ...b, frigoEntremet: true }))
                   : PRODUCTS[activeCategory]?.filter((p) => !p.excludeFromCaisse)
@@ -562,23 +562,23 @@ function ProductCard({ product, stock = 0, onAdd }) {
     <motion.button layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
       whileHover={{ y: isOut ? 0 : -3 }} whileTap={{ scale: isOut ? 1 : 0.97 }}
       onClick={() => onAdd(product)}
-      className={`prod-card bg-diana-card border rounded-xl p-3 sm:p-5 text-left cursor-pointer relative
+      className={`prod-card bg-diana-card border rounded-xl p-2 sm:p-2.5 text-left cursor-pointer relative
         ${isOut ? 'border-diana-border/40 opacity-50' : 'border-diana-border text-diana-cream hover:border-diana-gold/50'}`}>
       {isOut && (
-        <span className="absolute top-2 right-2 z-10 text-[9px] font-bold uppercase tracking-wide bg-diana-danger text-white px-2 py-1 rounded-full">
+        <span className="absolute top-1.5 right-1.5 z-10 text-[8px] font-bold uppercase tracking-wide bg-diana-danger text-white px-1.5 py-0.5 rounded-full">
           {lang === 'ar' ? 'نفذ' : 'Rupture'}
         </span>
       )}
       {product.image && (
-        <div className="w-full h-20 sm:h-28 mb-2 sm:mb-3 rounded-lg overflow-hidden bg-diana-dark">
+        <div className="w-full h-14 sm:h-20 mb-1.5 sm:mb-2 rounded-lg overflow-hidden bg-diana-dark">
           <img src={product.image} alt={displayName} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
         </div>
       )}
-      <p className="text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2 leading-snug line-clamp-2">{displayName}</p>
-      <p className="font-fraunces text-base sm:text-lg text-diana-gold mb-1">
+      <p className="text-[11px] sm:text-xs font-semibold mb-1 leading-snug line-clamp-2">{displayName}</p>
+      <p className="font-fraunces text-sm sm:text-base text-diana-gold mb-0.5">
         {product.price > 0 ? `${product.price.toFixed(2)} DH` : (lang === 'ar' ? 'الثمن حسب الطلب' : 'Prix sur devis')}{product.unit === 'kg' ? ' / kg' : ''}
       </p>
-      <p className={`text-[10px] sm:text-xs font-medium ${isOut ? 'text-diana-danger' : 'text-diana-brown'}`}>{lang === 'ar' ? 'المخزون' : 'Stock'}: {stock}</p>
+      <p className={`text-[9px] sm:text-[10px] font-medium ${isOut ? 'text-diana-danger' : 'text-diana-brown'}`}>{lang === 'ar' ? 'المخزون' : 'Stock'}: {stock}</p>
     </motion.button>
   )
 }
