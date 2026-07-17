@@ -7,6 +7,7 @@ import { useNotification } from '../context/NotificationContext'
 import { useLanguage } from '../context/LanguageContext'
 import { getProductDisplayName, getCategoryLabel, autoTranslateProductNameToAr } from '../i18n/productNames'
 import NumericField from '../components/NumericField'
+import KeyboardField from '../components/KeyboardField'
 
 const emptyForm = { name: '', nameAr: '', price: '', category: 'pain', image: '' }
 
@@ -239,12 +240,12 @@ export default function ProduitsPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs text-diana-brown mb-1.5">{t('produits.nomProduit')}</label>
-                    <input type="text" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} dir="ltr" lang="fr"
+                    <KeyboardField type="text" value={formData.name} onChange={(v) => setFormData(prev => ({ ...prev, name: v }))}
                       className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" placeholder={t('produits.nomProduit')} />
                   </div>
                   <div>
                     <label className="block text-xs text-diana-brown mb-1.5">{t('produits.nomProduitAr')}</label>
-                    <input type="text" dir="rtl" value={formData.nameAr} onChange={(e) => setFormData(prev => ({ ...prev, nameAr: e.target.value }))}
+                    <KeyboardField type="text" value={formData.nameAr} onChange={(v) => setFormData(prev => ({ ...prev, nameAr: v }))}
                       className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors text-sm"
                       placeholder={formData.name ? autoTranslateProductNameToAr(formData.name) : ''} />
                     <p className="text-[11px] text-diana-brown mt-1">{t('produits.nomProduitArHelp')}</p>
