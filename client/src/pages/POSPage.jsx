@@ -333,7 +333,7 @@ export default function POSPage() {
             <motion.div key="categories" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-2">Notre carte</p>
               <h2 className="font-fraunces text-3xl font-medium mb-8 text-diana-cream">{lang === 'ar' ? 'اختر فئة' : 'Choisissez une catégorie'}</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-5">
+              <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2 sm:gap-3">
                 {CATEGORIES.map((cat, index) => (
                   <motion.button key={cat.id}
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -341,13 +341,13 @@ export default function POSPage() {
                     onClick={() => setActiveCategory(cat.id)}
                     className="cat-card bg-diana-card border border-diana-border rounded-2xl overflow-hidden text-left cursor-pointer text-diana-cream hover:border-diana-gold/30">
                     {cat.image && (
-                      <div className="w-full h-28 sm:h-32 overflow-hidden bg-diana-darker">
+                      <div className="w-full h-16 sm:h-20 overflow-hidden bg-diana-darker">
                         <img src={cat.image} alt={getCategoryLabel(cat, lang)} className="w-full h-full object-cover" loading="lazy" />
                       </div>
                     )}
-                    <div className="p-4 sm:p-5">
-                      <p className="font-fraunces text-base sm:text-lg font-medium mb-1">{getCategoryLabel(cat, lang)}</p>
-                      <p className="text-xs text-diana-brown">
+                    <div className="p-2.5 sm:p-3">
+                      <p className="font-fraunces text-xs sm:text-sm font-medium mb-0.5 leading-tight">{getCategoryLabel(cat, lang)}</p>
+                      <p className="text-[10px] text-diana-brown">
                         {cat.id === 'frigo_entremet'
                           ? frigoBatches.length
                           : (PRODUCTS[cat.id]?.length || 0)} {lang === 'ar' ? 'منتج' : 'produits'}
