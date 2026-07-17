@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { FiPlus, FiTrash2, FiShoppingBag, FiPrinter, FiPackage, FiCalendar } from 'react-icons/fi'
 import { getPurchases, addPurchase, removePurchase, subscribeToStockUpdates, getRzizaDeliveries, addRzizaDelivery, removeRzizaDelivery, sameDay } from '../data/stockStore'
 import NumericField from '../components/NumericField'
+import KeyboardField from '../components/KeyboardField'
 import { useNotification } from '../context/NotificationContext'
 
 export default function AchatsPage() {
@@ -98,15 +99,15 @@ export default function AchatsPage() {
         </div>
 
         <form onSubmit={handleAdd} className="bg-diana-card border border-diana-border rounded-2xl p-5 mb-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Désignation (ex: Farine 25kg)" dir="auto" lang="fr"
+          <KeyboardField value={label} onChange={setLabel} placeholder="Désignation (ex: Farine 25kg)"
             className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
-          <input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="Fournisseur (facultatif)" dir="auto" lang="fr"
+          <KeyboardField value={supplier} onChange={setSupplier} placeholder="Fournisseur (facultatif)"
             className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
           <NumericField value={amount} onChange={setAmount} placeholder="Montant (DH)" title="Montant" unit="DH"
             className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream text-left focus:outline-none focus:border-diana-gold/50" />
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
             className="px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50" />
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (facultatif)" dir="auto" lang="fr"
+          <KeyboardField value={note} onChange={setNote} placeholder="Note (facultatif)"
             className="sm:col-span-2 px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
           <button type="submit"
             className="sm:col-span-2 flex items-center justify-center gap-2 bg-diana-gold text-diana-dark py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
