@@ -1,586 +1,541 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
-import { CATEGORIES_COMMANDE as CATEGORIES, findCategory, CUSTOMIZABLE_CATEGORIES, SALE_PLATEAU_COMPOSITIONS, SALE_PLATEAU_COMPONENTS, getLayerVariants, mergeProductsByCategory } from '../data/products'
+import { CATEGORIES_POS as CATEGORIES, mergeProductOverlay, mergeProductsByCategory } from '../data/products'
 import { getProductOverlay } from '../api/products'
-import {
-  getStock, subscribeToStockUpdates, getReservations, addReservation,
-  isReservationFullyReady,
-} from '../data/stockStore'
-import NumericField from '../components/NumericField'
+import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks } from '../data/stockStore'
 import QuantityModal from '../components/QuantityModal'
-import CakeCustomizationModal from '../components/CakeCustomizationModal'
-import MoroccanCakeModal from '../components/MoroccanCakeModal'
-import SalePlateauModal from '../components/SalePlateauModal'
-import LayerModal from '../components/LayerModal'
+import NumericField from '../components/NumericField'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
-import KeyboardField from '../components/KeyboardField'
-import KeyboardTextarea from '../components/KeyboardTextarea'
 import { useLanguage } from '../context/LanguageContext'
 import { getProductDisplayName, getCategoryLabel } from '../i18n/productNames'
-import {
-  FiTruck, FiUser, FiPhone, FiCalendar, FiClock, FiFileText,
-  FiArrowLeft, FiCreditCard, FiDollarSign, FiLogOut, FiLogIn, FiX, FiAlertCircle, FiPrinter
-} from 'react-icons/fi'
+import { FiSearch, FiShoppingCart, FiPrinter, FiX, FiArrowLeft, FiCreditCard, FiDollarSign, FiSunset, FiPackage, FiPlus, FiClipboard as FiClipboardList } from 'react-icons/fi'
 
 function formatQty(qty) {
   return Number.isInteger(qty) ? String(qty) : qty.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
 }
 
-export default function CommandesPage() {
+export default function POSPage() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
-  const { addNotification } = useNotification()
   const { lang } = useLanguage()
-
-  // --- Panier de la réservation (indépendant de la caisse) ---
-  const [order, setOrder] = useState([])
+  const [activeCategory, setActiveCategory] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const mainRef = useRef(null)
+  const [confirmPaymentState, setConfirmPaymentState] = useState({ open: false, method: null })
+  const [paymentType, setPaymentType] = useState(null)
+  const [changeGiven, setChangeGiven] = useState(0)
+  const [showReceipt, setShowReceipt] = useState(false)
+  const [discountInput, setDiscountInput] = useState('')
   const [stock, setStock] = useState({})
-  const refreshStock = useCallback(async () => setStock(await getStock()), [])
-  useEffect(() => {
-    refreshStock()
-    return subscribeToStockUpdates(refreshStock)
-  }, [refreshStock])
-
+  const [qtyModalState, setQtyModalState] = useState({ open: false, product: null, initialValue: 1 })
+  const [ticketNumber, setTicketNumber] = useState(0)
+  const [frigoBatches, setFrigoBatches] = useState([])
+  const { addNotification } = useNotification()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  const [showRzizaForm, setShowRzizaForm] = useState(false)
+  const [rzizaQty, setRzizaQty] = useState('')
+  const [rzizaPrixAchat, setRzizaPrixAchat] = useState('3.5')
+  const [rzizaBon, setRzizaBon] = useState(null)
+  const [clearReceipt, setClearReceipt] = useState(null)
+  const [pendingRzizaOrders, setPendingRzizaOrders] = useState(0)
   const [productOverlay, setProductOverlay] = useState({ customProducts: [], edits: [], deletedIds: [] })
+
+  // Recharge la surcouche (produits ajoutés/modifiés/masqués depuis la page Produits) au
+  // chargement, puis régulièrement — pour voir sans recharger un produit ajouté par l'admin
+  // depuis un autre appareil.
   useEffect(() => {
     const refreshOverlay = () => { getProductOverlay().then(setProductOverlay).catch(() => {}) }
     refreshOverlay()
-    return subscribeToStockUpdates(refreshOverlay, 15000)
+    const unsubscribe = subscribeToStockUpdates(refreshOverlay, 15000)
+    return unsubscribe
   }, [])
+  // Catalogue réellement à jour = catalogue de base + surcouche serveur. Ombrage volontaire des
+  // noms PRODUCTS / ALL_PRODUCTS pour que tout le reste du fichier continue à fonctionner tel quel.
+  const ALL_PRODUCTS = useMemo(() => mergeProductOverlay(productOverlay), [productOverlay])
   const PRODUCTS = useMemo(() => mergeProductsByCategory(productOverlay), [productOverlay])
 
-  const [activeCategory, setActiveCategory] = useState(null)
-  const [activeSubcategory, setActiveSubcategory] = useState(null)
-  const [qtyModalState, setQtyModalState] = useState({ open: false, product: null, initialValue: 1 })
-  const [customModalState, setCustomModalState] = useState({ open: false, product: null, qty: 1 })
-  const [moroccanModalState, setMoroccanModalState] = useState({ open: false, product: null, qty: 1 })
-  const [salePlateauState, setSalePlateauState] = useState({ open: false, product: null, qty: 1 })
-  const [layerModalState, setLayerModalState] = useState({ open: false, product: null, qty: 1 })
+  // Dès que le reçu de vidage est prêt à l'écran, on lance l'impression automatiquement.
+  useEffect(() => {
+    if (clearReceipt) {
+      const t = setTimeout(() => window.print(), 300)
+      return () => clearTimeout(t)
+    }
+  }, [clearReceipt])
 
-  const currentCategory = activeCategory ? CATEGORIES.find((c) => c.id === activeCategory) : null
-  const hasChildren = currentCategory?.children?.length > 0
-  const leafCategoryId = hasChildren ? activeSubcategory : activeCategory
-  const leafCategory = leafCategoryId ? findCategory(leafCategoryId) : null
+  const { order, addToOrder, setItemQuantity, removeItem, clearOrder,
+    subtotal, remise, remiseAmount, total, setDiscount } = useCart()
 
-  const openQuantityModal = (product, initialValue) => setQtyModalState({ open: true, product, initialValue })
+  const refreshStock = useCallback(async () => {
+    const [stockData, frigo, rzizaTasks] = await Promise.all([getStock(), getActiveFrigoBatches(), getAtelierTasks('rziza')])
+    setStock(stockData)
+    setFrigoBatches(frigo)
+    setPendingRzizaOrders(rzizaTasks.length)
+  }, [])
+  useEffect(() => {
+    refreshStock()
+    peekNextTicketNumber().then(setTicketNumber)
+    const unsubscribe = subscribeToStockUpdates(refreshStock)
+    return unsubscribe
+  }, [refreshStock])
+
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0, behavior: 'auto' })
+  }, [activeCategory, searchQuery])
+
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) return []
+    const q = searchQuery.toLowerCase()
+    return ALL_PRODUCTS.filter(p =>
+      !p.excludeFromCaisse &&
+      (p.name.toLowerCase().includes(q) ||
+      getProductDisplayName(p, lang).toLowerCase().includes(q) ||
+      CATEGORIES.find(c => c.id === p.category)?.label.toLowerCase().includes(q))
+    ).slice(0, 12)
+  }, [searchQuery, lang])
+
+  // Ouvre le clavier numérique pour saisir/éditer une quantité (au lieu d'ajouter +1 directement)
+  const openQuantityModal = (product, initialValue) => {
+    setQtyModalState({ open: true, product, initialValue })
+  }
+
+  const displayStock = (product) => {
+    const virtual = getPlateauAvailableStock(stock, product.id)
+    return virtual !== null ? virtual : (stock[product.id] ?? 0)
+  }
 
   const handleProductClick = (product) => {
+    const available = displayStock(product)
+    if (available <= 0) {
+      addNotification(lang === 'ar' ? `نفذ المخزون: "${getProductDisplayName(product, lang)}" غير متوفر حالياً` : `Rupture de stock : "${product.name}" n'est plus disponible`, 'error')
+      return
+    }
+    // Frigo Entremet : chaque lot est UN gâteau entier et unique (stock max = 1), pas la
+    // peine de demander une quantité — on l'ajoute directement au panier avec qty = 1.
+    if (product.frigoEntremet) {
+      setItemQuantity(product, 1)
+      addNotification(lang === 'ar' ? `تمت إضافة ${getProductDisplayName(product, lang)}` : `${product.name} ajouté`, 'success')
+      return
+    }
     const existing = order.find((i) => i.id === product.id)
     openQuantityModal(product, existing ? existing.qty : 1)
   }
-  const handleEditOrderQty = (item) => openQuantityModal(item, item.qty)
 
-  const addOrUpdateItem = (product, qty, extra = {}) => {
-    setOrder((prev) => {
-      if (qty <= 0) return prev.filter((i) => i.id !== product.id)
-      const existing = prev.find((i) => i.id === product.id)
-      if (existing) return prev.map((i) => i.id === product.id ? { ...i, qty, ...extra } : i)
-      return [...prev, { ...product, qty, ...extra }]
-    })
+  const handleEditOrderQty = (item) => {
+    openQuantityModal(item, item.qty)
   }
-
-  // Chaque taille de Layer cochée devient sa propre ligne (prix indépendant), avec la quantité
-  // choisie à l'étape précédente ; si elle est déjà dans la commande, on l'additionne.
-  const confirmLayerSelection = (chosenVariants) => {
-    const qty = layerModalState.qty || 1
-    setOrder((prev) => {
-      let next = [...prev]
-      chosenVariants.forEach((v) => {
-        const existing = next.find((i) => i.id === v.id)
-        if (existing) {
-          next = next.map((i) => i.id === v.id ? { ...i, qty: i.qty + qty } : i)
-        } else {
-          next = [...next, { id: v.id, name: v.name, price: v.price, unit: 'piece', category: 'cake_design', qty }]
-        }
-      })
-      return next
-    })
-    setLayerModalState({ open: false, product: null, qty: 1 })
-  }
-  const cancelLayerSelection = () => setLayerModalState({ open: false, product: null, qty: 1 })
 
   const confirmQuantity = (qty) => {
     const product = qtyModalState.product
     setQtyModalState({ open: false, product: null, initialValue: 1 })
-
-    if (qty > 0 && product.isLayerType) {
-      setLayerModalState({ open: true, product, qty })
-      return
-    }
-    if (qty > 0 && product.category === 'gateau_maroc') {
-      setMoroccanModalState({ open: true, product, qty })
-      return
-    }
-    if (qty > 0 && product.id in SALE_PLATEAU_COMPOSITIONS) {
-      setSalePlateauState({ open: true, product, qty })
-      return
-    }
-    // Pour les catégories de gâteaux, on propose une personnalisation facultative
-    // (texte à écrire + photo de référence) avant d'ajouter au panier.
-    if (qty > 0 && CUSTOMIZABLE_CATEGORIES.includes(product.category)) {
-      setCustomModalState({ open: true, product, qty })
-      return
-    }
-    addOrUpdateItem(product, qty)
+    setItemQuantity(product, qty)
+    addNotification(`${getProductDisplayName(product, lang)} : ${formatQty(qty)} ${product.unit === 'kg' ? (lang === 'ar' ? 'كغ' : 'kg') : (lang === 'ar' ? 'قطعة' : 'pièce(s)')}`, 'success')
   }
+
   const cancelQuantity = () => setQtyModalState({ open: false, product: null, initialValue: 1 })
 
-  const confirmCustomization = ({ customNote, customImage, personPhotoSurcharge, price }) => {
-    addOrUpdateItem(customModalState.product, customModalState.qty, { customNote, customImage, personPhotoSurcharge, price })
-    setCustomModalState({ open: false, product: null, qty: 1 })
+  // Ouvre directement la confirmation de paiement (méthode déjà choisie via le bouton cliqué)
+  const openConfirmPayment = (method) => {
+    if (order.length === 0) return
+    setConfirmPaymentState({ open: true, method })
   }
-  const skipCustomization = () => {
-    addOrUpdateItem(customModalState.product, customModalState.qty)
-    setCustomModalState({ open: false, product: null, qty: 1 })
-  }
+  const cancelConfirmPayment = () => setConfirmPaymentState({ open: false, method: null })
 
-  const confirmMoroccanCustomization = ({ customNote }, finalQty) => {
-    const { product } = moroccanModalState
-    const qty = finalQty !== undefined ? finalQty : moroccanModalState.qty
-    addOrUpdateItem(product, qty, { customNote })
-    setMoroccanModalState({ open: false, product: null, qty: 1 })
-  }
-  const cancelMoroccanCustomization = () => {
-    setMoroccanModalState({ open: false, product: null, qty: 1 })
-  }
-
-  const confirmSalePlateau = (customNote) => {
-    const { product, qty } = salePlateauState
-    addOrUpdateItem(product, qty, { customNote })
-    setSalePlateauState({ open: false, product: null, qty: 1 })
-  }
-  const cancelSalePlateau = () => setSalePlateauState({ open: false, product: null, qty: 1 })
-
-  const removeItem = (id) => setOrder((prev) => prev.filter((i) => i.id !== id))
-
-  // Le supplément photo (fixe, non multiplié par le kg) s'ajoute une seule fois par article.
-  const itemTotal = (i) => i.price * i.qty + (i.personPhotoSurcharge || 0)
-  const subtotal = order.reduce((sum, i) => sum + itemTotal(i), 0)
-
-  // --- Formulaire client / réservation ---
-  const [clientName, setClientName] = useState('')
-  const [clientPhone, setClientPhone] = useState('')
-  const [deliveryDate, setDeliveryDate] = useState('')
-  const [deliveryTime, setDeliveryTime] = useState('')
-  const [note, setNote] = useState('')
-
-  // --- Paiement ---
-  const [avance, setAvance] = useState('')
-  const [paymentMode, setPaymentMode] = useState(null)
-  const avanceValue = parseFloat(avance) || 0
-  const resteAPayer = Math.max(0, subtotal - avanceValue)
-
-  const resetForm = () => {
-    setOrder([])
-    setClientName(''); setClientPhone(''); setDeliveryDate(''); setDeliveryTime(''); setNote('')
-    setAvance(''); setPaymentMode(null)
-    setActiveCategory(null); setActiveSubcategory(null)
+  const handlePayment = async ({ change }) => {
+    const type = confirmPaymentState.method
+    setConfirmPaymentState({ open: false, method: null })
+    setPaymentType(type)
+    setChangeGiven(change || 0)
+    setShowReceipt(true)
+    const sale = await recordSale(order, type)
+    setTicketNumber(sale.ticketNumber)
+    refreshStock()
+    addNotification(`Paiement ${type === 'cash' ? 'espèces' : 'TPE'} effectué`, 'success')
   }
 
-  const handleCancelOrder = () => {
-    resetForm()
-    addNotification('Commande annulée', 'success')
-  }
 
-  const isFormComplete = clientName.trim() !== '' && deliveryDate !== '' && deliveryTime !== ''
-  const canValidate = order.length > 0 && isFormComplete
-
-  const [showReceipt, setShowReceipt] = useState(false)
-  const [lastReservation, setLastReservation] = useState(null)
-  const [showConfirmPayment, setShowConfirmPayment] = useState(false)
-
-  const finalizeReservation = async () => {
-    try {
-      const reservation = await addReservation({
-        clientName: clientName.trim(),
-        clientPhone, deliveryDate, deliveryTime, note,
-        items: order, total: subtotal, avance: avanceValue, resteAPayer,
-        paymentMode,
-      })
-      addNotification('Commande enregistrée et envoyée aux préparateurs concernés', 'success')
-      setLastReservation(reservation)
-      setShowReceipt(true)
-      refreshReservations()
-    } catch (e) {
-      addNotification("Erreur lors de l'enregistrement de la commande", 'error')
-    }
-  }
-
-  const handleValidate = () => {
-    if (order.length === 0) {
-      addNotification('Ajoutez au moins un article', 'error')
-      return
-    }
-    if (!isFormComplete) {
-      addNotification('Merci de renseigner le nom du client, la date et l\'heure de livraison', 'error')
-      return
-    }
-    // S'il y a une avance à encaisser, le mode de paiement est obligatoire, et on passe par
-    // l'écran de confirmation de paiement (montant reçu / monnaie à rendre), comme à la caisse.
-    if (avanceValue > 0) {
-      if (!paymentMode) {
-        addNotification('Choisissez un mode de paiement pour encaisser l\'avance', 'error')
-        return
-      }
-      setShowConfirmPayment(true)
-      return
-    }
-    finalizeReservation()
-  }
-
-  const handleConfirmAvancePayment = () => {
-    setShowConfirmPayment(false)
-    finalizeReservation()
-  }
-
-  const handleCloseReceipt = () => {
+  const handleNewOrder = async () => {
+    clearOrder()
     setShowReceipt(false)
-    setLastReservation(null)
-    resetForm()
+    setPaymentType(null)
+    setChangeGiven(0)
+    setActiveCategory(null)
+    setSearchQuery('')
+    setTicketNumber(await peekNextTicketNumber())
+    addNotification('Nouvelle commande prête', 'success')
   }
 
-  const handlePrintReceipt = () => {
+  const handlePrint = () => {
     window.print()
-    setTimeout(handleCloseReceipt, 400)
+    setTimeout(async () => {
+      setShowReceipt(false)
+      clearOrder()
+      setPaymentType(null)
+      setChangeGiven(0)
+      setActiveCategory(null)
+      setTicketNumber(await peekNextTicketNumber())
+      addNotification('Reçu imprimé', 'success')
+    }, 500)
   }
 
-  // --- Commandes prêtes (compteur affiché sur le bouton, page dédiée /commandes/suivi) ---
-  const [reservations, setReservations] = useState([])
-  const refreshReservations = useCallback(async () => setReservations(await getReservations()), [])
-  useEffect(() => {
-    refreshReservations()
-    return subscribeToStockUpdates(refreshReservations)
-  }, [refreshReservations])
-  // Une commande ne compte comme "prête en attente" que si elle est prête ET que son solde
-  // n'a pas encore été payé — sinon elle est déjà récupérée/finalisée (même logique que
-  // l'onglet "Prêtes" de la page Suivi commandes, pour que les deux comptes concordent).
-  const readyCount = reservations.filter((r) => (r.ready || isReservationFullyReady(r)) && !r.soldePaid).length
+  const applyDiscount = () => {
+    const val = parseFloat(discountInput)
+    if (!isNaN(val) && val >= 0 && val <= 100) {
+      setDiscount(val)
+      addNotification(`Remise de ${val}% appliquée`, 'success')
+      setDiscountInput('')
+    }
+  }
+
+  const handleClearPerishables = async () => {
+    if (!window.confirm("Vider le stock invendu de Pain, Viennoiserie (croissants inclus), Salé et Millefeuille ? Cette action remet ces stocks à 0, à la caisse comme chez les préparateurs concernés.")) return
+    const result = await clearPerishableStock()
+    refreshStock()
+    addNotification(`Stock vidé pour ${result.count} produits (valeur: ${result.totalValue.toFixed(2)} DH)`, 'success')
+    if (result.entries?.length > 0) setClearReceipt({ ...result, label: 'Vidage du stock (fin de journée)' })
+  }
+
+  const handleAddRziza = async (e) => {
+    e.preventDefault()
+    const qty = parseFloat(rzizaQty)
+    if (isNaN(qty) || qty <= 0) {
+      addNotification('Quantité invalide', 'error')
+      return
+    }
+    const entry = await addRzizaDelivery({ quantity: qty, prixAchat: parseFloat(rzizaPrixAchat) || 3.5, prixVente: 5.5 })
+    setRzizaQty('')
+    setShowRzizaForm(false)
+    refreshStock()
+    setRzizaBon(entry)
+    addNotification(`Rziza : +${qty} ajouté au stock de la caisse`, 'success')
+  }
 
   return (
-    <div className="h-full overflow-y-auto lg:overflow-hidden">
-      <div className="flex flex-col lg:flex-row h-full">
-
-        {/* LEFT: Client & Réservation */}
-        <aside className="w-full lg:w-[320px] bg-diana-card border-r border-diana-border p-5 flex flex-col gap-5 shrink-0 lg:h-full lg:overflow-y-auto">
-          <button onClick={() => navigate('/commandes/suivi')}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-600/90 text-white py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all active:scale-[0.98]">
-            <FiTruck size={16} /> Commandes prêtes
-            {readyCount > 0 && <span className="ml-1 bg-white/25 rounded-full px-2 py-0.5 text-xs">{readyCount}</span>}
-          </button>
-
-          <div>
-            <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">Client & Réservation</p>
-            <h3 className="font-fraunces text-lg text-diana-cream mb-4">Détails de la commande</h3>
-
-            <div className="space-y-3">
-              <div className="relative">
-                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown z-10" size={15} />
-                <KeyboardField value={clientName} onChange={setClientName}
-                  placeholder="Nom Client / Vendeur / Table... *"
-                  className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 ${clientName.trim() === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
-              </div>
-              <div className="relative">
-                <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown z-10" size={15} />
-                <KeyboardField value={clientPhone} onChange={setClientPhone}
-                  placeholder="Numéro de téléphone client"
-                  className="w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
-              </div>
-              <div>
-                <label className="text-xs text-diana-brown mb-1 block">Date de livraison *</label>
-                <div className="relative">
-                  <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
-                  <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)}
-                    className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 ${deliveryDate === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-diana-brown mb-1 block">Heure de livraison *</label>
-                <div className="relative">
-                  <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
-                  <input type="time" value={deliveryTime} onChange={(e) => setDeliveryTime(e.target.value)}
-                    className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 ${deliveryTime === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-diana-brown mb-1 block flex items-center gap-1.5"><FiFileText size={13}/> Note / Détails spéciaux</label>
-                <KeyboardTextarea value={note} onChange={setNote} rows={3}
-                  placeholder="Taille, saveur, allergies..."
-                  className="w-full px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 resize-none" />
-              </div>
-              {!isFormComplete && (
-                <p className="flex items-center gap-1.5 text-xs text-diana-danger"><FiAlertCircle size={13} /> Nom, date et heure de livraison requis (*)</p>
-              )}
-            </div>
-          </div>
-        </aside>
-
-        {/* CENTER: Catégories / Produits */}
-        <main className="flex-1 p-4 sm:p-8 overflow-y-auto lg:h-full">
-          <AnimatePresence mode="wait">
-            {!activeCategory ? (
-              <motion.div key="categories" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-2">{lang === 'ar' ? 'حجز جديد' : 'Nouvelle réservation'}</p>
-                <h2 className="font-fraunces text-3xl font-medium mb-8 text-diana-cream">{lang === 'ar' ? 'الفئات' : 'Catégories'}</h2>
-                <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2 sm:gap-3">
-                  {CATEGORIES.map((cat, index) => (
-                    <motion.button key={cat.id}
-                      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05, type: 'spring', stiffness: 300 }}
-                      onClick={() => { setActiveCategory(cat.id); setActiveSubcategory(null) }}
-                      className="cat-card bg-diana-card border border-diana-border rounded-2xl overflow-hidden text-left cursor-pointer text-diana-cream hover:border-diana-gold/30">
-                      {cat.image && (
-                        <div className="w-full h-16 sm:h-20 overflow-hidden bg-diana-darker">
-                          <img src={cat.image} alt={getCategoryLabel(cat, lang)} className="w-full h-full object-cover" loading="lazy" />
-                        </div>
-                      )}
-                      <div className="p-2.5 sm:p-3">
-                        <p className="font-fraunces text-xs sm:text-sm font-medium mb-0.5 leading-tight">{getCategoryLabel(cat, lang)}</p>
-                        <p className="text-[10px] text-diana-brown">
-                          {cat.children ? `${cat.children.length} ${lang === 'ar' ? 'فئة فرعية' : 'sous-catégories'}` : `${PRODUCTS[cat.id]?.length || 0} ${lang === 'ar' ? 'منتج' : 'produits'}`}
-                        </p>
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-              </motion.div>
-            ) : hasChildren && !activeSubcategory ? (
-              <motion.div key={`${activeCategory}-children`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                <button onClick={() => setActiveCategory(null)}
-                  className="flex items-center gap-2 text-diana-gold text-sm mb-6 hover:text-diana-goldLight transition-colors">
-                  <FiArrowLeft size={16} /> {lang === 'ar' ? 'الرجوع إلى الفئات' : 'Retour aux catégories'}
-                </button>
-                <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">{getCategoryLabel(currentCategory, lang)}</h2>
-                <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2 sm:gap-3">
-                  {currentCategory.children.map((sub, index) => (
-                    <motion.button key={sub.id}
-                      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05, type: 'spring', stiffness: 300 }}
-                      onClick={() => setActiveSubcategory(sub.id)}
-                      className="cat-card bg-diana-card border border-diana-border rounded-2xl overflow-hidden text-left cursor-pointer text-diana-cream hover:border-diana-gold/30">
-                      {sub.image && (
-                        <div className="w-full h-16 sm:h-20 overflow-hidden bg-diana-darker">
-                          <img src={sub.image} alt={getCategoryLabel(sub, lang)} className="w-full h-full object-cover" loading="lazy" />
-                        </div>
-                      )}
-                      <div className="p-2.5 sm:p-3">
-                        <p className="font-fraunces text-xs sm:text-sm font-medium mb-0.5 leading-tight">{getCategoryLabel(sub, lang)}</p>
-                        <p className="text-[10px] text-diana-brown">{PRODUCTS[sub.id]?.length || 0} {lang === 'ar' ? 'منتج' : 'produits'}</p>
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div key={leafCategoryId} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                <button onClick={() => hasChildren ? setActiveSubcategory(null) : setActiveCategory(null)}
-                  className="flex items-center gap-2 text-diana-gold text-sm mb-6 hover:text-diana-goldLight transition-colors">
-                  <FiArrowLeft size={16} /> {lang === 'ar'
-                    ? (hasChildren ? `الرجوع إلى ${getCategoryLabel(currentCategory, lang)}` : 'الرجوع إلى الفئات')
-                    : `Retour ${hasChildren ? `à ${currentCategory.label}` : 'aux catégories'}`}
-                </button>
-                <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">{getCategoryLabel(leafCategory, lang)}</h2>
-                <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2 sm:gap-3">
-                  {PRODUCTS[leafCategoryId]?.map((prod) => (
-                    <motion.button key={prod.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                      whileHover={{ y: -3 }} whileTap={{ scale: 0.97 }} onClick={() => handleProductClick({ ...prod, category: leafCategoryId })}
-                      className="prod-card bg-diana-card border border-diana-border rounded-xl p-2 sm:p-2.5 text-left cursor-pointer text-diana-cream hover:border-diana-gold/50">
-                      {prod.image && (
-                        <div className="w-full h-14 sm:h-20 mb-1.5 sm:mb-2 rounded-lg overflow-hidden bg-diana-dark">
-                          <img src={prod.image} alt={getProductDisplayName(prod, lang)} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
-                        </div>
-                      )}
-                      <p className="text-[11px] sm:text-xs font-semibold mb-1 leading-snug line-clamp-2">{getProductDisplayName(prod, lang)}</p>
-                      <p className="font-fraunces text-sm sm:text-base text-diana-gold mb-0.5">
-                        {prod.price > 0 ? `${prod.price.toFixed(2)} DH` : (lang === 'ar' ? 'الثمن حسب الطلب' : 'Prix sur devis')}{prod.unit === 'kg' ? ' / kg' : ''}
-                      </p>
-                      <p className="text-[9px] sm:text-[10px] font-medium text-diana-brown">Stock: {stock[prod.id] ?? 0}</p>
-                    </motion.button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </main>
-
-        {/* RIGHT: Résumé de commande */}
-        <aside className="w-full lg:w-[360px] bg-[#FFE8D6] text-diana-brownDark flex flex-col shrink-0 lg:h-full lg:overflow-y-auto">
-          <div className="p-5 pb-3 flex items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C89A5C]/15 text-[#8B6A3A] text-xs font-semibold">
-              <FiUser size={13} /> {user ? `Commande ${user.name}` : 'Commande'}
-            </span>
-            {user ? (
-              <button onClick={() => { logout(); navigate('/') }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-diana-danger/10 text-diana-danger text-xs font-semibold hover:bg-diana-danger/20 transition-colors">
-                <FiLogOut size={13} /> Déconnexion
-              </button>
-            ) : (
-              <Link to="/login"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C89A5C] text-white text-xs font-semibold hover:bg-[#B88443] transition-colors">
-                <FiLogIn size={13} /> Connexion
-              </Link>
-            )}
-          </div>
-
-          <div className="px-5">
-            <p className="font-fraunces text-lg font-medium text-diana-brownDark mb-3">Résumé de commande</p>
-          </div>
-
-          <div className="flex-1 px-5 min-h-0 max-h-[50vh] lg:max-h-none overflow-y-auto">
+    <div className="flex flex-col lg:flex-row h-full overflow-y-auto lg:overflow-hidden">
+      {/* LEFT: Order Panel */}
+      <aside className="w-full lg:w-[360px] bg-[#FFE8D6] text-diana-brownDark flex flex-col relative shrink-0 lg:h-full order-2 lg:order-1">
+        <div className="absolute right-0 top-0 bottom-0 w-px perforated-edge hidden lg:block" />
+        <div className="p-4 sm:p-6 pb-4">
+          <p className="font-fraunces text-xl font-medium text-diana-brownDark mb-1">Commande</p>
+          <p className="text-xs text-[#8B6A3A]">Ticket n°{String(ticketNumber).padStart(3, '0')} · {new Date().toLocaleDateString('fr-FR')}</p>
+        </div>
+        <div className="flex-1 lg:overflow-y-auto px-4 sm:px-5 pb-4 min-h-0 max-h-[40vh] lg:max-h-none overflow-y-auto">
+          <div className="border-t border-dashed border-[#D9A86C] pt-3">
             {order.length === 0 ? (
-              <p className="text-sm italic text-[#B68C6C] py-6 text-center">Aucun article sélectionné</p>
-            ) : (
-              <div className="border-t border-dashed border-[#D9A86C] pt-2">
-                <div className="grid grid-cols-[1fr,auto,auto] gap-2 text-xs font-semibold text-diana-brownDark pb-2">
-                  <span>Article</span><span>Qté</span><span className="text-right">Prix</span>
-                </div>
-                <AnimatePresence mode="popLayout">
-                  {order.map((item) => (
-                    <motion.div key={item.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -30 }}
-                      className="grid grid-cols-[1fr,auto,auto] gap-2 items-center py-2 border-b border-[#E7CCB4] text-sm">
-                      <span className="truncate flex items-center gap-1">
-                        {getProductDisplayName(item, lang)}
-                        {(item.customNote || item.customImage) && <FiFileText size={11} className="text-emerald-600 shrink-0" title="Personnalisé" />}
-                      </span>
-                      <button onClick={() => handleEditOrderQty(item)}
-                        className="px-2 py-1 rounded-md border border-[#C89A5C] text-xs font-semibold hover:bg-[#C89A5C] hover:text-white transition-colors">
-                        {formatQty(item.qty)}{item.unit === 'kg' ? 'kg' : ''}
-                      </button>
-                      <span className="flex items-center gap-1.5 justify-end">
-                        {itemTotal(item).toFixed(2)} DH
-                        <button onClick={() => removeItem(item.id)} className="text-diana-danger hover:text-red-700"><FiX size={13} /></button>
-                      </span>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+              <div className="flex flex-col items-center justify-center py-10 lg:py-16 text-[#B68C6C]">
+                <FiShoppingCart size={40} className="mb-3 opacity-40" />
+                <p className="text-sm italic">Aucun article sélectionné</p>
               </div>
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {order.map((item) => (
+                  <motion.div key={item.id} layout
+                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -50 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    className="flex items-center justify-between py-3 border-b border-[#E7CCB4]">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <p className="text-sm font-semibold text-diana-brownDark truncate">{getProductDisplayName(item, lang)}</p>
+                      <p className="text-xs text-[#8B6A3A]">{item.price.toFixed(2)} DH × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button onClick={() => handleEditOrderQty(item)}
+                        className="min-w-[44px] px-2.5 h-8 rounded-lg border border-[#C89A5C] bg-transparent text-diana-brownDark text-sm font-semibold flex items-center justify-center hover:bg-[#C89A5C] hover:text-white transition-colors"
+                        title="Modifier la quantité">
+                        {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}
+                      </button>
+                      <button onClick={() => removeItem(item.id)} className="text-diana-danger hover:text-red-700 transition-colors" aria-label="Retirer">
+                        <FiX size={14} />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             )}
           </div>
-
-          <div className="p-5 pt-2.5 shrink-0">
-            <button onClick={handleCancelOrder}
-              className="w-full mb-2.5 py-2 rounded-xl text-sm font-semibold text-diana-danger bg-diana-danger/10 hover:bg-diana-danger/20 transition-colors">
-              Annuler commande
-            </button>
-
-            <div className="bg-white border border-[#E7CCB4] rounded-xl p-2.5 mb-2.5">
-              <div className="flex justify-between items-baseline mb-2">
-                <span className="font-fraunces text-sm text-diana-brownDark">Total</span>
-                <span className="font-fraunces text-xl font-semibold text-diana-brownDark">{subtotal.toFixed(2)} <span className="text-sm font-normal">DH</span></span>
-              </div>
-
-              <label className="text-xs text-[#8B6A3A] mb-1 block">Avance</label>
-              <NumericField value={avance} onChange={setAvance} placeholder="0.00" title="Avance" unit="DH"
-                className="w-full mb-2 px-3 py-1.5 text-sm bg-[#FFF6EC] border border-[#E7CCB4] rounded-lg text-diana-brownDark text-left focus:outline-none focus:border-[#C89A5C]" />
-
-              <div className="flex justify-between items-baseline pt-1.5 border-t border-[#E7CCB4]">
-                <span className="text-sm text-diana-brownDark">Reste à payer</span>
-                <span className="text-base font-semibold text-diana-danger">{resteAPayer.toFixed(2)} DH</span>
-              </div>
-            </div>
-
-            <p className="text-xs text-[#8B6A3A] mb-1.5">
-              Mode de paiement actuel : <span className="font-medium text-diana-brownDark">{paymentMode === 'cash' ? 'Espèces' : paymentMode === 'card' ? 'TPE' : 'Non spécifié'}</span>
-            </p>
-            <div className="grid grid-cols-2 gap-2 mb-2.5">
-              <button onClick={() => setPaymentMode('cash')}
-                className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${paymentMode === 'cash' ? 'bg-[#C89A5C] text-white' : 'bg-[#C89A5C]/15 text-[#8B6A3A] border border-[#C89A5C]/40'}`}>
-                <FiDollarSign size={15} /> Espèces
-              </button>
-              <button onClick={() => setPaymentMode('card')}
-                className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${paymentMode === 'card' ? 'bg-diana-brownDark text-white' : 'bg-diana-brownDark/10 text-diana-brownDark border border-diana-brownDark/20'}`}>
-                <FiCreditCard size={15} /> TPE
-              </button>
-            </div>
-
-            <button onClick={handleValidate} disabled={!canValidate}
-              className="w-full py-3 rounded-xl text-sm font-semibold bg-diana-brownDark text-white hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
-              Valider la commande
+        </div>
+        <div className="p-5 pt-4 border-t border-dashed border-[#D9A86C] bg-[#FFE8D6]">
+          <div className="flex items-center gap-2 mb-3">
+            <NumericField value={discountInput} onChange={setDiscountInput} placeholder="Remise %"
+              title="Remise %" unit="%" allowDecimal={false}
+              className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#E7CCB4] rounded-lg text-diana-brownDark text-left focus:outline-none focus:border-[#C89A5C]" />
+            <button onClick={applyDiscount}
+              className="px-3 py-1.5 text-xs bg-[#C89A5C]/15 text-[#8B6A3A] border border-[#C89A5C]/40 rounded-lg hover:bg-[#C89A5C]/25 transition-colors">
+              Appliquer
             </button>
           </div>
-        </aside>
-      </div>
+          <div className="space-y-1.5 mb-4">
+            <div className="flex justify-between text-xs text-diana-brownDark"><span>Sous-total</span><span>{subtotal.toFixed(2)} DH</span></div>
+            {remise > 0 && <div className="flex justify-between text-xs text-diana-danger"><span>Remise ({remise}%)</span><span>-{remiseAmount.toFixed(2)} DH</span></div>}
+            <div className="flex justify-between items-baseline pt-2 border-t border-[#E7CCB4]">
+              <span className="font-fraunces text-sm text-diana-brownDark">Total</span>
+              <span className="font-fraunces text-3xl font-semibold text-diana-brownDark">{total.toFixed(2)} <span className="text-base font-normal">DH</span></span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <button onClick={() => openConfirmPayment('card')} disabled={order.length === 0}
+              className="w-full flex items-center justify-center gap-2 bg-diana-brownDark text-white py-3.5 rounded-xl text-sm font-semibold hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
+              <FiCreditCard size={16} /> Paiement par carte (TPE)
+            </button>
+            <button onClick={() => openConfirmPayment('cash')} disabled={order.length === 0}
+              className="w-full flex items-center justify-center gap-2 bg-[#C89A5C] text-white py-3.5 rounded-xl text-sm font-semibold hover:bg-[#B88443] disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
+              <FiDollarSign size={16} /> Paiement en espèces
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* CENTER: Products */}
+      <main ref={mainRef} className="flex-1 p-4 sm:p-8 overflow-y-auto lg:h-full order-1 lg:order-2">
+        <div className="mb-4 flex justify-end gap-2">
+          <button onClick={() => setShowRzizaForm(true)}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-gold/40 hover:text-diana-gold transition-colors">
+            <FiPackage size={14} /> Achat Rziza
+          </button>
+          <button onClick={() => navigate('/commande-rziza')}
+            className="relative flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-gold/40 hover:text-diana-gold transition-colors">
+            <FiClipboardList size={14} /> Commande Rziza
+            {pendingRzizaOrders > 0 && (
+              <span className="ml-0.5 bg-diana-accent/20 text-diana-accentLight text-[10px] font-bold px-1.5 py-0.5 rounded-full">{pendingRzizaOrders}</span>
+            )}
+          </button>
+          {isAdmin && (
+            <button onClick={handleClearPerishables}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-danger/40 hover:text-diana-danger transition-colors">
+              <FiSunset size={14} /> Vider stock du soir (Pain, Viennoiserie, Salé, Millefeuille)
+            </button>
+          )}
+        </div>
+        <AnimatePresence mode="wait">
+          {searchQuery.trim() ? (
+            <motion.div key="search" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-2">Résultats de recherche</p>
+              <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">"{searchQuery}"</h2>
+              {filteredProducts.length === 0 ? (
+                <p className="text-diana-brownLight italic">Aucun produit trouvé</p>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2 sm:gap-3">
+                  {filteredProducts.map((prod) => <ProductCard key={prod.id} product={prod} stock={displayStock(prod)} onAdd={handleProductClick} />)}
+                </div>
+              )}
+            </motion.div>
+          ) : !activeCategory ? (
+            <motion.div key="categories" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-2">Notre carte</p>
+              <h2 className="font-fraunces text-3xl font-medium mb-8 text-diana-cream">{lang === 'ar' ? 'اختر فئة' : 'Choisissez une catégorie'}</h2>
+              <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2 sm:gap-3">
+                {CATEGORIES.map((cat, index) => (
+                  <motion.button key={cat.id}
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05, type: 'spring', stiffness: 300 }}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className="cat-card bg-diana-card border border-diana-border rounded-2xl overflow-hidden text-left cursor-pointer text-diana-cream hover:border-diana-gold/30">
+                    {cat.image && (
+                      <div className="w-full h-16 sm:h-20 overflow-hidden bg-diana-darker">
+                        <img src={cat.image} alt={getCategoryLabel(cat, lang)} className="w-full h-full object-cover" loading="lazy" />
+                      </div>
+                    )}
+                    <div className="p-2.5 sm:p-3">
+                      <p className="font-fraunces text-xs sm:text-sm font-medium mb-0.5 leading-tight">{getCategoryLabel(cat, lang)}</p>
+                      <p className="text-[10px] text-diana-brown">
+                        {cat.id === 'frigo_entremet'
+                          ? frigoBatches.length
+                          : (PRODUCTS[cat.id]?.length || 0)} {lang === 'ar' ? 'منتج' : 'produits'}
+                      </p>
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div key={activeCategory} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
+              <button onClick={() => setActiveCategory(null)}
+                className="flex items-center gap-2 text-diana-gold text-sm mb-6 hover:text-diana-goldLight transition-colors">
+                <FiArrowLeft size={16} /> {lang === 'ar' ? 'الرجوع إلى القائمة' : 'Retour à la carte'}
+              </button>
+              <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">
+                {getCategoryLabel(CATEGORIES.find((c) => c.id === activeCategory), lang)}
+              </h2>
+              <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2 sm:gap-3">
+                {(activeCategory === 'frigo_entremet'
+                  ? frigoBatches.map((b) => ({ ...b, frigoEntremet: true }))
+                  : PRODUCTS[activeCategory]?.filter((p) => !p.excludeFromCaisse)
+                )?.map((prod) => <ProductCard key={prod.id} product={{ ...prod, category: prod.category || activeCategory }} stock={displayStock({ ...prod, category: prod.category || activeCategory })} onAdd={handleProductClick} />)}
+                {activeCategory === 'frigo_entremet' && frigoBatches.length === 0 && (
+                  <p className="col-span-full text-sm italic text-diana-brown text-center py-10">
+                    Aucun gâteau au kg produit pour l'instant — il apparaîtra ici dès que le préparateur l'aura ajouté.
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
 
       {/* QUANTITY MODAL */}
       <QuantityModal open={qtyModalState.open} product={qtyModalState.product} initialValue={qtyModalState.initialValue}
         onConfirm={confirmQuantity} onCancel={cancelQuantity} />
 
-      {/* PERSONNALISATION GÂTEAU (texte + photo) */}
-      <CakeCustomizationModal open={customModalState.open} product={customModalState.product} qty={customModalState.qty}
-        onConfirm={confirmCustomization} onSkip={skipCustomization} />
 
-      {/* COMPOSITION GÂTEAUX MAROCAINS */}
-      <MoroccanCakeModal open={moroccanModalState.open} product={moroccanModalState.product} qty={moroccanModalState.qty}
-        onConfirm={confirmMoroccanCustomization} onCancel={cancelMoroccanCustomization} />
 
-      {/* CONFIRMATION DE PAIEMENT DE L'AVANCE */}
-      <ConfirmPaymentModal open={showConfirmPayment} method={paymentMode}
-        amountDue={avanceValue} onConfirm={handleConfirmAvancePayment} onCancel={() => setShowConfirmPayment(false)} />
+      {/* CONFIRMATION DE PAIEMENT (Montant reçu / Monnaie à rendre) */}
+      <ConfirmPaymentModal open={confirmPaymentState.open} method={confirmPaymentState.method}
+        amountDue={total} onConfirm={handlePayment} onCancel={cancelConfirmPayment} />
 
-      {/* COMPOSITION PLATEAU SALÉ */}
-      <SalePlateauModal open={salePlateauState.open}
-        product={salePlateauState.product ? { ...salePlateauState.product, _components: SALE_PLATEAU_COMPONENTS } : null}
-        requiredCount={salePlateauState.product ? SALE_PLATEAU_COMPOSITIONS[salePlateauState.product.id] : 0}
-        onConfirm={confirmSalePlateau} onCancel={cancelSalePlateau} />
-
-      {/* SÉLECTION DES TAILLES LAYER (Cake Design) */}
-      <LayerModal open={layerModalState.open} product={layerModalState.product} qty={layerModalState.qty}
-        variants={layerModalState.product ? getLayerVariants(layerModalState.product.layerHeight) : []}
-        onConfirm={confirmLayerSelection} onCancel={cancelLayerSelection} />
-
-      {/* REÇU DE RÉSERVATION (avec avance / reste à payer) */}
+      {/* RECEIPT MODAL */}
       <AnimatePresence>
-        {showReceipt && lastReservation && (
+        {showReceipt && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              className="bg-[#FFE8D6] text-diana-brownDark rounded-2xl p-8 max-w-sm w-full mx-4 shadow-gold-lg max-h-[90vh] overflow-y-auto">
+              className="bg-diana-cream text-diana-dark rounded-2xl p-8 max-w-sm w-full mx-4 shadow-gold-lg">
               <div className="text-center mb-6">
-                <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3"><span className="text-2xl">✓</span></div>
-                <h3 className="font-fraunces text-xl font-medium">Commande enregistrée</h3>
-                <p className="text-sm text-[#8B6A3A] mt-1">Reçu à remettre au client</p>
+                <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3"><span className="text-2xl">✓</span></div>
+                <h3 className="font-fraunces text-xl font-medium">Paiement réussi !</h3>
+                <p className="text-sm text-diana-brown mt-1">{paymentType === 'cash' ? 'Paiement en espèces' : 'Paiement par carte'}</p>
               </div>
-              <div className="bg-white rounded-xl p-4 mb-6 text-xs border border-[#E7CCB4]">
-                <div className="text-center border-b border-dashed border-[#E7CCB4] pb-3 mb-3">
+              <div className="bg-white rounded-xl p-4 mb-6 text-xs border border-diana-creamDark">
+                <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
                   <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
-                  <p className="text-[#8B6A3A]">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
+                  <p className="text-diana-brown">{new Date().toLocaleDateString('fr-FR')} {new Date().toLocaleTimeString('fr-FR')}</p>
+                  <p className="text-diana-brown">Ticket n°{String(ticketNumber).padStart(3, '0')}</p>
                 </div>
-                <div className="mb-3 space-y-0.5">
-                  <p><span className="text-[#8B6A3A]">Client :</span> <span className="font-semibold">{lastReservation.clientName}</span></p>
-                  {lastReservation.clientPhone && <p><span className="text-[#8B6A3A]">Téléphone :</span> {lastReservation.clientPhone}</p>}
-                  <p><span className="text-[#8B6A3A]">Livraison :</span> {lastReservation.deliveryDate} à {lastReservation.deliveryTime}</p>
-                  {lastReservation.note && <p><span className="text-[#8B6A3A]">Note :</span> {lastReservation.note}</p>}
-                </div>
-                <div className="border-t border-dashed border-[#E7CCB4] pt-2">
-                  {lastReservation.items.map((item) => (
-                    <div key={item.id} className="flex justify-between py-1">
-                      <span>{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}</span>
-                      <span>{itemTotal(item).toFixed(2)} DH</span>
-                    </div>
-                  ))}
-                  {lastReservation.items.some((i) => i.customNote) && (
-                    <p className="text-[10px] text-[#8B6A3A] italic mt-1">
-                      {lastReservation.items.filter((i) => i.customNote).map((i) => `* ${getProductDisplayName(i, lang)} : "${i.customNote}"`).join(' — ')}
-                    </p>
+                {order.map((item) => (
+                  <div key={item.id} className="flex justify-between py-1">
+                    <span>{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</span>
+                    <span>{(item.price * item.qty).toFixed(2)} DH</span>
+                  </div>
+                ))}
+                <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
+                  <div className="flex justify-between font-semibold"><span>Total</span><span>{total.toFixed(2)} DH</span></div>
+                  {paymentType === 'cash' && changeGiven > 0 && (
+                    <div className="flex justify-between text-emerald-700 mt-1"><span>Monnaie rendue</span><span>{changeGiven.toFixed(2)} DH</span></div>
                   )}
-                </div>
-                <div className="border-t border-dashed border-[#E7CCB4] pt-2 mt-2 space-y-1">
-                  <div className="flex justify-between font-semibold"><span>Total</span><span>{lastReservation.total.toFixed(2)} DH</span></div>
-                  <div className="flex justify-between text-emerald-700"><span>Avance versée</span><span>{lastReservation.avance.toFixed(2)} DH</span></div>
-                  <div className="flex justify-between font-semibold text-diana-danger"><span>Reste à payer</span><span>{lastReservation.resteAPayer.toFixed(2)} DH</span></div>
                 </div>
               </div>
               <div className="flex flex-col gap-2.5">
-                <button onClick={handlePrintReceipt}
-                  className="flex items-center justify-center gap-2 bg-diana-brownDark text-white py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
+                <button onClick={handlePrint}
+                  className="flex items-center justify-center gap-2 bg-diana-dark text-diana-cream py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
                   <FiPrinter size={16} /> Imprimer le reçu
                 </button>
-                <button onClick={handleCloseReceipt}
-                  className="flex items-center justify-center gap-2 bg-[#C89A5C] text-white py-3 rounded-xl text-sm font-semibold hover:bg-[#B88443] transition-all">
-                  Fermer et nouvelle commande
+                <button onClick={handleNewOrder}
+                  className="flex items-center justify-center gap-2 bg-diana-gold text-diana-dark py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
+                  <FiShoppingCart size={16} /> Nouvelle commande
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* ACHAT RZIZA — accessible à tous, sans code, ajoute directement au stock caisse */}
+      <AnimatePresence>
+        {showRzizaForm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4" onClick={() => setShowRzizaForm(false)}>
+            <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+              className="bg-[#FFF6EC] rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-[#E7CCB4]" onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-fraunces text-lg font-bold text-center text-[#3A2A18] mb-1">Achat Rziza</h3>
+              <p className="text-xs text-center text-[#8B6A3A] mb-4">Ajouté directement au stock de la caisse · Vente 5.50 DH</p>
+              <form onSubmit={handleAddRziza} className="space-y-3">
+                <div>
+                  <label className="text-xs text-[#5C4326] mb-1 block">Quantité livrée</label>
+                  <NumericField value={rzizaQty} onChange={setRzizaQty} title="Quantité livrée" unit="pièce(s)" autoFocus
+                    className="w-full px-3 py-2.5 text-sm bg-white border border-[#D9A86C] rounded-lg text-[#3A2A18] text-left focus:outline-none focus:border-[#C89A5C]" />
+                </div>
+                <div>
+                  <label className="text-xs text-[#5C4326] mb-1 block">Prix d'achat / unité (DH)</label>
+                  <NumericField value={rzizaPrixAchat} onChange={setRzizaPrixAchat} title="Prix d'achat / unité" unit="DH"
+                    className="w-full px-3 py-2.5 text-sm bg-white border border-[#D9A86C] rounded-lg text-[#3A2A18] text-left focus:outline-none focus:border-[#C89A5C]" />
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button type="submit" className="py-3 rounded-xl bg-[#8B5A2B] text-white font-bold hover:brightness-110 transition-all active:scale-[0.98]">
+                    Enregistrer
+                  </button>
+                  <button type="button" onClick={() => setShowRzizaForm(false)}
+                    className="py-3 rounded-xl bg-white text-[#8B5A2B] font-bold border-2 border-[#8B5A2B]/50 hover:bg-[#8B5A2B]/10 transition-all">
+                    Annuler
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* BON RZIZA — reçu "Non payé" */}
+      <AnimatePresence>
+        {rzizaBon && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4" onClick={() => setRzizaBon(null)}>
+            <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+              className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
+                  <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
+                  <p className="text-diana-brown">Bon de livraison — Rziza</p>
+                  <p className="text-diana-brown">{new Date(rzizaBon.timestamp).toLocaleDateString('fr-FR')} à {new Date(rzizaBon.timestamp).toLocaleTimeString('fr-FR')}</p>
+                </div>
+                <div className="flex justify-between py-1"><span>Quantité livrée</span><span>{rzizaBon.quantity}</span></div>
+                <div className="flex justify-between py-1"><span>Prix d'achat / unité</span><span>{rzizaBon.prixAchat.toFixed(2)} DH</span></div>
+                <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
+                  <div className="flex justify-between font-semibold"><span>Montant dû</span><span>{rzizaBon.montantDu.toFixed(2)} DH</span></div>
+                  <div className="flex justify-between text-diana-accentLight font-semibold mt-1"><span>Statut</span><span>NON PAYÉ</span></div>
+                </div>
+                <p className="text-diana-brown italic mt-3 text-center">Réglé personnellement — sans lien avec la caisse</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => window.print()}
+                  className="flex-1 flex items-center justify-center gap-2 bg-diana-dark text-diana-cream py-2.5 rounded-xl text-sm font-semibold hover:brightness-110 transition-all print:hidden">
+                  <FiPrinter size={15} /> Imprimer
+                </button>
+                <button onClick={() => setRzizaBon(null)}
+                  className="flex-1 bg-white text-diana-brown border border-diana-border py-2.5 rounded-xl text-sm font-semibold print:hidden">
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Reçu imprimable du vidage de stock — s'affiche et s'imprime automatiquement */}
+      <AnimatePresence>
+        {clearReceipt && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setClearReceipt(null)}>
+            <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+              className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
+                  <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
+                  <p className="text-diana-brown">{clearReceipt.label}</p>
+                  <p className="text-diana-brown">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
+                </div>
+                <div className="space-y-1 mb-2">
+                  {clearReceipt.entries.map((e) => (
+                    <div key={e.productId} className="flex justify-between py-0.5">
+                      <span className="pr-2">{getProductDisplayName(e, lang)} × {e.qty}</span>
+                      <span className="shrink-0">{e.value.toFixed(2)} DH</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
+                  <div className="flex justify-between py-0.5"><span>Quantité totale</span><span>{clearReceipt.totalQuantity}</span></div>
+                  <div className="flex justify-between font-semibold"><span>Valeur totale</span><span>{clearReceipt.totalValue.toFixed(2)} DH</span></div>
+                </div>
+              </div>
+              <div className="flex gap-2 print:hidden">
+                <button onClick={() => window.print()}
+                  className="flex-1 flex items-center justify-center gap-2 bg-diana-dark text-diana-cream py-2.5 rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
+                  <FiPrinter size={15} /> Imprimer
+                </button>
+                <button onClick={() => setClearReceipt(null)}
+                  className="flex-1 bg-white text-diana-brown border border-diana-border py-2.5 rounded-xl text-sm font-semibold">
+                  Fermer
                 </button>
               </div>
             </motion.div>
@@ -588,5 +543,34 @@ export default function CommandesPage() {
         )}
       </AnimatePresence>
     </div>
+  )
+}
+
+function ProductCard({ product, stock = 0, onAdd }) {
+  const { lang } = useLanguage()
+  const isOut = stock <= 0
+  const displayName = getProductDisplayName(product, lang)
+  return (
+    <motion.button layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ y: isOut ? 0 : -3 }} whileTap={{ scale: isOut ? 1 : 0.97 }}
+      onClick={() => onAdd(product)}
+      className={`prod-card bg-diana-card border rounded-xl p-2 sm:p-2.5 text-left cursor-pointer relative
+        ${isOut ? 'border-diana-border/40 opacity-50' : 'border-diana-border text-diana-cream hover:border-diana-gold/50'}`}>
+      {isOut && (
+        <span className="absolute top-1.5 right-1.5 z-10 text-[8px] font-bold uppercase tracking-wide bg-diana-danger text-white px-1.5 py-0.5 rounded-full">
+          {lang === 'ar' ? 'نفذ' : 'Rupture'}
+        </span>
+      )}
+      {product.image && (
+        <div className="w-full h-14 sm:h-20 mb-1.5 sm:mb-2 rounded-lg overflow-hidden bg-diana-dark">
+          <img src={product.image} alt={displayName} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
+        </div>
+      )}
+      <p className="text-[11px] sm:text-xs font-semibold mb-1 leading-snug line-clamp-2">{displayName}</p>
+      <p className="font-fraunces text-sm sm:text-base text-diana-gold mb-0.5">
+        {product.price > 0 ? `${product.price.toFixed(2)} DH` : (lang === 'ar' ? 'الثمن حسب الطلب' : 'Prix sur devis')}{product.unit === 'kg' ? ' / kg' : ''}
+      </p>
+      <p className={`text-[9px] sm:text-[10px] font-medium ${isOut ? 'text-diana-danger' : 'text-diana-brown'}`}>{lang === 'ar' ? 'المخزون' : 'Stock'}: {stock}</p>
+    </motion.button>
   )
 }
