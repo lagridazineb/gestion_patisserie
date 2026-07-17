@@ -16,6 +16,8 @@ import MoroccanCakeModal from '../components/MoroccanCakeModal'
 import SalePlateauModal from '../components/SalePlateauModal'
 import LayerModal from '../components/LayerModal'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
+import KeyboardField from '../components/KeyboardField'
+import KeyboardTextarea from '../components/KeyboardTextarea'
 import { useLanguage } from '../context/LanguageContext'
 import { getProductDisplayName, getCategoryLabel } from '../i18n/productNames'
 import {
@@ -252,7 +254,10 @@ export default function CommandesPage() {
     refreshReservations()
     return subscribeToStockUpdates(refreshReservations)
   }, [refreshReservations])
-  const readyCount = reservations.filter((r) => r.ready || isReservationFullyReady(r)).length
+  // Une commande ne compte comme "prête en attente" que si elle est prête ET que son solde
+  // n'a pas encore été payé — sinon elle est déjà récupérée/finalisée (même logique que
+  // l'onglet "Prêtes" de la page Suivi commandes, pour que les deux comptes concordent).
+  const readyCount = reservations.filter((r) => (r.ready || isReservationFullyReady(r)) && !r.soldePaid).length
 
   return (
     <div className="h-full overflow-y-auto lg:overflow-hidden">
@@ -272,15 +277,15 @@ export default function CommandesPage() {
 
             <div className="space-y-3">
               <div className="relative">
-                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
-                <input value={clientName} onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Nom Client / Vendeur / Table... *" dir="auto" lang="fr"
+                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown z-10" size={15} />
+                <KeyboardField value={clientName} onChange={setClientName}
+                  placeholder="Nom Client / Vendeur / Table... *"
                   className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 ${clientName.trim() === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
               </div>
               <div className="relative">
-                <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
-                <input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)}
-                  placeholder="Numéro de téléphone client" type="tel" dir="ltr" lang="fr"
+                <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown z-10" size={15} />
+                <KeyboardField value={clientPhone} onChange={setClientPhone}
+                  placeholder="Numéro de téléphone client"
                   className="w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50" />
               </div>
               <div>
@@ -301,7 +306,7 @@ export default function CommandesPage() {
               </div>
               <div>
                 <label className="text-xs text-diana-brown mb-1 block flex items-center gap-1.5"><FiFileText size={13}/> Note / Détails spéciaux</label>
-                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} dir="auto" lang="fr"
+                <KeyboardTextarea value={note} onChange={setNote} rows={3}
                   placeholder="Taille, saveur, allergies..."
                   className="w-full px-3 py-2.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 resize-none" />
               </div>
@@ -319,7 +324,7 @@ export default function CommandesPage() {
               <motion.div key="categories" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-2">{lang === 'ar' ? 'حجز جديد' : 'Nouvelle réservation'}</p>
                 <h2 className="font-fraunces text-3xl font-medium mb-8 text-diana-cream">{lang === 'ar' ? 'الفئات' : 'Catégories'}</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-5">
+                <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2 sm:gap-3">
                   {CATEGORIES.map((cat, index) => (
                     <motion.button key={cat.id}
                       initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -327,13 +332,13 @@ export default function CommandesPage() {
                       onClick={() => { setActiveCategory(cat.id); setActiveSubcategory(null) }}
                       className="cat-card bg-diana-card border border-diana-border rounded-2xl overflow-hidden text-left cursor-pointer text-diana-cream hover:border-diana-gold/30">
                       {cat.image && (
-                        <div className="w-full h-28 sm:h-32 overflow-hidden bg-diana-darker">
+                        <div className="w-full h-16 sm:h-20 overflow-hidden bg-diana-darker">
                           <img src={cat.image} alt={getCategoryLabel(cat, lang)} className="w-full h-full object-cover" loading="lazy" />
                         </div>
                       )}
-                      <div className="p-4 sm:p-5">
-                        <p className="font-fraunces text-base sm:text-lg font-medium mb-1">{getCategoryLabel(cat, lang)}</p>
-                        <p className="text-xs text-diana-brown">
+                      <div className="p-2.5 sm:p-3">
+                        <p className="font-fraunces text-xs sm:text-sm font-medium mb-0.5 leading-tight">{getCategoryLabel(cat, lang)}</p>
+                        <p className="text-[10px] text-diana-brown">
                           {cat.children ? `${cat.children.length} ${lang === 'ar' ? 'فئة فرعية' : 'sous-catégories'}` : `${PRODUCTS[cat.id]?.length || 0} ${lang === 'ar' ? 'منتج' : 'produits'}`}
                         </p>
                       </div>
@@ -348,7 +353,7 @@ export default function CommandesPage() {
                   <FiArrowLeft size={16} /> {lang === 'ar' ? 'الرجوع إلى الفئات' : 'Retour aux catégories'}
                 </button>
                 <h2 className="font-fraunces text-2xl font-medium mb-6 text-diana-cream">{getCategoryLabel(currentCategory, lang)}</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-5">
+                <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2 sm:gap-3">
                   {currentCategory.children.map((sub, index) => (
                     <motion.button key={sub.id}
                       initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -356,13 +361,13 @@ export default function CommandesPage() {
                       onClick={() => setActiveSubcategory(sub.id)}
                       className="cat-card bg-diana-card border border-diana-border rounded-2xl overflow-hidden text-left cursor-pointer text-diana-cream hover:border-diana-gold/30">
                       {sub.image && (
-                        <div className="w-full h-28 sm:h-32 overflow-hidden bg-diana-darker">
+                        <div className="w-full h-16 sm:h-20 overflow-hidden bg-diana-darker">
                           <img src={sub.image} alt={getCategoryLabel(sub, lang)} className="w-full h-full object-cover" loading="lazy" />
                         </div>
                       )}
-                      <div className="p-4 sm:p-5">
-                        <p className="font-fraunces text-base sm:text-lg font-medium mb-1">{getCategoryLabel(sub, lang)}</p>
-                        <p className="text-xs text-diana-brown">{PRODUCTS[sub.id]?.length || 0} {lang === 'ar' ? 'منتج' : 'produits'}</p>
+                      <div className="p-2.5 sm:p-3">
+                        <p className="font-fraunces text-xs sm:text-sm font-medium mb-0.5 leading-tight">{getCategoryLabel(sub, lang)}</p>
+                        <p className="text-[10px] text-diana-brown">{PRODUCTS[sub.id]?.length || 0} {lang === 'ar' ? 'منتج' : 'produits'}</p>
                       </div>
                     </motion.button>
                   ))}
