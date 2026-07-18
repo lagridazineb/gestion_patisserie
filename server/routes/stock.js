@@ -41,6 +41,29 @@ router.post('/:productId/adjust', authMiddleware, async (req, res) => {
   }
 })
 
+// Ajoute la même quantité (delta) au stock d'une liste de produits en une seule fois —
+// utilisé par le bouton "Stock" de l'admin dans la Caisse pour réapprovisionner en masse
+// (ex : +1000 pièces sur toutes les catégories d'un coup).
+router.post('/bulk-add', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { productIds, delta } = req.body
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({ error: 'productIds requis' })
+    }
+    const amount = Number(delta)
+    if (isNaN(amount)) return res.status(400).json({ error: 'delta invalide' })
+
+    for (const id of productIds) {
+      if (id) await adjustStock(id, amount)
+    }
+    const stock = await getStockMap()
+    res.json({ success: true, count: productIds.length, delta: amount, stock })
+  } catch (error) {
+    console.error('Erreur POST /api/stock/bulk-add :', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // Historique des clôtures (vidanges de stock)
 router.get('/clear-log', authMiddleware, adminMiddleware, async (req, res) => {
   try {
