@@ -8,6 +8,7 @@ export const CATEGORIES_POS = [
   { id: "sale", label: "Salé", labelAr: "المالح", image: "/category-images/sale.jpg" },
   { id: "rziza", label: "Rziza", labelAr: "رزيزة", image: "/category-images/rziza.jpg" },
   { id: "frigo_entremet", label: "Frigo Entremet", labelAr: "فريجو أونتريمي", image: "/category-images/entremet.jpg" },
+  { id: "entremet_dh", label: "Entremet Dh", labelAr: "أونتريمي بالدرهم", image: "/category-images/entremet.jpg" },
 ];
 
 // Catégories affichées uniquement dans la page "Commande" (grande commande / réservation) :
@@ -290,6 +291,12 @@ export const PRODUCTS = {
   ],
   rziza: [
     { id: "r1", name: "Rziza", price: 5.50, unit: "piece", image: "https://vente.gstdianna.ma/images/rziza.jpg", stock: 0 },
+  ],
+  // "Entremet Dh" : un seul article à 1 DH/pièce, même photo que la catégorie Entremet.
+  // Sert à vendre un entremet "à la découpe"/sur devis en tapant directement le nombre de DH
+  // (la quantité saisie dans le clavier numérique = le montant en DH).
+  entremet_dh: [
+    { id: "edh1", name: "Entremet Dh", price: 1.00, unit: "piece", image: "/category-images/entremet.jpg", stock: 0 },
   ],
 };
 
