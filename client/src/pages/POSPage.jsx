@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { CATEGORIES_POS as CATEGORIES, mergeProductOverlay, mergeProductsByCategory } from '../data/products'
 import { getProductOverlay } from '../api/products'
-import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks } from '../data/stockStore'
+import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks, addStockToProducts } from '../data/stockStore'
 import QuantityModal from '../components/QuantityModal'
 import NumericField from '../components/NumericField'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
@@ -198,6 +198,16 @@ export default function POSPage() {
     if (result.entries?.length > 0) setClearReceipt({ ...result, label: 'Vidage du stock (fin de journée)' })
   }
 
+  // Bouton "Stock" (admin) : ajoute +1000 pièces d'un coup au stock de TOUS les produits de
+  // TOUTES les catégories (utile pour réapprovisionner rapidement, ex : "Entremet Dh").
+  const handleBulkAddStock = async () => {
+    if (!window.confirm('Ajouter 1000 pièces au stock de tous les produits, dans toutes les catégories ?')) return
+    const productIds = ALL_PRODUCTS.map((p) => p.id).filter(Boolean)
+    await addStockToProducts(productIds, 1000)
+    refreshStock()
+    addNotification(`Stock rechargé : +1000 sur ${productIds.length} produits`, 'success')
+  }
+
   const handleAddRziza = async (e) => {
     e.preventDefault()
     const qty = parseFloat(rzizaQty)
@@ -301,6 +311,12 @@ export default function POSPage() {
               <span className="ml-0.5 bg-diana-accent/20 text-diana-accentLight text-[10px] font-bold px-1.5 py-0.5 rounded-full">{pendingRzizaOrders}</span>
             )}
           </button>
+          {isAdmin && (
+            <button onClick={handleBulkAddStock}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-gold/40 hover:text-diana-gold transition-colors">
+              <FiPlus size={14} /> Stock (+1000 partout)
+            </button>
+          )}
           {isAdmin && (
             <button onClick={handleClearPerishables}
               className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-danger/40 hover:text-diana-danger transition-colors">
