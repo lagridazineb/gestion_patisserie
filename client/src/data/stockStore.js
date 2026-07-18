@@ -22,6 +22,13 @@ export async function adjustStock(productId, delta) {
   return data.value
 }
 
+// Ajoute `delta` (par défaut 1000) au stock de chaque produit de la liste — utilisé par le
+// bouton "Stock" (admin) pour réapprovisionner en masse toutes les catégories d'un coup.
+export async function addStockToProducts(productIds, delta = 1000) {
+  const { data } = await apiClient.post('/stock/bulk-add', { productIds, delta })
+  return data
+}
+
 // --- Production (préparateurs) ---
 export async function getProductionLog(atelier, date) {
   const params = {}
