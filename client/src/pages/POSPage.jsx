@@ -201,11 +201,11 @@ export default function POSPage() {
   // Bouton "Stock" (admin) : ajoute +1000 pièces d'un coup au stock de TOUS les produits de
   // TOUTES les catégories (utile pour réapprovisionner rapidement, ex : "Entremet Dh").
   const handleBulkAddStock = async () => {
-    if (!window.confirm('Ajouter 1000 pièces au stock de tous les produits, dans toutes les catégories ?')) return
+    if (!window.confirm('Ajouter 10000 pièces au stock de tous les produits, dans toutes les catégories ?')) return
     const productIds = ALL_PRODUCTS.map((p) => p.id).filter(Boolean)
-    await addStockToProducts(productIds, 1000)
+    await addStockToProducts(productIds, 10000)
     refreshStock()
-    addNotification(`Stock rechargé : +1000 sur ${productIds.length} produits`, 'success')
+    addNotification(`Stock rechargé : +10000 sur ${productIds.length} produits`, 'success')
   }
 
   const handleAddRziza = async (e) => {
@@ -314,7 +314,7 @@ export default function POSPage() {
           {isAdmin && (
             <button onClick={handleBulkAddStock}
               className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-gold/40 hover:text-diana-gold transition-colors">
-              <FiPlus size={14} /> Stock (+1000 partout)
+              <FiPlus size={14} /> Stock (+10000 partout)
             </button>
           )}
           {isAdmin && (
