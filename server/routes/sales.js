@@ -25,6 +25,7 @@ function mapRow(r) {
     paymentType: r.payment_type,
     total: Number(r.total),
     refundedQty: safeJsonParse(r.refunded_qty, {}),
+    createdBy: r.created_by,
     timestamp: r.created_at,
   }
 }
@@ -69,11 +70,12 @@ router.post('/', authMiddleware, async (req, res) => {
     const id = Date.now()
     const ticketNumber = await nextTicketNumber()
     const total = items.reduce((sum, i) => sum + i.price * i.qty, 0)
+    const createdBy = req.user?.id || null
 
     await pool.query(
-      `INSERT INTO sales (id, ticket_number, items, payment_type, total, refunded_qty, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [id, ticketNumber, JSON.stringify(items), paymentType || null, total, JSON.stringify({})]
+      `INSERT INTO sales (id, ticket_number, items, payment_type, total, refunded_qty, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, ticketNumber, JSON.stringify(items), paymentType || null, total, JSON.stringify({}), createdBy]
     )
 
     for (const item of items) {
