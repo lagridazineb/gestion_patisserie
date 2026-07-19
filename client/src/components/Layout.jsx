@@ -3,13 +3,16 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiHome, FiBarChart2, FiBox, FiShoppingBag, FiClipboard, FiClock, FiDollarSign, FiLogOut, FiMenu, FiX, FiUser, FiChevronRight, FiLogIn, FiRotateCcw, FiShoppingCart, FiPieChart, FiCalendar, FiTrash2, FiArrowLeft, FiGlobe } from 'react-icons/fi'
+import { FiHome, FiBarChart2, FiBox, FiShoppingBag, FiClipboard, FiClock, FiDollarSign, FiLogOut, FiMenu, FiX, FiUser, FiUsers, FiChevronRight, FiLogIn, FiRotateCcw, FiShoppingCart, FiPieChart, FiCalendar, FiTrash2, FiArrowLeft, FiGlobe } from 'react-icons/fi'
+import CodeConfirmModal from './CodeConfirmModal'
+import { closeSession } from '../data/sessionsStore'
 
 const adminNavItems = [
   { path: '/', icon: FiHome, key: 'caisse' },
   { path: '/bilan', icon: FiPieChart, key: 'bilan' },
   { path: '/bilan-caisse', icon: FiCalendar, key: 'commande' },
   { path: '/commandes/suivi', icon: FiClipboard, key: 'suiviCommandes' },
+  { path: '/utilisateurs', icon: FiUsers, key: 'utilisateurs' },
   { path: '/stock', icon: FiBox, key: 'stock' },
   { path: '/stock-vide', icon: FiTrash2, key: 'stockVide' },
   { path: '/produits', icon: FiShoppingBag, key: 'produits' },
@@ -35,9 +38,18 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showLogoutCode, setShowLogoutCode] = useState(false)
   const navItems = user?.role === 'admin' ? adminNavItems : user?.role === 'caissier' ? caissierNavItems : preparateurNavItems
 
-  const handleLogout = () => { logout(); setSidebarOpen(false); navigate('/') }
+  // La déconnexion nécessite d'abord le code (mot de passe) — voir CodeConfirmModal plus bas.
+  const handleLogout = () => setShowLogoutCode(true)
+  const confirmLogout = async (password) => {
+    await closeSession(password) // lève une erreur si le code est incorrect (gérée par le modal)
+    setShowLogoutCode(false)
+    logout()
+    setSidebarOpen(false)
+    navigate('/')
+  }
   const handleLogin = () => { setSidebarOpen(false); navigate('/login') }
 
   return (
@@ -162,6 +174,15 @@ export default function Layout() {
         </div>
         <main className="flex-1 overflow-y-auto lg:overflow-hidden"><Outlet /></main>
       </div>
+
+      <CodeConfirmModal
+        open={showLogoutCode}
+        title="Confirmer la déconnexion"
+        description="Entrez votre code (mot de passe) pour vous déconnecter."
+        confirmLabel="Se déconnecter"
+        onConfirm={confirmLogout}
+        onCancel={() => setShowLogoutCode(false)}
+      />
     </div>
   )
 }
