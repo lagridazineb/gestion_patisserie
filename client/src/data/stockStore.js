@@ -1,8 +1,3 @@
-// Store de données partagé entre la Caisse, les Préparateurs et l'Admin — parle désormais
-// à la vraie base de données via l'API (server/routes/*), plus au localStorage.
-// Toutes les fonctions de lecture/écriture sont donc asynchrones (Promises) : chaque appelant
-// doit faire `await` (ou `.then(...)`).
-
 import apiClient from '../api/client'
 import { ALL_PRODUCTS, PLATEAU_COMPOSITION, AMANDE_KG_ID, SABLE_KG_ID } from './products'
 
@@ -248,6 +243,13 @@ export async function getCommandesBilan(dateStr) {
   return data
 }
 
+// Bilan par utilisateur (caissier1, caissier2, admin...) : ventes + commandes + détail par
+// catégorie. Sans `dateStr` -> tout l'historique ; avec `dateStr` -> uniquement ce jour-là.
+export async function getBilanByUser(dateStr) {
+  const { data } = await apiClient.get('/bilan/by-user', { params: dateStr ? { date: dateStr } : {} })
+  return data
+}
+
 // --- Clôture du soir (remise à zéro du stock des produits périssables) ---
 export const PERISHABLE_CATEGORIES = ['pain', 'viennoiserie', 'sale']
 export const PERISHABLE_MILLEFEUILLE_IDS = ['m1b']
@@ -332,12 +334,7 @@ export async function removeRzizaDelivery(id) {
   return { success: true }
 }
 
-// --- Rafraîchissement temps réel entre appareils ---
-// Comme les données vivent maintenant sur le serveur (et non plus dans le localStorage d'un
-// seul navigateur), chaque appareil doit interroger régulièrement l'API pour voir les
-// changements faits par les autres (ex: le préparateur sur son téléphone, l'admin sur son PC).
-// `subscribeToStockUpdates(callback)` déclenche `callback()` toutes les `intervalMs` (8s par
-// défaut) — chaque page peut alors relire les données dont elle a besoin.
+
 export function subscribeToStockUpdates(callback, intervalMs = 8000) {
   const id = setInterval(() => callback(), intervalMs)
   // Rafraîchit aussi immédiatement quand l'onglet redevient visible (ex: on revient sur l'appli)
