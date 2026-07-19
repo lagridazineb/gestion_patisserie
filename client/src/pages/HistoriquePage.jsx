@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiClock, FiSearch, FiCalendar, FiPrinter, FiX, FiUser, FiPhone, FiShoppingBag, FiPackage } from 'react-icons/fi'
 import { getSalesLog, getReservations, subscribeToStockUpdates, sameDay } from '../data/stockStore'
+import ReceiptHeader from '../components/ReceiptHeader'
 
 function formatQty(qty) {
   return Number.isInteger(qty) ? String(qty) : qty.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
@@ -143,18 +144,17 @@ export default function HistoriquePage() {
                   <button onClick={() => setSelected(null)} className="text-diana-brown hover:text-diana-dark"><FiX size={18} /></button>
                 </div>
 
-                <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
-                  <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
-                    <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
-                    <p className="text-diana-brown">
+                <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                  <ReceiptHeader>
+                    <p className="text-diana-brown text-[10.5px] mt-1.5">
                       {new Date(selected.type === 'ticket' ? selected.data.timestamp : selected.data.createdAt).toLocaleDateString('fr-FR')}
                       {' '}
                       {new Date(selected.type === 'ticket' ? selected.data.timestamp : selected.data.createdAt).toLocaleTimeString('fr-FR')}
                     </p>
-                    <p className="text-diana-brown">
+                    <p className="text-diana-dark text-[11px] font-semibold">
                       {selected.type === 'ticket' ? `Ticket n°${String(selected.data.ticketNumber).padStart(3, '0')}` : `Commande n°${selected.data.ticketNumber}`}
                     </p>
-                  </div>
+                  </ReceiptHeader>
 
                   {selected.type === 'commande' && (
                     <div className="mb-3 space-y-0.5">
@@ -165,9 +165,9 @@ export default function HistoriquePage() {
                   )}
 
                   {(selected.data.items || []).map((item, i) => (
-                    <div key={i} className="flex justify-between py-1">
-                      <span>{item.name} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</span>
-                      <span>{(item.price * item.qty + (item.personPhotoSurcharge || 0)).toFixed(2)} DH</span>
+                    <div key={i} className="receipt-line flex justify-between py-1">
+                      <span className="name">{item.name} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</span>
+                      <span className="value font-semibold">{(item.price * item.qty + (item.personPhotoSurcharge || 0)).toFixed(2)} DH</span>
                     </div>
                   ))}
 
