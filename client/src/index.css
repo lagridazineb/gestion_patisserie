@@ -86,6 +86,15 @@
     margin: 0 0 4px;
   }
 
+  /* Logo en haut du reçu */
+  .receipt-print img {
+    display: block;
+    width: 42px;
+    height: 42px;
+    margin: 0 auto 6px;
+    object-fit: contain;
+  }
+
   /* Date + ticket */
   .receipt-print h2,
   .receipt-print h3,
@@ -94,6 +103,25 @@
     font-size: 14px;
     font-weight: 700;
     margin: 2px 0;
+  }
+
+  /* Ligne produit (nom à gauche, total à droite) — grand espacement pour rester lisible
+     même sur une imprimante thermique 80mm */
+  .receipt-print .receipt-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 4px 0;
+  }
+  .receipt-print .receipt-line .name {
+    text-align: left;
+  }
+  .receipt-print .receipt-line .value {
+    text-align: right;
+    white-space: nowrap;
   }
 
   /* Produits */
