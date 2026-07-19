@@ -127,7 +127,6 @@ router.post('/clear', authMiddleware, adminMiddleware, async (req, res) => {
   }
 })
 
-// --- Réglages de clôture automatique (heure + dernière date de clôture) ---
 router.get('/eod-settings', authMiddleware, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT clear_time, last_cleared_date FROM eod_settings WHERE id = 1')
