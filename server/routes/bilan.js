@@ -131,4 +131,88 @@ router.get('/sales-trend', authMiddleware, adminMiddleware, async (req, res) => 
   }
 })
 
+// --- Bilan par utilisateur : ventes + commandes ventilées par caissier/admin, avec
+// détail par catégorie de produit (ex: "Pain : 1000 DH") — page Admin "Utilisateurs".
+// Si `date` est fourni -> uniquement ce jour-là. Sinon -> depuis le début (tout l'historique).
+router.get('/by-user', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const date = req.query.date || null
+
+    const [users] = await pool.query(
+      `SELECT id, name, email, role FROM users WHERE role IN ('admin', 'caissier') ORDER BY role DESC, name ASC`
+    )
+
+    const [salesRows] = await pool.query(
+      date ? 'SELECT * FROM sales WHERE DATE(created_at) = ?' : 'SELECT * FROM sales',
+      date ? [date] : []
+    )
+    const [reservationRows] = await pool.query(
+      date ? 'SELECT * FROM reservations WHERE DATE(created_at) = ?' : 'SELECT * FROM reservations',
+      date ? [date] : []
+    )
+
+    function safeItems(raw) {
+      if (!raw) return []
+      if (typeof raw === 'object') return raw
+      try { return JSON.parse(raw) } catch (e) { return [] }
+    }
+
+    // Un "bucket" par utilisateur (+ un bucket spécial "non attribué" pour les ventes/commandes
+    // faites avant l'ajout de ce suivi, qui n'ont pas de created_by).
+    function emptyBucket() {
+      return { nbVentes: 0, totalVentes: 0, nbCommandes: 0, totalCommandes: 0, categories: {} }
+    }
+    const buckets = {}
+    for (const u of users) buckets[u.id] = emptyBucket()
+    const UNATTRIBUTED = 'unattributed'
+    buckets[UNATTRIBUTED] = emptyBucket()
+
+    function addToCategories(categories, items) {
+      for (const item of items) {
+        const cat = item.category || 'autre'
+        if (!categories[cat]) categories[cat] = { qty: 0, value: 0 }
+        categories[cat].qty += Number(item.qty) || 0
+        categories[cat].value += (Number(item.qty) || 0) * (Number(item.price) || 0)
+      }
+    }
+
+    for (const s of salesRows) {
+      const key = s.created_by && buckets[s.created_by] ? s.created_by : UNATTRIBUTED
+      const b = buckets[key]
+      b.nbVentes += 1
+      b.totalVentes += Number(s.total)
+      addToCategories(b.categories, safeItems(s.items))
+    }
+
+    for (const r of reservationRows) {
+      const key = r.created_by && buckets[r.created_by] ? r.created_by : UNATTRIBUTED
+      const b = buckets[key]
+      b.nbCommandes += 1
+      b.totalCommandes += Number(r.total)
+      addToCategories(b.categories, safeItems(r.items))
+    }
+
+    function formatBucket(b) {
+      const categories = Object.entries(b.categories)
+        .map(([category, v]) => ({ category, qty: Math.round(v.qty * 100) / 100, value: Math.round(v.value * 100) / 100 }))
+        .sort((a, b2) => b2.value - a.value)
+      return {
+        nbVentes: b.nbVentes, totalVentes: Math.round(b.totalVentes * 100) / 100,
+        nbCommandes: b.nbCommandes, totalCommandes: Math.round(b.totalCommandes * 100) / 100,
+        totalGeneral: Math.round((b.totalVentes + b.totalCommandes) * 100) / 100,
+        categories,
+      }
+    }
+
+    res.json({
+      date,
+      users: users.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, ...formatBucket(buckets[u.id]) })),
+      unattributed: formatBucket(buckets[UNATTRIBUTED]),
+    })
+  } catch (error) {
+    console.error('Erreur GET /api/bilan/by-user :', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 module.exports = router
