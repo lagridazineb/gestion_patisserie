@@ -18,6 +18,7 @@ import BilanPage from './pages/BilanPage'
 import BilanCaissePage from './pages/BilanCaissePage'
 import SuiviCommandesPage from './pages/SuiviCommandesPage'
 import CommandeRzizaPage from './pages/CommandeRzizaPage'
+import UtilisateursPage from './pages/UtilisateursPage'
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, isAuthenticated, isLoading } = useAuth()
@@ -78,6 +79,7 @@ export default function App() {
         <Route path="achats" element={<ProtectedRoute allowedRoles={['admin']}><AchatsPage /></ProtectedRoute>} />
         <Route path="bilan" element={<ProtectedRoute allowedRoles={['admin']}><BilanPage /></ProtectedRoute>} />
         <Route path="bilan-caisse" element={<ProtectedRoute allowedRoles={['admin']}><BilanCaissePage /></ProtectedRoute>} />
+        <Route path="utilisateurs" element={<ProtectedRoute allowedRoles={['admin']}><UtilisateursPage /></ProtectedRoute>} />
         <Route path="preparateur" element={<ProtectedRoute allowedRoles={['preparateur']}><PreparateurPage /></ProtectedRoute>} />
       </Route>
     </Routes>
