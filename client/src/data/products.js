@@ -11,9 +11,6 @@ export const CATEGORIES_POS = [
   { id: "entremet_dh", label: "Entremet Dh", labelAr: "أونتريمي بالدرهم", image: "/category-images/entremet.jpg" },
 ];
 
-// Catégories affichées uniquement dans la page "Commande" (grande commande / réservation) :
-// structure imbriquée reprenant l'intégralité du catalogue transmis (Cake Design, Gâteaux
-// Kg, Pâtisserie/Cafe, etc.). Ne touche pas à la Caisse normale.
 export const CATEGORIES_COMMANDE = [
   {
     id: "cake_design",
