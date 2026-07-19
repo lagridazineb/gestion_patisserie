@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useNotification } from '../context/NotificationContext'
 import { getAtelierTasks, markAtelierDone, subscribeToStockUpdates } from '../data/stockStore'
 import { FiArrowLeft, FiUser, FiPhone, FiCalendar, FiPrinter, FiCheck, FiPackage } from 'react-icons/fi'
+import ReceiptHeader from '../components/ReceiptHeader'
 
 // Nombre ou chaîne ("2.5" venant de la base de données) -> affichage sûr, sans jamais planter.
 function formatQty(qty) {
@@ -108,12 +109,10 @@ export default function CommandeRzizaPage() {
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
-                <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
-                  <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
-                  <p className="text-diana-brown">Commande fournisseur — Rziza</p>
-                  <p className="text-diana-brown">Ticket n°{String(receipt.task.ticketNumber).padStart(3, '0')} · {receipt.task.clientName}</p>
-                  <p className="text-diana-brown">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
-                </div>
+                <ReceiptHeader subtitle="Commande fournisseur — Rziza">
+                  <p className="text-diana-brown text-[10.5px] mt-1.5">Ticket n°{String(receipt.task.ticketNumber).padStart(3, '0')} · {receipt.task.clientName}</p>
+                  <p className="text-diana-brown text-[10.5px]">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
+                </ReceiptHeader>
                 <div className="space-y-1 mb-2">
                   {receipt.items.map((i) => (
                     <div key={i.id} className="flex justify-between py-0.5">
