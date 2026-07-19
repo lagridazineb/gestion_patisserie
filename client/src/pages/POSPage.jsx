@@ -8,10 +8,13 @@ import { CATEGORIES_POS as CATEGORIES, mergeProductOverlay, mergeProductsByCateg
 import { getProductOverlay } from '../api/products'
 import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks, addStockToProducts } from '../data/stockStore'
 import QuantityModal from '../components/QuantityModal'
+import ReceiptHeader from '../components/ReceiptHeader'
+import CodeConfirmModal from '../components/CodeConfirmModal'
 import NumericField from '../components/NumericField'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
 import { useLanguage } from '../context/LanguageContext'
 import { getProductDisplayName, getCategoryLabel } from '../i18n/productNames'
+import { viderCaisse } from '../data/sessionsStore'
 import { FiSearch, FiShoppingCart, FiPrinter, FiX, FiArrowLeft, FiCreditCard, FiDollarSign, FiSunset, FiPackage, FiPlus, FiClipboard as FiClipboardList } from 'react-icons/fi'
 
 function formatQty(qty) {
@@ -36,6 +39,9 @@ export default function POSPage() {
   const { addNotification } = useNotification()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const isCaissierOrAdmin = user?.role === 'admin' || user?.role === 'caissier'
+  const [showViderCode, setShowViderCode] = useState(false)
+  const [viderReceipt, setViderReceipt] = useState(null)
   const [showRzizaForm, setShowRzizaForm] = useState(false)
   const [rzizaQty, setRzizaQty] = useState('')
   const [rzizaPrixAchat, setRzizaPrixAchat] = useState('3.5')
@@ -201,11 +207,19 @@ export default function POSPage() {
   // Bouton "Stock" (admin) : ajoute +1000 pièces d'un coup au stock de TOUS les produits de
   // TOUTES les catégories (utile pour réapprovisionner rapidement, ex : "Entremet Dh").
   const handleBulkAddStock = async () => {
-    if (!window.confirm('Ajouter 10000 pièces au stock de tous les produits, dans toutes les catégories ?')) return
+    if (!window.confirm('Ajouter 1000 pièces au stock de tous les produits, dans toutes les catégories ?')) return
     const productIds = ALL_PRODUCTS.map((p) => p.id).filter(Boolean)
-    await addStockToProducts(productIds, 10000)
+    await addStockToProducts(productIds, 1000)
     refreshStock()
-    addNotification(`Stock rechargé : +10000 sur ${productIds.length} produits`, 'success')
+    addNotification(`Stock rechargé : +1000 sur ${productIds.length} produits`, 'success')
+  }
+
+  // "Vider la caisse" : après vérification du code, récupère le détail complet (ventes +
+  // commandes de la session en cours) pour afficher/imprimer le reçu de clôture.
+  const handleViderCaisse = async (password) => {
+    const result = await viderCaisse(password) // lève une erreur si le code est incorrect
+    setShowViderCode(false)
+    setViderReceipt(result)
   }
 
   const handleAddRziza = async (e) => {
@@ -311,10 +325,16 @@ export default function POSPage() {
               <span className="ml-0.5 bg-diana-accent/20 text-diana-accentLight text-[10px] font-bold px-1.5 py-0.5 rounded-full">{pendingRzizaOrders}</span>
             )}
           </button>
+          {isCaissierOrAdmin && (
+            <button onClick={() => setShowViderCode(true)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-accent/40 hover:text-diana-accent transition-colors">
+              <FiDollarSign size={14} /> Vider la caisse
+            </button>
+          )}
           {isAdmin && (
             <button onClick={handleBulkAddStock}
               className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-gold/40 hover:text-diana-gold transition-colors">
-              <FiPlus size={14} /> Stock (+10000 partout)
+              <FiPlus size={14} /> Stock (+1000 partout)
             </button>
           )}
           {isAdmin && (
@@ -414,24 +434,29 @@ export default function POSPage() {
                 <h3 className="font-fraunces text-xl font-medium">Paiement réussi !</h3>
                 <p className="text-sm text-diana-brown mt-1">{paymentType === 'cash' ? 'Paiement en espèces' : 'Paiement par carte'}</p>
               </div>
-              <div className="bg-white rounded-xl p-4 mb-6 text-xs border border-diana-creamDark">
-                <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
-                  <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
-                  <p className="text-diana-brown">{new Date().toLocaleDateString('fr-FR')} {new Date().toLocaleTimeString('fr-FR')}</p>
-                  <p className="text-diana-brown">Ticket n°{String(ticketNumber).padStart(3, '0')}</p>
+              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-diana-creamDark">
+                <ReceiptHeader>
+                  <p className="text-diana-brown text-[10.5px] mt-1.5">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
+                  <p className="text-diana-dark text-[11px] font-semibold">Ticket n°{String(ticketNumber).padStart(3, '0')}</p>
+                </ReceiptHeader>
+                <div className="space-y-2 mb-1">
+                  {order.map((item) => (
+                    <div key={item.id} className="receipt-line flex items-baseline justify-between gap-3">
+                      <span className="name text-diana-dark font-medium">
+                        {getProductDisplayName(item, lang)}
+                        <span className="text-diana-brown font-normal"> × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</span>
+                      </span>
+                      <span className="value shrink-0 font-semibold text-diana-dark">{(item.price * item.qty).toFixed(2)} DH</span>
+                    </div>
+                  ))}
                 </div>
-                {order.map((item) => (
-                  <div key={item.id} className="flex justify-between py-1">
-                    <span>{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</span>
-                    <span>{(item.price * item.qty).toFixed(2)} DH</span>
-                  </div>
-                ))}
                 <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
-                  <div className="flex justify-between font-semibold"><span>Total</span><span>{total.toFixed(2)} DH</span></div>
+                  <div className="total flex justify-between items-baseline font-bold text-sm"><span>Total</span><span>{total.toFixed(2)} DH</span></div>
                   {paymentType === 'cash' && changeGiven > 0 && (
                     <div className="flex justify-between text-emerald-700 mt-1"><span>Monnaie rendue</span><span>{changeGiven.toFixed(2)} DH</span></div>
                   )}
                 </div>
+                <p className="footer text-center text-diana-brown text-[11px] italic mt-3">Merci de votre visite !</p>
               </div>
               <div className="flex flex-col gap-2.5">
                 <button onClick={handlePrint}
@@ -489,19 +514,17 @@ export default function POSPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4" onClick={() => setRzizaBon(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
-                <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
-                  <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
-                  <p className="text-diana-brown">Bon de livraison — Rziza</p>
-                  <p className="text-diana-brown">{new Date(rzizaBon.timestamp).toLocaleDateString('fr-FR')} à {new Date(rzizaBon.timestamp).toLocaleTimeString('fr-FR')}</p>
-                </div>
-                <div className="flex justify-between py-1"><span>Quantité livrée</span><span>{rzizaBon.quantity}</span></div>
-                <div className="flex justify-between py-1"><span>Prix d'achat / unité</span><span>{rzizaBon.prixAchat.toFixed(2)} DH</span></div>
+              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                <ReceiptHeader subtitle="Bon de livraison — Rziza">
+                  <p className="text-diana-brown text-[10.5px] mt-1.5">{new Date(rzizaBon.timestamp).toLocaleDateString('fr-FR')} à {new Date(rzizaBon.timestamp).toLocaleTimeString('fr-FR')}</p>
+                </ReceiptHeader>
+                <div className="receipt-line flex justify-between py-1"><span>Quantité livrée</span><span className="value font-semibold">{rzizaBon.quantity}</span></div>
+                <div className="receipt-line flex justify-between py-1"><span>Prix d'achat / unité</span><span className="value font-semibold">{rzizaBon.prixAchat.toFixed(2)} DH</span></div>
                 <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
-                  <div className="flex justify-between font-semibold"><span>Montant dû</span><span>{rzizaBon.montantDu.toFixed(2)} DH</span></div>
+                  <div className="total flex justify-between font-semibold"><span>Montant dû</span><span>{rzizaBon.montantDu.toFixed(2)} DH</span></div>
                   <div className="flex justify-between text-diana-accentLight font-semibold mt-1"><span>Statut</span><span>NON PAYÉ</span></div>
                 </div>
-                <p className="text-diana-brown italic mt-3 text-center">Réglé personnellement — sans lien avec la caisse</p>
+                <p className="footer text-diana-brown italic mt-3 text-center">Réglé personnellement — sans lien avec la caisse</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => window.print()}
@@ -525,23 +548,21 @@ export default function POSPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setClearReceipt(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
-                <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
-                  <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
-                  <p className="text-diana-brown">{clearReceipt.label}</p>
-                  <p className="text-diana-brown">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
-                </div>
-                <div className="space-y-1 mb-2">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                <ReceiptHeader subtitle={clearReceipt.label}>
+                  <p className="text-diana-brown text-[10.5px] mt-1.5">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
+                </ReceiptHeader>
+                <div className="space-y-1.5 mb-2">
                   {clearReceipt.entries.map((e) => (
-                    <div key={e.productId} className="flex justify-between py-0.5">
-                      <span className="pr-2">{getProductDisplayName(e, lang)} × {e.qty}</span>
-                      <span className="shrink-0">{e.value.toFixed(2)} DH</span>
+                    <div key={e.productId} className="receipt-line flex justify-between py-0.5">
+                      <span className="name pr-2">{getProductDisplayName(e, lang)} × {e.qty}</span>
+                      <span className="value shrink-0 font-semibold">{e.value.toFixed(2)} DH</span>
                     </div>
                   ))}
                 </div>
                 <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
                   <div className="flex justify-between py-0.5"><span>Quantité totale</span><span>{clearReceipt.totalQuantity}</span></div>
-                  <div className="flex justify-between font-semibold"><span>Valeur totale</span><span>{clearReceipt.totalValue.toFixed(2)} DH</span></div>
+                  <div className="total flex justify-between font-semibold"><span>Valeur totale</span><span>{clearReceipt.totalValue.toFixed(2)} DH</span></div>
                 </div>
               </div>
               <div className="flex gap-2 print:hidden">
@@ -550,6 +571,102 @@ export default function POSPage() {
                   <FiPrinter size={15} /> Imprimer
                 </button>
                 <button onClick={() => setClearReceipt(null)}
+                  className="flex-1 bg-white text-diana-brown border border-diana-border py-2.5 rounded-xl text-sm font-semibold">
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Code de confirmation avant de vider la caisse */}
+      <CodeConfirmModal
+        open={showViderCode}
+        title="Vider la caisse"
+        description="Entrez votre code pour clôturer la caisse et générer le reçu de toutes les transactions de la session."
+        confirmLabel="Vider la caisse"
+        onConfirm={handleViderCaisse}
+        onCancel={() => setShowViderCode(false)}
+      />
+
+      {/* Reçu de clôture de caisse — détail complet des ventes et commandes de la session */}
+      <AnimatePresence>
+        {viderReceipt && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setViderReceipt(null)}>
+            <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+              className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                <ReceiptHeader subtitle="Clôture de caisse">
+                  <p className="text-diana-dark text-[11px] font-semibold mt-1.5">{viderReceipt.closedSession.userName}</p>
+                  <p className="text-diana-brown text-[10.5px] mt-1">Entrée : {new Date(viderReceipt.closedSession.openedAt).toLocaleString('fr-FR')}</p>
+                  <p className="text-diana-brown text-[10.5px]">Sortie : {new Date(viderReceipt.closedSession.closedAt).toLocaleString('fr-FR')}</p>
+                  <p className="text-diana-brown text-[10.5px]">Dépôt initial : {viderReceipt.closedSession.openingAmount.toFixed(2)} DH</p>
+                </ReceiptHeader>
+
+                {viderReceipt.sales.length > 0 && (
+                  <div className="mb-3">
+                    <p className="font-bold text-diana-dark border-b border-dashed border-diana-creamDark pb-1 mb-1.5">Ventes ({viderReceipt.sales.length})</p>
+                    {viderReceipt.sales.map((sale) => (
+                      <div key={sale.id} className="mb-2">
+                        <div className="flex justify-between text-[10.5px] text-diana-brown font-semibold">
+                          <span>Ticket n°{String(sale.ticketNumber).padStart(3, '0')}</span>
+                          <span>{new Date(sale.createdAt).toLocaleTimeString('fr-FR')}</span>
+                        </div>
+                        {sale.items.map((it, idx) => (
+                          <div key={idx} className="receipt-line flex justify-between pl-2">
+                            <span className="name">{it.name} × {formatQty(it.qty)}</span>
+                            <span className="value">{(it.price * it.qty).toFixed(2)} DH</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between font-semibold pl-2 pt-0.5"><span>Total ticket</span><span>{sale.total.toFixed(2)} DH</span></div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {viderReceipt.reservations.length > 0 && (
+                  <div className="mb-3">
+                    <p className="font-bold text-diana-dark border-b border-dashed border-diana-creamDark pb-1 mb-1.5">Commandes ({viderReceipt.reservations.length})</p>
+                    {viderReceipt.reservations.map((r) => (
+                      <div key={r.id} className="mb-2">
+                        <div className="flex justify-between text-[10.5px] text-diana-brown font-semibold">
+                          <span>{r.clientName}</span>
+                          <span>{new Date(r.createdAt).toLocaleTimeString('fr-FR')}</span>
+                        </div>
+                        {r.items.map((it, idx) => (
+                          <div key={idx} className="receipt-line flex justify-between pl-2">
+                            <span className="name">{it.name} × {formatQty(it.qty)}</span>
+                            <span className="value">{(it.price * it.qty).toFixed(2)} DH</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between font-semibold pl-2 pt-0.5"><span>Total commande</span><span>{r.total.toFixed(2)} DH</span></div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {viderReceipt.sales.length === 0 && viderReceipt.reservations.length === 0 && (
+                  <p className="text-center italic text-diana-brown mb-2">Aucune transaction sur cette session.</p>
+                )}
+
+                <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
+                  <div className="flex justify-between"><span>Total ventes</span><span>{viderReceipt.closedSession.closingSalesTotal.toFixed(2)} DH</span></div>
+                  <div className="flex justify-between"><span>Total commandes</span><span>{viderReceipt.closedSession.closingCommandesTotal.toFixed(2)} DH</span></div>
+                  <div className="total flex justify-between font-bold text-sm mt-1.5">
+                    <span>TOTAL GÉNÉRAL</span>
+                    <span>{(viderReceipt.closedSession.closingSalesTotal + viderReceipt.closedSession.closingCommandesTotal).toFixed(2)} DH</span>
+                  </div>
+                </div>
+                <p className="footer text-center text-diana-brown italic mt-3">Caisse vidée avec succès</p>
+              </div>
+              <div className="flex gap-2 print:hidden">
+                <button onClick={() => window.print()}
+                  className="flex-1 flex items-center justify-center gap-2 bg-diana-dark text-diana-cream py-2.5 rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
+                  <FiPrinter size={15} /> Imprimer
+                </button>
+                <button onClick={() => setViderReceipt(null)}
                   className="flex-1 bg-white text-diana-brown border border-diana-border py-2.5 rounded-xl text-sm font-semibold">
                   Fermer
                 </button>
