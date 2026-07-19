@@ -4,6 +4,7 @@ import { FiPlus, FiTrash2, FiShoppingBag, FiPrinter, FiPackage, FiCalendar } fro
 import { getPurchases, addPurchase, removePurchase, subscribeToStockUpdates, getRzizaDeliveries, addRzizaDelivery, removeRzizaDelivery, sameDay } from '../data/stockStore'
 import NumericField from '../components/NumericField'
 import KeyboardField from '../components/KeyboardField'
+import ReceiptHeader from '../components/ReceiptHeader'
 import { useNotification } from '../context/NotificationContext'
 
 export default function AchatsPage() {
@@ -184,19 +185,17 @@ export default function AchatsPage() {
               className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setRzizaBon(null)}>
               <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
                 className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <div className="bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
-                  <div className="text-center border-b border-dashed border-diana-creamDark pb-3 mb-3">
-                    <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
-                    <p className="text-diana-brown">Bon de livraison — Rziza</p>
-                    <p className="text-diana-brown">{new Date(rzizaBon.timestamp).toLocaleDateString('fr-FR')} à {new Date(rzizaBon.timestamp).toLocaleTimeString('fr-FR')}</p>
-                  </div>
-                  <div className="flex justify-between py-1"><span>Quantité livrée</span><span>{rzizaBon.quantity}</span></div>
-                  <div className="flex justify-between py-1"><span>Prix d'achat / unité</span><span>{rzizaBon.prixAchat.toFixed(2)} DH</span></div>
+                <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                  <ReceiptHeader subtitle="Bon de livraison — Rziza">
+                    <p className="text-diana-brown text-[10.5px] mt-1.5">{new Date(rzizaBon.timestamp).toLocaleDateString('fr-FR')} à {new Date(rzizaBon.timestamp).toLocaleTimeString('fr-FR')}</p>
+                  </ReceiptHeader>
+                  <div className="receipt-line flex justify-between py-1"><span>Quantité livrée</span><span className="value font-semibold">{rzizaBon.quantity}</span></div>
+                  <div className="receipt-line flex justify-between py-1"><span>Prix d'achat / unité</span><span className="value font-semibold">{rzizaBon.prixAchat.toFixed(2)} DH</span></div>
                   <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
-                    <div className="flex justify-between font-semibold"><span>Montant dû</span><span>{rzizaBon.montantDu.toFixed(2)} DH</span></div>
+                    <div className="total flex justify-between font-semibold"><span>Montant dû</span><span>{rzizaBon.montantDu.toFixed(2)} DH</span></div>
                     <div className="flex justify-between text-diana-accentLight font-semibold mt-1"><span>Statut</span><span>NON PAYÉ</span></div>
                   </div>
-                  <p className="text-diana-brown italic mt-3 text-center">Réglé personnellement — sans lien avec la caisse</p>
+                  <p className="footer text-diana-brown italic mt-3 text-center">Réglé personnellement — sans lien avec la caisse</p>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => window.print()}
