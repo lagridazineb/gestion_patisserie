@@ -27,6 +27,7 @@ function mapRow(r) {
     soldePaymentMode: r.solde_payment_mode,
     soldePaidAt: r.solde_paid_at,
     soldeAmount: r.solde_amount !== null ? Number(r.solde_amount) : null,
+    createdBy: r.created_by,
     createdAt: r.created_at,
   }
 }
@@ -59,15 +60,16 @@ router.post('/', authMiddleware, async (req, res) => {
     const id = Date.now()
     const ticketNumber = await nextTicketNumber()
     const avanceValue = Number(avance) || 0
+    const createdBy = req.user?.id || null
     await pool.query(
       `INSERT INTO reservations
         (id, ticket_number, client_name, client_phone, delivery_date, delivery_time, note, items, total,
          avance, avance_initiale, reste_a_payer, payment_mode, ready, done_by_atelier, refunded_qty,
-         solde_paid, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 0, NOW())`,
+         solde_paid, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 0, ?, NOW())`,
       [id, ticketNumber, clientName, clientPhone || null, deliveryDate || null, deliveryTime || null, note || null,
        JSON.stringify(items || []), total, avanceValue, avanceValue, resteAPayer, paymentMode || null,
-       JSON.stringify({}), JSON.stringify({})]
+       JSON.stringify({}), JSON.stringify({}), createdBy]
     )
     const [rows] = await pool.query('SELECT * FROM reservations WHERE id = ?', [id])
     res.json({ reservation: mapRow(rows[0]) })
