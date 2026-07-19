@@ -5,15 +5,21 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { useLanguage } from '../context/LanguageContext'
 import { FiMail, FiLock, FiLogIn, FiGlobe } from 'react-icons/fi'
+import { openSession } from '../data/sessionsStore'
+import DepositModal from '../components/DepositModal'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [depositPrompt, setDepositPrompt] = useState(null) // { user } quand un caissier vient de se connecter
+  const [depositLoading, setDepositLoading] = useState(false)
   const { login } = useAuth()
   const { addNotification } = useNotification()
   const { t, lang, toggleLang } = useLanguage()
   const navigate = useNavigate()
+
+  const goToSpace = (role) => navigate(role === 'preparateur' ? '/preparateur' : role === 'caissier' ? '/' : '/bilan')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -23,10 +29,30 @@ export default function LoginPage() {
     if (result.success) {
       addNotification(t('login.connexionReussie'), 'success')
       const role = result.user?.role
-      navigate(role === 'preparateur' ? '/preparateur' : role === 'caissier' ? '/' : '/bilan')
+      if (role === 'caissier') {
+        // Le caissier doit obligatoirement indiquer le dépôt d'ouverture avant d'accéder à la Caisse.
+        setDepositPrompt({ user: result.user })
+      } else {
+        // Les autres rôles ouvrent une session en arrière-plan (dépôt à 0, pas de popup).
+        openSession(0).catch(() => {})
+        goToSpace(role)
+      }
     } else {
       addNotification(result.error, 'error')
     }
+  }
+
+  const handleDepositConfirm = async (amount) => {
+    setDepositLoading(true)
+    try {
+      await openSession(amount)
+    } catch (e) {
+      // Même en cas d'erreur réseau sur l'enregistrement du dépôt, on laisse le caissier
+      // accéder à la caisse plutôt que de le bloquer complètement.
+    }
+    setDepositLoading(false)
+    setDepositPrompt(null)
+    goToSpace('caissier')
   }
 
   return (
@@ -86,6 +112,13 @@ export default function LoginPage() {
           </form>
         </motion.div>
       </motion.div>
+
+      <DepositModal
+        open={!!depositPrompt}
+        userName={depositPrompt?.user?.name}
+        isLoading={depositLoading}
+        onConfirm={handleDepositConfirm}
+      />
     </div>
   )
 }
