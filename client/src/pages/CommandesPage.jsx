@@ -10,6 +10,7 @@ import {
   isReservationFullyReady,
 } from '../data/stockStore'
 import NumericField from '../components/NumericField'
+import ReceiptHeader from '../components/ReceiptHeader'
 import QuantityModal from '../components/QuantityModal'
 import CakeCustomizationModal from '../components/CakeCustomizationModal'
 import MoroccanCakeModal from '../components/MoroccanCakeModal'
@@ -543,11 +544,10 @@ export default function CommandesPage() {
                 <h3 className="font-fraunces text-xl font-medium">Commande enregistrée</h3>
                 <p className="text-sm text-[#8B6A3A] mt-1">Reçu à remettre au client</p>
               </div>
-              <div className="bg-white rounded-xl p-4 mb-6 text-xs border border-[#E7CCB4]">
-                <div className="text-center border-b border-dashed border-[#E7CCB4] pb-3 mb-3">
-                  <p className="font-fraunces text-sm font-medium">Pâtisserie Dianna</p>
-                  <p className="text-[#8B6A3A]">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
-                </div>
+              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-[#E7CCB4]">
+                <ReceiptHeader subtitle="Commande enregistrée">
+                  <p className="text-[#8B6A3A] text-[10.5px] mt-1.5">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
+                </ReceiptHeader>
                 <div className="mb-3 space-y-0.5">
                   <p><span className="text-[#8B6A3A]">Client :</span> <span className="font-semibold">{lastReservation.clientName}</span></p>
                   {lastReservation.clientPhone && <p><span className="text-[#8B6A3A]">Téléphone :</span> {lastReservation.clientPhone}</p>}
@@ -556,9 +556,9 @@ export default function CommandesPage() {
                 </div>
                 <div className="border-t border-dashed border-[#E7CCB4] pt-2">
                   {lastReservation.items.map((item) => (
-                    <div key={item.id} className="flex justify-between py-1">
-                      <span>{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}</span>
-                      <span>{itemTotal(item).toFixed(2)} DH</span>
+                    <div key={item.id} className="receipt-line flex justify-between py-1">
+                      <span className="name">{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}</span>
+                      <span className="value font-semibold">{itemTotal(item).toFixed(2)} DH</span>
                     </div>
                   ))}
                   {lastReservation.items.some((i) => i.customNote) && (
