@@ -4,8 +4,13 @@ import { FiDollarSign, FiCalendar, FiTrendingUp, FiPrinter, FiUsers, FiBox, FiCh
 import { ATELIERS, mergeProductOverlay } from '../data/products'
 import { getProductOverlay } from '../api/products'
 import {
-  getProductionLog, getSalesLog, getRefunds, getCommandesBilan, subscribeToStockUpdates, sameDay,
+  getProductionLog, getSalesLog, getRefunds, getCommandesBilan, subscribeToStockUpdates, sameDay, getRzizaDeliveries, getRetours,
 } from '../data/stockStore'
+
+// Catégories retirées de la page Ventes : elles sont désormais gérées via le "Frigo
+// d'entremet" (prix saisi directement par le préparateur) et n'ont plus leur place ici en
+// tant que production/vente classique par quantité.
+const EXCLUDED_CATEGORIES = ['entremet', 'melange', 'cake_design', 'gateaux_kg']
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -16,6 +21,8 @@ export default function VentesPage() {
   const [productionLog, setProductionLog] = useState([])
   const [salesLog, setSalesLog] = useState([])
   const [refunds, setRefunds] = useState([])
+  const [rzizaDeliveries, setRzizaDeliveries] = useState([])
+  const [retours, setRetours] = useState({ current: null, previous: null })
   const [commandesBilan, setCommandesBilan] = useState(null)
   const [expandedAtelier, setExpandedAtelier] = useState(null)
   const [productOverlay, setProductOverlay] = useState({ customProducts: [], edits: [], deletedIds: [] })
@@ -27,13 +34,15 @@ export default function VentesPage() {
 
   const refresh = useCallback(async () => {
     const commandesDate = date || todayStr()
-    const [productionData, salesData, refundsData, bilan] = await Promise.all([
-      getProductionLog(), getSalesLog(), getRefunds(), getCommandesBilan(commandesDate),
+    const [productionData, salesData, refundsData, bilan, rziza, retoursData] = await Promise.all([
+      getProductionLog(), getSalesLog(), getRefunds(), getCommandesBilan(commandesDate), getRzizaDeliveries(), getRetours(commandesDate),
     ])
     setProductionLog(productionData)
     setSalesLog(salesData)
     setRefunds(refundsData)
     setCommandesBilan(bilan)
+    setRzizaDeliveries(rziza)
+    setRetours(retoursData)
   }, [date])
 
   useEffect(() => {
@@ -51,21 +60,25 @@ export default function VentesPage() {
   // Récapitulatif par atelier, pour la date choisie (ou tout l'historique si aucune date) :
   // production (qté produite × prix), vendu, et retour (remboursements) à déduire.
   const atelierSummary = useMemo(() => {
-    const filteredProduction = date ? productionLog.filter((e) => sameDay(e.timestamp, date)) : productionLog
+    const filteredProduction = (date ? productionLog.filter((e) => sameDay(e.timestamp, date)) : productionLog)
+      .filter((e) => !EXCLUDED_CATEGORIES.includes(e.category))
     const filteredSales = date ? salesLog.filter((s) => sameDay(s.timestamp, date)) : salesLog
     const filteredRefunds = date ? refunds.filter((r) => sameDay(r.timestamp, date)) : refunds
+    const filteredRziza = date ? rzizaDeliveries.filter((r) => sameDay(r.timestamp, date)) : rzizaDeliveries
 
     const summary = {}
-    ATELIERS.forEach((a) => {
+    ATELIERS.filter((a) => !EXCLUDED_CATEGORIES.includes(a.id)).forEach((a) => {
       summary[a.id] = { atelier: a.id, label: a.label, totalProducedQty: 0, totalProducedValue: 0, totalSoldQty: 0, totalSoldValue: 0, totalRefundValue: 0, products: {} }
     })
     const ensure = (atelierId) => {
+      if (EXCLUDED_CATEGORIES.includes(atelierId)) return null
       if (!summary[atelierId]) summary[atelierId] = { atelier: atelierId, label: atelierId, totalProducedQty: 0, totalProducedValue: 0, totalSoldQty: 0, totalSoldValue: 0, totalRefundValue: 0, products: {} }
       return summary[atelierId]
     }
 
     filteredProduction.forEach((entry) => {
       const s = ensure(entry.atelier)
+      if (!s) return
       const value = entry.price !== null ? entry.price * entry.quantity : 0
       s.totalProducedQty += entry.quantity
       s.totalProducedValue += value
@@ -74,11 +87,25 @@ export default function VentesPage() {
       s.products[entry.product].value += value
     })
 
+    // Rziza n'a pas de "production" à proprement parler (pas de préparateur) : chaque achat
+    // livré doit néanmoins apparaître ici comme production, à la valeur de vente prévue.
+    filteredRziza.forEach((delivery) => {
+      const s = ensure('rziza')
+      if (!s) return
+      const value = delivery.quantity * delivery.prixVente
+      s.totalProducedQty += delivery.quantity
+      s.totalProducedValue += value
+      if (!s.products['Rziza']) s.products['Rziza'] = { name: 'Rziza', qty: 0, value: 0, price: delivery.prixVente }
+      s.products['Rziza'].qty += delivery.quantity
+      s.products['Rziza'].value += value
+    })
+
     filteredSales.forEach((sale) => {
       sale.items.forEach((item) => {
         const cat = productCategoryMap[item.id]
-        if (!cat) return
+        if (!cat || EXCLUDED_CATEGORIES.includes(cat)) return
         const s = ensure(cat)
+        if (!s) return
         s.totalSoldQty += item.qty
         s.totalSoldValue += item.qty * item.price
       })
@@ -87,8 +114,9 @@ export default function VentesPage() {
     filteredRefunds.forEach((refund) => {
       (refund.items || []).forEach((item) => {
         const cat = productCategoryMap[item.id]
-        if (!cat) return
-        ensure(cat).totalRefundValue += item.qty * item.price
+        if (!cat || EXCLUDED_CATEGORIES.includes(cat)) return
+        const s = ensure(cat)
+        if (s) s.totalRefundValue += item.qty * item.price
       })
     })
 
@@ -97,7 +125,7 @@ export default function VentesPage() {
       netRevenue: s.totalSoldValue - s.totalRefundValue,
       products: Object.values(s.products).sort((a, b) => b.value - a.value),
     }))
-  }, [productionLog, salesLog, refunds, productCategoryMap, date])
+  }, [productionLog, salesLog, refunds, rzizaDeliveries, productCategoryMap, date])
 
   const totalProductionValue = atelierSummary.reduce((sum, a) => sum + a.totalProducedValue, 0)
   const totalVentesNet = atelierSummary.reduce((sum, a) => sum + a.netRevenue, 0)
@@ -113,7 +141,7 @@ export default function VentesPage() {
           <div>
             <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">Rapport</p>
             <h2 className="font-fraunces text-3xl font-medium text-diana-cream">Ventes</h2>
-            <p className="text-sm text-diana-brown mt-1">Production par préparateur, ventes nettes et commandes</p>
+            <p className="text-sm text-diana-brown mt-1">Production par préparateur, retours de caisse et commandes</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <FiCalendar className="text-diana-brown" size={15} />
@@ -130,10 +158,9 @@ export default function VentesPage() {
         </motion.div>
 
         {/* Totaux généraux du jour */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
           {[
             { label: 'Total production', value: `${totalProductionValue.toFixed(2)} DH`, icon: FiBox, color: 'bg-blue-500/10 text-blue-400' },
-            { label: 'Ventes nettes (retours déduits)', value: `${totalVentesNet.toFixed(2)} DH`, icon: FiTrendingUp, color: 'bg-diana-gold/10 text-diana-gold' },
             { label: "Chiffre d'affaires commandes", value: `${totalCommandes.toFixed(2)} DH`, icon: FiCalendar, color: 'bg-emerald-500/10 text-emerald-400' },
             { label: 'Total général (ventes + commandes)', value: `${totalGeneral.toFixed(2)} DH`, icon: FiDollarSign, color: 'bg-orange-400/10 text-orange-400' },
           ].map((stat, i) => (
@@ -145,9 +172,30 @@ export default function VentesPage() {
             </motion.div>
           ))}
         </div>
-        {totalRefunds > 0 && (
-          <p className="text-xs text-diana-brown mb-6 -mt-4 flex items-center gap-1.5"><FiRotateCcw size={12} /> Dont {totalRefunds.toFixed(2)} DH de retours déjà déduits des ventes ci-dessus.</p>
-        )}
+
+        {/* Retours : deux cases bien séparées, jamais mélangées avec le calcul des ventes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
+            className="bg-diana-card border border-diana-border rounded-2xl p-5">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-3"><FiRotateCcw size={18} /></div>
+            <p className="font-fraunces text-2xl font-semibold text-diana-cream mb-1">{retours.previous ? `${retours.previous.totalValue.toFixed(2)} DH` : '—'}</p>
+            <p className="text-xs text-diana-brown">Retour du jour précédent</p>
+            <p className="text-[11px] text-diana-brownLight mt-1">
+              {retours.previous ? `Calculé le ${retours.previous.date} — réutilisé comme fond de caisse aujourd'hui.` : "Pas encore de retour enregistré pour le jour précédent."}
+            </p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24 }}
+            className="bg-diana-card border border-diana-border rounded-2xl p-5">
+            <div className="w-10 h-10 rounded-xl bg-diana-gold/10 text-diana-gold flex items-center justify-center mb-3"><FiRotateCcw size={18} /></div>
+            <p className="font-fraunces text-2xl font-semibold text-diana-cream mb-1">{retours.current ? `${retours.current.totalValue.toFixed(2)} DH` : '—'}</p>
+            <p className="text-xs text-diana-brown">Retour (fermeture de caisse du jour)</p>
+            <p className="text-[11px] text-diana-brownLight mt-1">
+              {retours.current
+                ? "Stock invendu d'entremet/gâteau/cake/pâtisserie au vidage de ce soir-là — servira de fond de caisse demain."
+                : "Pas encore calculé : se fait automatiquement au vidage de fin de journée (page Stock)."}
+            </p>
+          </motion.div>
+        </div>
 
         {/* Détail par atelier / préparateur */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-8">
