@@ -75,11 +75,15 @@ router.get('/clear-log', authMiddleware, adminMiddleware, async (req, res) => {
   }
 })
 
-// Vide le stock des produits demandés (périssables ou tout), en gardant un historique
-// de ce qui a été vidé (quantité + valeur), pour affichage côté Admin.
-router.post('/clear', authMiddleware, adminMiddleware, async (req, res) => {
+// Vide le stock des produits demandés (périssables ou tout), en gardant un historique de ce
+// qui a été vidé. Ouvert aux caissiers pour le "type=soir" (fin de journée) ; le "complet"
+// (tout remettre à 0) reste réservé à l'admin, vérifié plus bas.
+router.post('/clear', authMiddleware, async (req, res) => {
   try {
-    const { type, affectedProducts } = req.body // affectedProducts: [{id, name, category, price}]
+    const { type, affectedProducts, fullCatalog } = req.body // affectedProducts: [{id, name, category, price}]
+    if (type === 'complet' && req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Accès refusé - Administrateur requis' })
+    }
     if (!Array.isArray(affectedProducts)) return res.status(400).json({ error: 'affectedProducts requis' })
 
     const stock = await getStockMap()
@@ -91,6 +95,29 @@ router.post('/clear', authMiddleware, adminMiddleware, async (req, res) => {
       .filter((e) => e.qty > 0)
     const totalQuantity = entries.reduce((s, e) => s + e.qty, 0)
     const totalValue = entries.reduce((s, e) => s + e.value, 0)
+
+    // "Fin de journée" (type 'soir') : en plus de ce qui est vidé (pain/viennoiserie/salé...),
+    // on calcule le retour vendable des AUTRES catégories encore en stock (pas remises à 0,
+    // donc reportées au lendemain) et un résumé de la production du jour — pour que le reçu
+    // donne une vue complète de la journée.
+    let carryover = []
+    let productionSummary = []
+    if (type === 'soir') {
+      const clearedIds = new Set(affectedProducts.map((p) => p.id))
+      carryover = (Array.isArray(fullCatalog) ? fullCatalog : [])
+        .filter((p) => !clearedIds.has(p.id))
+        .map((p) => {
+          const qty = stock[p.id] ?? 0
+          return { productId: p.id, name: p.name, category: p.category, qty, price: p.price || 0, value: qty * (p.price || 0) }
+        })
+        .filter((e) => e.qty > 0)
+
+      const [prodRows] = await pool.query(
+        `SELECT category, SUM(quantity) AS qty, SUM(quantity * COALESCE(price, 0)) AS value
+         FROM production_entries WHERE production_date = CURDATE() GROUP BY category`
+      )
+      productionSummary = prodRows.map((r) => ({ category: r.category, qty: Number(r.qty), value: Number(r.value) }))
+    }
 
     for (const p of affectedProducts) {
       await setStock(p.id, 0)
@@ -120,7 +147,7 @@ router.post('/clear', authMiddleware, adminMiddleware, async (req, res) => {
       await pool.query('UPDATE eod_settings SET last_cleared_date = ? WHERE id = 1', [today])
     }
 
-    res.json({ success: true, id, type, entries, totalQuantity, totalValue, count: affectedProducts.length })
+    res.json({ success: true, id, type, entries, totalQuantity, totalValue, count: affectedProducts.length, carryover, productionSummary })
   } catch (error) {
     console.error('Erreur POST /api/stock/clear :', error)
     res.status(500).json({ error: 'Erreur serveur' })
