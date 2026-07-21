@@ -121,9 +121,14 @@ export default function PreparateurPage() {
     if (!selectedProduct || isNaN(qty) || qty <= 0) return
     const product = (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)
     if (!product) return
+    // "Gâteau par kg" : on ne saisit plus un poids en kg, mais directement le prix du gâteau.
+    // Ce prix est envoyé tel quel (quantity=1) et devient le prix du lot affiché dans le
+    // frigo d'entremet, avec le prix saisi par le préparateur.
+    const isGateauKg = product.category === 'gateaux_kg'
     await addProduction({
-      productId: product.id, product: product.name, quantity: qty, date, time,
-      category: product.category, price: product.price,
+      productId: product.id, product: product.name,
+      quantity: isGateauKg ? 1 : qty, date, time,
+      category: product.category, price: isGateauKg ? qty : product.price,
       atelier: user?.atelier, user: user?.name,
     })
     setSelectedProduct('')
@@ -295,6 +300,11 @@ export default function PreparateurPage() {
                           </div>
                         )}
                         <p className="text-[11px] font-bold text-diana-cream leading-tight line-clamp-2 mb-1">{displayName}</p>
+                        {(p.category === 'entremet' || p.category === 'gateaux_kg') && p.price > 0 && (
+                          <p className="text-[10px] font-semibold text-diana-accentLight mb-0.5">
+                            {p.price.toFixed(2)} DH{p.category === 'gateaux_kg' ? ' /kg (indicatif)' : ''}
+                          </p>
+                        )}
                         <p className="text-[9px] font-bold text-diana-gold uppercase tracking-wider">{t('preparateur.realise')}: {todayQty} {p.unit === 'kg' ? t('preparateur.kgUnit') : t('preparateur.piece')}</p>
                       </button>
                     )
@@ -303,11 +313,19 @@ export default function PreparateurPage() {
                 {!selectedProduct && <p className="text-[11px] text-diana-danger font-semibold mb-2">{t('preparateur.choisirProduit')}</p>}
               </div>
               <div>
-                <label className="block text-xs text-diana-brown mb-1.5">{t('preparateur.quantiteFabriquee')}</label>
-                <NumericField value={quantity} onChange={setQuantity} placeholder={t('preparateur.quantitePlaceholder')}
-                  title={ getProductDisplayName((isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct), lang) || t('preparateur.quantiteFabriquee') }
-                  unit={ (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)?.unit === 'kg' ? t('preparateur.kgUnit') : t('preparateur.piece') }
-                  className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream text-left focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" />
+                {(() => {
+                  const currentProduct = (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)
+                  const isGateauKg = currentProduct?.category === 'gateaux_kg'
+                  return (
+                    <>
+                      <label className="block text-xs text-diana-brown mb-1.5">{isGateauKg ? 'Prix du gâteau' : t('preparateur.quantiteFabriquee')}</label>
+                      <NumericField value={quantity} onChange={setQuantity} placeholder={isGateauKg ? 'Prix en DH' : t('preparateur.quantitePlaceholder')}
+                        title={ getProductDisplayName(currentProduct, lang) || t('preparateur.quantiteFabriquee') }
+                        unit={ isGateauKg ? 'DH' : (currentProduct?.unit === 'kg' ? t('preparateur.kgUnit') : t('preparateur.piece')) }
+                        className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream text-left focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" />
+                    </>
+                  )
+                })()}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="min-w-0">
@@ -352,7 +370,9 @@ export default function PreparateurPage() {
                       className="bg-diana-dark/50 rounded-xl p-4 border border-diana-border/30">
                       <div className="flex items-start justify-between mb-2">
                         <p className="text-sm font-medium text-diana-cream">{getProductDisplayName({ name: prod.product, nameAr: prod.productAr }, lang)}</p>
-                        <span className="text-xs text-diana-gold font-medium">+{prod.quantity}</span>
+                        <span className="text-xs text-diana-gold font-medium">
+                          {prod.category === 'gateaux_kg' ? `${Number(prod.price).toFixed(2)} DH` : `+${prod.quantity}`}
+                        </span>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-diana-brown">
                         <span>{prod.date}</span><span>{prod.time}</span><span className="text-diana-brownLight">{prod.user}</span>
@@ -390,6 +410,28 @@ export default function PreparateurPage() {
             })}
           </div>
         </motion.div>
+
+        {isPatisserie && (prepTab === 'kg' || prepTab === 'entremets') && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-diana-card border border-diana-border rounded-2xl p-5 sm:p-6 mt-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-diana-gold/10 flex items-center justify-center"><FiGrid className="text-diana-gold" size={20} /></div>
+              <h3 className="font-fraunces text-lg text-diana-cream">Frigo d'entremet — détail des lots</h3>
+            </div>
+            {frigoBatches.filter((b) => visibleProducts.some((p) => p.id === b.baseProductId)).length === 0 ? (
+              <p className="text-sm italic text-diana-brownLight text-center py-6">Aucun lot en stock pour le moment.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {frigoBatches.filter((b) => visibleProducts.some((p) => p.id === b.baseProductId)).map((b) => (
+                  <div key={b.id} className="flex items-center justify-between gap-3 bg-diana-dark/50 border border-diana-border/30 rounded-xl px-4 py-3">
+                    <span className="text-sm text-diana-cream truncate pr-2">{b.name}</span>
+                    <span className="text-sm font-semibold text-diana-gold shrink-0">{b.price.toFixed(2)} DH</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
 
       </div>
     </div>
