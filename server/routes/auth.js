@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
 const { pool } = require('../config/db')
-const { authMiddleware } = require('../middleware/auth')
+const { authMiddleware, adminMiddleware } = require('../middleware/auth')
 
 router.post('/login', async (req, res) => {
   try {
@@ -56,6 +56,42 @@ router.get('/me', authMiddleware, async (req, res) => {
     res.json({ user })
   } catch (error) {
     console.error('Erreur /api/auth/me :', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// Liste des utilisateurs (admin uniquement) — pour la page "Utilisateurs / Codes".
+// Ne renvoie jamais le mot de passe/hash.
+router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, email, name, role, atelier FROM users ORDER BY role, name'
+    )
+    res.json({ users: rows })
+  } catch (error) {
+    console.error('Erreur /api/auth/users :', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// Changer le code (mot de passe) d'un utilisateur — préparateur, caissier, ou l'admin
+// lui-même. Réservé à l'admin. Invalide aussi la session en cours de cet utilisateur
+// (il devra se reconnecter avec le nouveau code).
+router.put('/users/:id/password', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { password } = req.body
+    if (!password || String(password).length < 4) {
+      return res.status(400).json({ error: 'Le code doit contenir au moins 4 caractères.' })
+    }
+    const [rows] = await pool.query('SELECT id FROM users WHERE id = ? LIMIT 1', [id])
+    if (!rows[0]) return res.status(404).json({ error: 'Utilisateur introuvable' })
+
+    const hashed = await bcrypt.hash(String(password), 10)
+    await pool.query('UPDATE users SET password = ?, session_token = NULL WHERE id = ?', [hashed, id])
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Erreur /api/auth/users/:id/password :', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })
