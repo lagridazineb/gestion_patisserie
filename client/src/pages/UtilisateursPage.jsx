@@ -20,6 +20,10 @@ export default function UtilisateursPage() {
   const [data, setData] = useState(null)
   const [sessions, setSessions] = useState([])
 
+  // Même date "effective" que celle envoyée à getBilanByUser, réutilisée pour filtrer
+  // la liste des connexions par utilisateur (null = tout l'historique).
+  const effectiveDate = mode === 'all' ? null : (mode === 'date' ? date : new Date().toISOString().slice(0, 10))
+
   const refresh = useCallback(async () => {
     const d = mode === 'all' ? null : (mode === 'date' ? date : new Date().toISOString().slice(0, 10))
     const [result, sessionsResult] = await Promise.all([getBilanByUser(d), getSessionsHistory()])
@@ -70,7 +74,7 @@ export default function UtilisateursPage() {
         <div className="space-y-6">
           {data.users.map((u, i) => (
             <UserCard key={u.id} user={u} index={i} categoryLabel={categoryLabel}
-              sessions={sessions.filter((s) => s.userId === u.id)} />
+              sessions={sessions.filter((s) => s.userId === u.id && (!effectiveDate || s.openedAt.slice(0, 10) === effectiveDate))} />
           ))}
           {hasUnattributed && (
             <UserCard
