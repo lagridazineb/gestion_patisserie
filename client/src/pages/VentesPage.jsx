@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { FiDollarSign, FiCalendar, FiTrendingUp, FiPrinter, FiUsers, FiBox, FiChevronDown, FiPackage, FiRotateCcw, FiArrowLeft } from 'react-icons/fi'
+import { FiDollarSign, FiCalendar, FiTrendingUp, FiPrinter, FiUsers, FiBox, FiChevronDown, FiPackage, FiRotateCcw } from 'react-icons/fi'
 import { ATELIERS, mergeProductOverlay } from '../data/products'
 import { getProductOverlay } from '../api/products'
 import {
@@ -20,10 +20,6 @@ export default function VentesPage() {
   const [expandedAtelier, setExpandedAtelier] = useState(null)
   const [productOverlay, setProductOverlay] = useState({ customProducts: [], edits: [], deletedIds: [] })
 
-  // ✅ Retours
-  const [retourVeille, setRetourVeille] = useState(0)
-  const [retourVidage, setRetourVidage] = useState(0)
-
   useEffect(() => {
     getProductOverlay().then(setProductOverlay).catch(() => {})
   }, [])
@@ -38,12 +34,6 @@ export default function VentesPage() {
     setSalesLog(salesData)
     setRefunds(refundsData)
     setCommandesBilan(bilan)
-
-    // ✅ Charger les retours depuis le bilan
-    if (bilan) {
-      setRetourVeille(bilan.retourVeille || 0)
-      setRetourVidage(bilan.retourVidage || 0)
-    }
   }, [date])
 
   useEffect(() => {
@@ -52,9 +42,6 @@ export default function VentesPage() {
   }, [refresh])
 
   // Map productId -> catégorie, pour croiser ventes/retours avec l'atelier concerné
-  // ✅ Filtrer les catégories à EXCLURE de la page vente
-  const EXCLUDED_CATEGORIES = ['entremet', 'melange', 'cake_design', 'gateaux_kg']
-
   const productCategoryMap = useMemo(() => {
     const map = {}
     ALL_PRODUCTS.forEach((p) => { map[p.id] = p.category })
@@ -70,10 +57,7 @@ export default function VentesPage() {
 
     const summary = {}
     ATELIERS.forEach((a) => {
-      // ✅ Exclure les catégories non désirées
-      if (!EXCLUDED_CATEGORIES.includes(a.id)) {
-        summary[a.id] = { atelier: a.id, label: a.label, totalProducedQty: 0, totalProducedValue: 0, totalSoldQty: 0, totalSoldValue: 0, totalRefundValue: 0, products: {} }
-      }
+      summary[a.id] = { atelier: a.id, label: a.label, totalProducedQty: 0, totalProducedValue: 0, totalSoldQty: 0, totalSoldValue: 0, totalRefundValue: 0, products: {} }
     })
     const ensure = (atelierId) => {
       if (!summary[atelierId]) summary[atelierId] = { atelier: atelierId, label: atelierId, totalProducedQty: 0, totalProducedValue: 0, totalSoldQty: 0, totalSoldValue: 0, totalRefundValue: 0, products: {} }
@@ -81,8 +65,6 @@ export default function VentesPage() {
     }
 
     filteredProduction.forEach((entry) => {
-      // ✅ Exclure les catégories non désirées
-      if (EXCLUDED_CATEGORIES.includes(entry.atelier)) return
       const s = ensure(entry.atelier)
       const value = entry.price !== null ? entry.price * entry.quantity : 0
       s.totalProducedQty += entry.quantity
@@ -96,8 +78,6 @@ export default function VentesPage() {
       sale.items.forEach((item) => {
         const cat = productCategoryMap[item.id]
         if (!cat) return
-        // ✅ Exclure les catégories non désirées
-        if (EXCLUDED_CATEGORIES.includes(cat)) return
         const s = ensure(cat)
         s.totalSoldQty += item.qty
         s.totalSoldValue += item.qty * item.price
@@ -108,8 +88,6 @@ export default function VentesPage() {
       (refund.items || []).forEach((item) => {
         const cat = productCategoryMap[item.id]
         if (!cat) return
-        // ✅ Exclure les catégories non désirées
-        if (EXCLUDED_CATEGORIES.includes(cat)) return
         ensure(cat).totalRefundValue += item.qty * item.price
       })
     })
@@ -155,7 +133,7 @@ export default function VentesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
             { label: 'Total production', value: `${totalProductionValue.toFixed(2)} DH`, icon: FiBox, color: 'bg-blue-500/10 text-blue-400' },
-            { label: 'Total ventes', value: `${totalVentesNet.toFixed(2)} DH`, icon: FiTrendingUp, color: 'bg-diana-gold/10 text-diana-gold' },
+            { label: 'Ventes nettes (retours déduits)', value: `${totalVentesNet.toFixed(2)} DH`, icon: FiTrendingUp, color: 'bg-diana-gold/10 text-diana-gold' },
             { label: "Chiffre d'affaires commandes", value: `${totalCommandes.toFixed(2)} DH`, icon: FiCalendar, color: 'bg-emerald-500/10 text-emerald-400' },
             { label: 'Total général (ventes + commandes)', value: `${totalGeneral.toFixed(2)} DH`, icon: FiDollarSign, color: 'bg-orange-400/10 text-orange-400' },
           ].map((stat, i) => (
@@ -167,29 +145,8 @@ export default function VentesPage() {
             </motion.div>
           ))}
         </div>
-        {/* ✅ RETOURS - 2 types */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          <div className="bg-diana-card border border-diana-border rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <FiArrowLeft className="text-diana-gold" size={18} />
-              <h3 className="font-fraunces text-base text-diana-cream">Retour Jour Dernier</h3>
-            </div>
-            <p className="font-fraunces text-2xl font-semibold text-diana-gold mb-1">{retourVeille.toFixed(2)} DH</p>
-            <p className="text-xs text-diana-brown">Stock réutilisable du jour précédent (entremet/gâteau/cake)</p>
-          </div>
-          <div className="bg-diana-card border border-diana-border rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <FiRotateCcw className="text-diana-gold" size={18} />
-              <h3 className="font-fraunces text-base text-diana-cream">Retour Vidage Caisse</h3>
-            </div>
-            <p className="font-fraunces text-2xl font-semibold text-diana-gold mb-1">{retourVidage.toFixed(2)} DH</p>
-            <p className="text-xs text-diana-brown">Fin de nuit - produits non vendus (entremet/gâteau/cake)</p>
-          </div>
-        </motion.div>
-
         {totalRefunds > 0 && (
-          <p className="text-xs text-diana-brown mb-6 -mt-4 flex items-center gap-1.5"><FiRotateCcw size={12} /> Dont {totalRefunds.toFixed(2)} DH de remboursements.</p>
+          <p className="text-xs text-diana-brown mb-6 -mt-4 flex items-center gap-1.5"><FiRotateCcw size={12} /> Dont {totalRefunds.toFixed(2)} DH de retours déjà déduits des ventes ci-dessus.</p>
         )}
 
         {/* Détail par atelier / préparateur */}
@@ -217,12 +174,12 @@ export default function VentesPage() {
                       </div>
                       {a.totalRefundValue > 0 && (
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-diana-brown flex items-center gap-1.5"><FiRotateCcw size={13} /> Remboursement</span>
+                          <span className="text-diana-brown flex items-center gap-1.5"><FiRotateCcw size={13} /> Retour</span>
                           <span className="font-semibold text-diana-danger">-{a.totalRefundValue.toFixed(2)} DH</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between text-sm pt-2 border-t border-diana-border/40">
-                        <span className="text-diana-brown">Chiffre d'affaires</span>
+                        <span className="text-diana-brown">Chiffre d'affaires net</span>
                         <span className="font-semibold text-diana-gold">{a.netRevenue.toFixed(2)} DH</span>
                       </div>
                     </div>
