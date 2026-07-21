@@ -25,13 +25,13 @@ router.post('/', authMiddleware, async (req, res) => {
     const id = Date.now()
     const q = Number(quantity) || 0
     const montantDu = q * (Number(prixAchat) || 0)
-    
+
     await pool.query(
       `INSERT INTO rziza_deliveries (id, quantity, prix_achat, prix_vente, montant_du, statut, created_at)
        VALUES (?, ?, ?, ?, ?, 'non_paye', NOW())`,
       [id, q, prixAchat, prixVente, montantDu]
     )
-    
+
     // ✅ Ajouter aussi dans la production (pour apparaître dans la page Vente)
     const today = new Date().toISOString().slice(0, 10)
     const now = new Date().toTimeString().slice(0, 5)
@@ -40,7 +40,7 @@ router.post('/', authMiddleware, async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [id, 'r1', 'Rziza', q, 'rziza', prixVente, 'rziza', req.user?.email || 'system', today, now]
     )
-    
+
     await adjustStock('r1', q)
     res.json({ id, quantity: q, prixAchat, prixVente, montantDu, statut: 'non_paye' })
   } catch (error) {
