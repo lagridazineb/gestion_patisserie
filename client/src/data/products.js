@@ -5,6 +5,8 @@ export const CATEGORIES_POS = [
   { id: "millefeuille", label: "Millefeuille / Cake", labelAr: "ميل فوي / كيك", image: "/category-images/millefeuille.jpg" },
   { id: "gateau_maroc", label: "Gâteau Marocain", labelAr: "الحلويات المغربية", image: "/category-images/gateau_maroc.jpg" },
   { id: "patisserie", label: "Pâtisserie", labelAr: "الحلويات", image: "/category-images/patisserie.jpg" },
+  { id: "trifil", label: "Trifil", labelAr: "تريفيل", image: "/category-images/patisserie.jpg" },
+  { id: "ganage", label: "Ganage", labelAr: "غاناج", image: "/category-images/patisserie.jpg" },
   { id: "sale", label: "Salé", labelAr: "المالح", image: "/category-images/sale.jpg" },
   { id: "rziza", label: "Rziza", labelAr: "رزيزة", image: "/category-images/rziza.jpg" },
   { id: "frigo_entremet", label: "Frigo Entremet", labelAr: "فريجو أونتريمي", image: "/category-images/entremet.jpg" },
@@ -32,6 +34,8 @@ export const CATEGORIES_COMMANDE = [
   { id: "millefeuille", label: "Millefeuille/Cake", labelAr: "ميل فوي / كيك", image: "/category-images/millefeuille.jpg" },
   { id: "pain", label: "Pain", labelAr: "خبز", image: "/category-images/pain.jpg" },
   { id: "patisserie", label: "Patisserie", labelAr: "الحلويات", image: "/category-images/patisserie.jpg" },
+  { id: "trifil", label: "Trifil", labelAr: "تريفيل", image: "/category-images/patisserie.jpg" },
+  { id: "ganage", label: "Ganage", labelAr: "غاناج", image: "/category-images/patisserie.jpg" },
   { id: "sale", label: "Sale", labelAr: "المالح", image: "/category-images/sale.jpg" },
   { id: "viennoiserie", label: "Viennoiserie", labelAr: "المعجنات", image: "/category-images/viennoiserie.jpg" },
   { id: "rziza", label: "Rziza", labelAr: "رزيزة", image: "/category-images/rziza.jpg" },
@@ -183,7 +187,18 @@ export const PRODUCTS = {
     { id: "gk10", name: "Praline chocolat", price: 150.00, unit: "kg", image: "https://vente.gstdianna.ma/images/PRINLINICOUR.jpg", stock: 0 },
     { id: "gk11", name: "Soirée variée", price: 4.00, unit: "piece", image: null, stock: 0 },
     { id: "gk12", name: "Vanille chocolat", price: 130.00, unit: "kg", image: "https://vente.gstdianna.ma/images/VANICOUR.jpg", stock: 0 },
+    // Trifle et Ganache : produits distincts avec leurs propres identifiants, pour rester
+    // séparés dans le frigo d'entremet même s'ils partagent le même prix qu'un autre produit.
+    { id: "gk13", name: "Trifle", price: 150.00, unit: "kg", image: null, stock: 0 },
+    { id: "gk14", name: "Ganache", price: 150.00, unit: "kg", image: null, stock: 0 },
   ],
+  trifil: [
+    { id: "t1", name: "Trifil", price: 0, unit: "piece", image: null, stock: 0, isCustomPrice: true },
+  ],
+  ganage: [
+    { id: "g1", name: "Ganage", price: 0, unit: "piece", image: null, stock: 0, isCustomPrice: true },
+  ],
+
   gateau_maroc: [
     { id: "g2", name: "Amande kg", price: 150.00, unit: "kg", image: "https://vente.gstdianna.ma/images/amonde.jpg", stock: 0 },
     { id: "g3", name: "Sable kg", price: 95.00, unit: "kg", image: "https://vente.gstdianna.ma/images/sable.jpg", stock: 0 },
@@ -348,7 +363,7 @@ export const CUSTOMIZABLE_CATEGORIES = ["cake_design", "entremet", "gateaux_kg"]
 // Certains ateliers couvrent plusieurs catégories de produits à la fois.
 // Le préparateur "Pâtisserie" gère aussi les Entremets (même stock/production).
 export const ATELIER_CATEGORY_GROUPS = {
-  patisserie: ["patisserie", "entremet", "gateaux_kg"],
+  patisserie: ["patisserie", "entremet", "gateaux_kg", "trifil", "ganage"],
 };
 
 export function getAtelierCategories(atelier) {
@@ -402,6 +417,8 @@ export const ATELIERS = [
   { id: "pain", label: "Pain", labelAr: "الخبز" },
   { id: "viennoiserie", label: "Viennoiserie", labelAr: "المعجنات" },
   { id: "patisserie", label: "Pâtisserie", labelAr: "الحلويات" },
+  { id: "trifil", label: "Trifil", labelAr: "تريفيل" },
+  { id: "ganage", label: "Ganage", labelAr: "غاناج" },
   { id: "sale", label: "Salé", labelAr: "المالح" },
   { id: "gateau_maroc", label: "Gâteau Marocain", labelAr: "الحلويات المغربية" },
   { id: "entremet", label: "Entremets", labelAr: "الكيك الدائري" },
