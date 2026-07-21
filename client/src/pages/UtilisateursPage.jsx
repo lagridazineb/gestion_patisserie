@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiUsers, FiPlus, FiTrash2, FiLock, FiEdit3, FiBox, FiSave, FiX } from 'react-icons/fi'
+import { FiUsers, FiPlus, FiTrash2, FiLock, FiBox, FiSave, FiX } from 'react-icons/fi'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { apiRequest } from '../api/client'
@@ -13,7 +13,6 @@ export default function UtilisateursPage() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
   const [showCodeModal, setShowCodeModal] = useState(false)
   const [showStockModal, setShowStockModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
@@ -160,7 +159,7 @@ export default function UtilisateursPage() {
             <p className="text-sm text-diana-brown mt-1">Gérer les préparateurs, caissiers et codes</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setShowCodeModal(true)}
+            <button onClick={() => { setSelectedUser(null); setShowCodeModal(true); }}
               className="flex items-center gap-2 px-4 py-2.5 bg-diana-gold text-diana-dark rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
               <FiLock size={16} /> Mon code
             </button>
