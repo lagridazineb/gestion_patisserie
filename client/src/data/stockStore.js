@@ -278,7 +278,8 @@ export async function clearPerishableStock() {
     PERISHABLE_CATEGORIES.includes(p.category) ||
     (p.category === 'millefeuille' && PERISHABLE_MILLEFEUILLE_IDS.includes(p.id))
   )
-  const { data } = await apiClient.post('/stock/clear', { type: 'soir', affectedProducts: affected })
+  const fullCatalog = ALL_PRODUCTS.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price }))
+  const { data } = await apiClient.post('/stock/clear', { type: 'soir', affectedProducts: affected, fullCatalog })
   return data
 }
 
