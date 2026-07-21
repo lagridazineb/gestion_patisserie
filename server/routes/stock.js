@@ -145,6 +145,18 @@ router.post('/clear', authMiddleware, async (req, res) => {
     if (type === 'soir') {
       const today = new Date().toISOString().slice(0, 10)
       await pool.query('UPDATE eod_settings SET last_cleared_date = ? WHERE id = 1', [today])
+
+      // Persiste la valeur du "retour" du jour (stock invendu d'entremet/gâteau/cake/pâtisserie,
+      // c'est-à-dire tout ce qui n'a pas été vidé ci-dessus) : servira demain de "retour du jour
+      // précédent" sur la page Ventes, et de fond de caisse réutilisable.
+      const retourTotal = carryover.reduce((s, e) => s + e.value, 0)
+      const retourId = Date.now() + 1
+      await pool.query(
+        `INSERT INTO retours_caisse (id, retour_date, total_value, entries, created_at, updated_at)
+         VALUES (?, ?, ?, ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE total_value = VALUES(total_value), entries = VALUES(entries), updated_at = NOW()`,
+        [retourId, today, retourTotal, JSON.stringify(carryover)]
+      )
     }
 
     res.json({ success: true, id, type, entries, totalQuantity, totalValue, count: affectedProducts.length, carryover, productionSummary })
