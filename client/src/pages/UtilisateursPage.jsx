@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { FiCalendar, FiUser, FiPackage, FiTrendingUp, FiClock, FiChevronDown, FiChevronUp } from 'react-icons/fi'
+import { FiCalendar, FiUser, FiPackage, FiTrendingUp, FiClock, FiChevronDown, FiChevronUp, FiLock, FiCheck } from 'react-icons/fi'
 import { getBilanByUser, subscribeToStockUpdates } from '../data/stockStore'
 import { getSessionsHistory } from '../data/sessionsStore'
 import { findCategory } from '../data/products'
 import { getCategoryLabel } from '../i18n/productNames'
 import { useLanguage } from '../context/LanguageContext'
+import { fetchAllUsers, changeUserPassword } from '../api/auth'
+import { useNotification } from '../context/NotificationContext'
 
 function pillClass(active) {
   return `px-4 py-2 rounded-xl text-xs font-medium transition-all ${
@@ -15,10 +17,15 @@ function pillClass(active) {
 
 export default function UtilisateursPage() {
   const { lang } = useLanguage()
+  const { addNotification } = useNotification()
   const [mode, setMode] = useState('today') // 'today' | 'date' | 'all'
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [data, setData] = useState(null)
   const [sessions, setSessions] = useState([])
+  const [accounts, setAccounts] = useState([])
+
+  const refreshAccounts = useCallback(() => { fetchAllUsers().then(setAccounts).catch(() => {}) }, [])
+  useEffect(() => { refreshAccounts() }, [refreshAccounts])
 
   // Même date "effective" que celle envoyée à getBilanByUser, réutilisée pour filtrer
   // la liste des connexions par utilisateur (null = tout l'historique).
@@ -58,6 +65,8 @@ export default function UtilisateursPage() {
           </div>
         </motion.div>
 
+        <CodesAccesSection accounts={accounts} onChanged={refreshAccounts} addNotification={addNotification} />
+
         <div className="flex items-center gap-2 mb-8 flex-wrap">
           <button onClick={() => setMode('today')} className={pillClass(mode === 'today')}>Aujourd'hui</button>
           <button onClick={() => setMode('date')} className={pillClass(mode === 'date')}>Choisir une date</button>
@@ -91,6 +100,81 @@ export default function UtilisateursPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Section admin : changer le code (mot de passe) de n'importe quel compte — préparateurs,
+// caissiers, et l'admin lui-même. Chaque ligne a son propre champ + bouton pour éviter de
+// mélanger les saisies entre comptes.
+function CodesAccesSection({ accounts, onChanged, addNotification }) {
+  const [openId, setOpenId] = useState(null)
+  const [value, setValue] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const roleLabel = (r) => (r === 'admin' ? 'Administrateur' : r === 'caissier' ? 'Caissier' : 'Préparateur')
+
+  const handleSave = async (userId) => {
+    if (!value || value.length < 4) {
+      addNotification('Le code doit contenir au moins 4 caractères.', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      await changeUserPassword(userId, value)
+      addNotification('Code mis à jour avec succès.', 'success')
+      setOpenId(null)
+      setValue('')
+      onChanged()
+    } catch (err) {
+      addNotification(err?.response?.data?.error || 'Erreur lors de la mise à jour du code.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!accounts || accounts.length === 0) return null
+
+  return (
+    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+      className="bg-diana-card border border-diana-border rounded-2xl p-6 mb-8">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-10 h-10 rounded-xl bg-diana-gold/10 flex items-center justify-center"><FiLock className="text-diana-gold" size={18} /></div>
+        <div>
+          <h3 className="font-fraunces text-lg text-diana-cream">Codes d'accès</h3>
+          <p className="text-xs text-diana-brown">Changer le code de n'importe quel préparateur, caissier, ou le vôtre.</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {accounts.map((acc) => (
+          <div key={acc.id} className="bg-diana-dark/30 rounded-xl p-3.5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-diana-cream truncate">{acc.name}</p>
+                <p className="text-xs text-diana-brown">{roleLabel(acc.role)}{acc.atelier ? ` · ${acc.atelier}` : ''} · {acc.email}</p>
+              </div>
+              {openId !== acc.id ? (
+                <button onClick={() => { setOpenId(acc.id); setValue('') }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-diana-card border border-diana-border text-diana-brown hover:text-diana-gold hover:border-diana-gold/40 transition-colors">
+                  Changer le code
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input type="password" value={value} onChange={(e) => setValue(e.target.value)}
+                    placeholder="Nouveau code" autoFocus
+                    className="w-32 px-3 py-1.5 text-sm bg-diana-card border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50" />
+                  <button disabled={saving} onClick={() => handleSave(acc.id)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-diana-gold text-diana-dark flex items-center gap-1 disabled:opacity-50">
+                    <FiCheck size={13} /> Valider
+                  </button>
+                  <button onClick={() => { setOpenId(null); setValue('') }}
+                    className="px-2 py-1.5 text-xs text-diana-brown hover:text-diana-cream">Annuler</button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
   )
 }
 
