@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
-import { CATEGORIES_POS as CATEGORIES, mergeProductOverlay, mergeProductsByCategory } from '../data/products'
+import { CATEGORIES_POS as CATEGORIES, mergeProductOverlay, mergeProductsByCategory, findCategory } from '../data/products'
 import { getProductOverlay } from '../api/products'
 import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks, addStockToProducts, resetAllStock } from '../data/stockStore'
 import QuantityModal from '../components/QuantityModal'
@@ -19,6 +19,11 @@ import { FiSearch, FiShoppingCart, FiPrinter, FiX, FiArrowLeft, FiCreditCard, Fi
 
 function formatQty(qty) {
   return Number.isInteger(qty) ? String(qty) : qty.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+}
+
+function clearReceiptCategoryLabel(catId, lang) {
+  const cat = findCategory(catId)
+  return cat ? getCategoryLabel(cat, lang) : catId
 }
 
 export default function POSPage() {
@@ -37,7 +42,7 @@ export default function POSPage() {
   const [ticketNumber, setTicketNumber] = useState(0)
   const [frigoBatches, setFrigoBatches] = useState([])
   const { addNotification } = useNotification()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const isAdmin = user?.role === 'admin'
   const isCaissierOrAdmin = user?.role === 'admin' || user?.role === 'caissier'
   const [showViderCode, setShowViderCode] = useState(false)
@@ -201,7 +206,9 @@ export default function POSPage() {
     const result = await clearPerishableStock()
     refreshStock()
     addNotification(`Stock vidé pour ${result.count} produits (valeur: ${result.totalValue.toFixed(2)} DH)`, 'success')
-    if (result.entries?.length > 0) setClearReceipt({ ...result, label: 'Vidage du stock (fin de journée)' })
+    if (result.entries?.length > 0 || result.carryover?.length > 0 || result.productionSummary?.length > 0) {
+      setClearReceipt({ ...result, label: 'Fin de journée' })
+    }
   }
 
   // Bouton "Stock" (admin) : ajoute +1000 pièces d'un coup au stock de TOUS les produits de
@@ -230,6 +237,17 @@ export default function POSPage() {
     const result = await viderCaisse(password) // lève une erreur si le code est incorrect
     setShowViderCode(false)
     setViderReceipt(result)
+  }
+
+  // Impression du reçu de clôture + déconnexion automatique juste après (le caissier ne peut
+  // plus se déconnecter autrement que via "Vider la caisse" — voir Layout.jsx).
+  const handlePrintViderCaisseAndLogout = () => {
+    window.print()
+    setViderReceipt(null)
+    if (user?.role === 'caissier') {
+      logout()
+      navigate('/login')
+    }
   }
 
   const handleAddRziza = async (e) => {
@@ -347,10 +365,10 @@ export default function POSPage() {
               <FiPlus size={14} /> Stock (+1000 partout)
             </button>
           )}
-          {isAdmin && (
+          {isCaissierOrAdmin && (
             <button onClick={handleClearPerishables}
               className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-danger/40 hover:text-diana-danger transition-colors">
-              <FiSunset size={14} /> Vider stock du soir (Pain, Viennoiserie, Salé, Millefeuille)
+              <FiSunset size={14} /> Fin de journée (Pain, Viennoiserie, Salé, Millefeuille)
             </button>
           )}
           {isAdmin && (
@@ -568,7 +586,24 @@ export default function POSPage() {
                 <ReceiptHeader subtitle={clearReceipt.label}>
                   <p className="text-diana-brown text-[10.5px] mt-1.5">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
                 </ReceiptHeader>
+
+                {clearReceipt.productionSummary?.length > 0 && (
+                  <div className="mb-3">
+                    <p className="font-bold text-diana-dark border-b border-dashed border-diana-creamDark pb-1 mb-1.5">Production du jour</p>
+                    {clearReceipt.productionSummary.map((p) => (
+                      <div key={p.category} className="receipt-line flex justify-between py-0.5">
+                        <span className="name pr-2">{clearReceiptCategoryLabel(p.category, lang)} × {formatQty(p.qty)}</span>
+                        <span className="value shrink-0 font-semibold">{p.value.toFixed(2)} DH</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p className="font-bold text-diana-dark border-b border-dashed border-diana-creamDark pb-1 mb-1.5">Vidé ce soir (invendu)</p>
                 <div className="space-y-1.5 mb-2">
+                  {clearReceipt.entries.length === 0 && (
+                    <p className="italic text-diana-brown text-center py-1">Rien à vider</p>
+                  )}
                   {clearReceipt.entries.map((e) => (
                     <div key={e.productId} className="receipt-line flex justify-between py-0.5">
                       <span className="name pr-2">{getProductDisplayName(e, lang)} × {e.qty}</span>
@@ -578,8 +613,24 @@ export default function POSPage() {
                 </div>
                 <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
                   <div className="flex justify-between py-0.5"><span>Quantité totale</span><span>{clearReceipt.totalQuantity}</span></div>
-                  <div className="total flex justify-between font-semibold"><span>Valeur totale</span><span>{clearReceipt.totalValue.toFixed(2)} DH</span></div>
+                  <div className="total flex justify-between font-semibold"><span>Valeur totale (perte)</span><span>{clearReceipt.totalValue.toFixed(2)} DH</span></div>
                 </div>
+
+                {clearReceipt.carryover?.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-dashed border-diana-creamDark">
+                    <p className="font-bold text-diana-dark pb-1 mb-1.5">Retour — vendable un autre jour</p>
+                    {clearReceipt.carryover.map((e) => (
+                      <div key={e.productId} className="receipt-line flex justify-between py-0.5">
+                        <span className="name pr-2">{getProductDisplayName(e, lang)} × {formatQty(e.qty)}</span>
+                        <span className="value shrink-0 font-semibold">{e.value.toFixed(2)} DH</span>
+                      </div>
+                    ))}
+                    <div className="total flex justify-between font-semibold mt-1.5 pt-1.5 border-t border-dashed border-diana-creamDark">
+                      <span>Valeur totale du retour</span>
+                      <span>{clearReceipt.carryover.reduce((s, e) => s + e.value, 0).toFixed(2)} DH</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2 print:hidden">
                 <button onClick={() => window.print()}
@@ -678,14 +729,16 @@ export default function POSPage() {
                 <p className="footer text-center text-diana-brown italic mt-3">Caisse vidée avec succès</p>
               </div>
               <div className="flex gap-2 print:hidden">
-                <button onClick={() => window.print()}
+                <button onClick={handlePrintViderCaisseAndLogout}
                   className="flex-1 flex items-center justify-center gap-2 bg-diana-dark text-diana-cream py-2.5 rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
-                  <FiPrinter size={15} /> Imprimer
+                  <FiPrinter size={15} /> Imprimer{user?.role === 'caissier' ? ' et me déconnecter' : ''}
                 </button>
-                <button onClick={() => setViderReceipt(null)}
-                  className="flex-1 bg-white text-diana-brown border border-diana-border py-2.5 rounded-xl text-sm font-semibold">
-                  Fermer
-                </button>
+                {user?.role !== 'caissier' && (
+                  <button onClick={() => setViderReceipt(null)}
+                    className="flex-1 bg-white text-diana-brown border border-diana-border py-2.5 rounded-xl text-sm font-semibold">
+                    Fermer
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>
