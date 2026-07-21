@@ -325,6 +325,13 @@ export async function getRzizaDeliveries() {
   return data.deliveries
 }
 
+// --- Retours caisse (voir aussi clearPerishableStock ci-dessus, qui calcule le "carryover"
+// chaque soir) : renvoie le retour du jour demandé + celui du jour précédent.
+export async function getRetours(dateStr) {
+  const { data } = await apiClient.get('/retours', { params: dateStr ? { date: dateStr } : {} })
+  return data // { current, previous }
+}
+
 export async function addRzizaDelivery({ quantity, prixAchat = 3.5, prixVente = 5.5 }) {
   const { data } = await apiClient.post('/rziza', { quantity, prixAchat, prixVente })
   return data
