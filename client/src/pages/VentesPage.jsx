@@ -19,7 +19,7 @@ export default function VentesPage() {
   const [commandesBilan, setCommandesBilan] = useState(null)
   const [expandedAtelier, setExpandedAtelier] = useState(null)
   const [productOverlay, setProductOverlay] = useState({ customProducts: [], edits: [], deletedIds: [] })
-  
+
   // ✅ Retours
   const [retourVeille, setRetourVeille] = useState(0)
   const [retourVidage, setRetourVidage] = useState(0)
@@ -38,16 +38,12 @@ export default function VentesPage() {
     setSalesLog(salesData)
     setRefunds(refundsData)
     setCommandesBilan(bilan)
-    
-    // ✅ Charger les retours
-    const today = todayStr()
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayStr = yesterday.toISOString().slice(0, 10)
-    
-    // TODO: Remplacer par des appels API réels quand les routes seront créées
-    setRetourVeille(0)
-    setRetourVidage(0)
+
+    // ✅ Charger les retours depuis le bilan
+    if (bilan) {
+      setRetourVeille(bilan.retourVeille || 0)
+      setRetourVidage(bilan.retourVidage || 0)
+    }
   }, [date])
 
   useEffect(() => {
@@ -55,15 +51,18 @@ export default function VentesPage() {
     return subscribeToStockUpdates(refresh)
   }, [refresh])
 
+  // Map productId -> catégorie, pour croiser ventes/retours avec l'atelier concerné
+  // ✅ Filtrer les catégories à EXCLURE de la page vente
+  const EXCLUDED_CATEGORIES = ['entremet', 'melange', 'cake_design', 'gateaux_kg']
+
   const productCategoryMap = useMemo(() => {
     const map = {}
     ALL_PRODUCTS.forEach((p) => { map[p.id] = p.category })
     return map
   }, [ALL_PRODUCTS])
 
-  // ✅ Filtrer les catégories à EXCLURE de la page vente
-  const EXCLUDED_CATEGORIES = ['entremet', 'melange', 'cake_design', 'gateaux_kg']
-
+  // Récapitulatif par atelier, pour la date choisie (ou tout l'historique si aucune date) :
+  // production (qté produite × prix), vendu, et retour (remboursements) à déduire.
   const atelierSummary = useMemo(() => {
     const filteredProduction = date ? productionLog.filter((e) => sameDay(e.timestamp, date)) : productionLog
     const filteredSales = date ? salesLog.filter((s) => sameDay(s.timestamp, date)) : salesLog
@@ -136,7 +135,7 @@ export default function VentesPage() {
           <div>
             <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">Rapport</p>
             <h2 className="font-fraunces text-3xl font-medium text-diana-cream">Ventes</h2>
-            <p className="text-sm text-diana-brown mt-1">Production par préparateur, ventes et commandes</p>
+            <p className="text-sm text-diana-brown mt-1">Production par préparateur, ventes nettes et commandes</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <FiCalendar className="text-diana-brown" size={15} />
@@ -152,7 +151,7 @@ export default function VentesPage() {
           </div>
         </motion.div>
 
-        {/* ✅ Totaux généraux du jour - SUPPRIMÉ "Ventes nettes" */}
+        {/* Totaux généraux du jour */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
             { label: 'Total production', value: `${totalProductionValue.toFixed(2)} DH`, icon: FiBox, color: 'bg-blue-500/10 text-blue-400' },
@@ -168,7 +167,6 @@ export default function VentesPage() {
             </motion.div>
           ))}
         </div>
-
         {/* ✅ RETOURS - 2 types */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
           className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
@@ -252,7 +250,7 @@ export default function VentesPage() {
           </div>
         </motion.div>
 
-        {/* Commandes du jour */}
+        {/* Commandes du jour : avance / reste */}
         {commandesBilan && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
             className="bg-diana-card border border-diana-border rounded-2xl p-6">
