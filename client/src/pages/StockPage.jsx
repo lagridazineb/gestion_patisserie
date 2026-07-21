@@ -176,7 +176,9 @@ export default function StockPage() {
     const result = await clearPerishableStock()
     refresh()
     addNotification(`Stock vidé pour ${result.count} produits (Pain, Viennoiserie, Salé, Millefeuille) — valeur ${result.totalValue.toFixed(2)} DH`, 'success')
-    if (result.entries?.length > 0) setClearReceipt({ ...result, label: 'Vidage du stock (fin de journée)' })
+    if (result.entries?.length > 0 || result.carryover?.length > 0 || result.productionSummary?.length > 0) {
+      setClearReceipt({ ...result, label: 'Fin de journée' })
+    }
   }
 
   const handleResetAllStock = async () => {
@@ -481,6 +483,19 @@ export default function StockPage() {
                 <ReceiptHeader subtitle={clearReceipt.label}>
                   <p className="text-diana-brown text-[10.5px] mt-1.5">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
                 </ReceiptHeader>
+
+                {clearReceipt.productionSummary?.length > 0 && (
+                  <div className="mb-3">
+                    <p className="font-bold text-diana-dark border-b border-dashed border-diana-creamDark pb-1 mb-1.5">Production du jour</p>
+                    {clearReceipt.productionSummary.map((p) => (
+                      <div key={p.category} className="receipt-line flex justify-between py-0.5">
+                        <span className="name pr-2">{atelierLabel(p.category)} × {p.qty}</span>
+                        <span className="value shrink-0 font-semibold">{p.value.toFixed(2)} DH</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="space-y-1.5 mb-2">
                   {clearReceipt.entries.map((e) => (
                     <div key={e.productId} className="receipt-line flex justify-between py-0.5">
@@ -493,6 +508,22 @@ export default function StockPage() {
                   <div className="flex justify-between py-0.5"><span>Quantité totale</span><span>{clearReceipt.totalQuantity}</span></div>
                   <div className="total flex justify-between font-semibold"><span>Valeur totale</span><span>{clearReceipt.totalValue.toFixed(2)} DH</span></div>
                 </div>
+
+                {clearReceipt.carryover?.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-dashed border-diana-creamDark">
+                    <p className="font-bold text-diana-dark pb-1 mb-1.5">Retour — vendable un autre jour</p>
+                    {clearReceipt.carryover.map((e) => (
+                      <div key={e.productId} className="receipt-line flex justify-between py-0.5">
+                        <span className="name pr-2">{e.name} × {e.qty}</span>
+                        <span className="value shrink-0 font-semibold">{e.value.toFixed(2)} DH</span>
+                      </div>
+                    ))}
+                    <div className="total flex justify-between font-semibold mt-1.5 pt-1.5 border-t border-dashed border-diana-creamDark">
+                      <span>Valeur totale du retour</span>
+                      <span>{clearReceipt.carryover.reduce((s, e) => s + e.value, 0).toFixed(2)} DH</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2 print:hidden">
                 <button onClick={() => window.print()}
