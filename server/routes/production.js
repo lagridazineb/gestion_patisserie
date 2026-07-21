@@ -4,7 +4,7 @@ const { pool } = require('../config/db')
 const { authMiddleware, preparateurMiddleware } = require('../middleware/auth')
 const { adjustStock } = require('../utils/stockHelpers')
 
-// Journal de production, filtrable par atelier + date (ex: ?atelier=pain&date=2026-07-11)
+// Journal de production, filtrable par atelier + date
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const { atelier, date } = req.query
@@ -23,98 +23,75 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 })
 
-// Enregistre une production. Pour les gâteaux au kg et les entremets circulaires, crée un ou
-// plusieurs lots "Frigo Entremet" individuels au lieu de créditer un stock mutualisé.
+// Enregistre une production. Pour les gâteaux au kg, le préparateur entre le PRIX (pas la quantité en kg).
+// Pour Trifil et Ganage, ils restent séparés même si même prix.
 router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
   try {
     const { productId, product, quantity, category, price, atelier, date, time, image, user } = req.body
     const id = Date.now()
+    
+    // Pour gâteaux_kg, la "quantity" est en fait le PRIX saisi par le préparateur
+    let actualQuantity = quantity
+    let actualPrice = price
+    
+    if (category === 'gateaux_kg') {
+      // Le préparateur entre le prix du gâteau, pas la quantité en kg
+      actualPrice = Number(quantity) || 0
+      actualQuantity = 1 // Un gâteau = 1 unité
+    }
+    
     await pool.query(
       `INSERT INTO production_entries
         (id, product_id, product_name, quantity, category, price, atelier, user_name, production_date, production_time, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [id, productId, product, quantity, category, price, atelier, user || req.user.email, date, time]
+      [id, productId, product, actualQuantity, category, actualPrice, atelier, user || req.user.email, date, time]
     )
 
     let frigoBatch = null
     let frigoBatches = null
-    if (category === 'gateaux_kg' && price) {
-      // Gâteau au kg : UN lot, dont le poids/prix dépend de la quantité produite (en kg).
+    
+    if (category === 'gateaux_kg' && actualPrice > 0) {
+      // Gâteau au kg : le prix est saisi par le préparateur
       const batchId = `frigobatch_${id}_${Math.random().toString(36).slice(2, 8)}`
-      const weightLabel = Number.isInteger(quantity) ? `${quantity}kg` : `${quantity}kg`.replace('.', ',')
-      const batchName = `${product} — ${weightLabel}`
-      const batchPrice = Math.round(price * quantity * 100) / 100
+      const batchName = `${product} — ${actualPrice} DH`
       await pool.query(
         `INSERT INTO frigo_batches (id, production_entry_id, base_product_id, name, price, weight_kg, image, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [batchId, id, productId, batchName, batchPrice, quantity, image || null]
+        [batchId, id, productId, batchName, actualPrice, 1, image || null]
       )
       await adjustStock(batchId, 1)
-      frigoBatch = { id: batchId, name: batchName, price: batchPrice, weightKg: quantity }
-    } else if (category === 'entremet' && price) {
-      // Entremet circulaire : chaque gâteau produit est une pièce vendable indépendante
-      // (prix fixe, pas de poids) — on crée un lot par unité produite, comme pour le kg.
-      const unitCount = Math.max(1, Math.round(quantity))
+      frigoBatch = { id: batchId, name: batchName, price: actualPrice, weightKg: 1 }
+    } else if (category === 'entremet' && actualPrice > 0) {
+      // Entremet circulaire : chaque gâteau est une pièce vendable indépendante
+      const unitCount = Math.max(1, Math.round(actualQuantity))
       frigoBatches = []
       for (let i = 0; i < unitCount; i++) {
         const batchId = `frigobatch_${id}_${i}_${Math.random().toString(36).slice(2, 8)}`
+        const batchName = `${product} — ${actualPrice} DH`
         await pool.query(
           `INSERT INTO frigo_batches (id, production_entry_id, base_product_id, name, price, weight_kg, image, created_at)
-           VALUES (?, ?, ?, ?, ?, NULL, ?, NOW())`,
-          [batchId, id, productId, product, price, image || null]
+           VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+          [batchId, id, productId, batchName, actualPrice, 1, image || null]
         )
         await adjustStock(batchId, 1)
-        frigoBatches.push({ id: batchId, name: product, price })
+        frigoBatches.push({ id: batchId, name: batchName, price: actualPrice, weightKg: 1 })
       }
-    } else {
-      await adjustStock(productId, quantity)
+    } else if (category === 'trifil' || category === 'ganage') {
+      // Trifil et Ganage restent séparés même si même prix
+      const batchId = `frigobatch_${id}_${Math.random().toString(36).slice(2, 8)}`
+      const batchName = `${product} — ${actualPrice} DH`
+      await pool.query(
+        `INSERT INTO frigo_batches (id, production_entry_id, base_product_id, name, price, weight_kg, image, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [batchId, id, productId, batchName, actualPrice, actualQuantity, image || null]
+      )
+      await adjustStock(batchId, actualQuantity)
+      frigoBatch = { id: batchId, name: batchName, price: actualPrice, weightKg: actualQuantity }
     }
 
-    res.json({ id, productId, product, quantity, category, price, atelier, frigoBatch, frigoBatches })
+    res.json({ success: true, id, frigoBatch, frigoBatches })
   } catch (error) {
     console.error('Erreur POST /api/production :', error)
-    res.status(500).json({ error: 'Erreur serveur' })
-  }
-})
-
-// Supprime une entrée de production (erreur de saisie) et annule son effet sur le stock.
-router.delete('/:id', authMiddleware, preparateurMiddleware, async (req, res) => {
-  try {
-    const id = Number(req.params.id)
-    const [rows] = await pool.query('SELECT * FROM production_entries WHERE id = ?', [id])
-    const entry = rows[0]
-    if (!entry) return res.status(404).json({ error: 'Entrée introuvable' })
-
-    await pool.query('DELETE FROM production_entries WHERE id = ?', [id])
-
-    if (entry.category === 'gateaux_kg' || entry.category === 'entremet') {
-      const [batches] = await pool.query('SELECT * FROM frigo_batches WHERE production_entry_id = ?', [id])
-      for (const batch of batches) {
-        await adjustStock(batch.id, -1)
-        await pool.query('DELETE FROM frigo_batches WHERE id = ?', [batch.id])
-      }
-    } else if (entry.product_id) {
-      await adjustStock(entry.product_id, -Number(entry.quantity))
-    }
-
-    res.json({ success: true })
-  } catch (error) {
-    console.error('Erreur DELETE /api/production/:id :', error)
-    res.status(500).json({ error: 'Erreur serveur' })
-  }
-})
-
-// Lots "Frigo Entremet" encore en stock (donc encore vendables en caisse)
-router.get('/frigo-batches', authMiddleware, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT fb.* FROM frigo_batches fb
-       JOIN stock_quantities sq ON sq.product_id = fb.id
-       WHERE sq.quantity > 0 ORDER BY fb.created_at DESC`
-    )
-    res.json({ batches: rows })
-  } catch (error) {
-    console.error('Erreur GET /api/production/frigo-batches :', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })
