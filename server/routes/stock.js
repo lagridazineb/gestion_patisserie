@@ -45,15 +45,15 @@ router.put('/daily/:atelier', authMiddleware, adminMiddleware, async (req, res) 
   try {
     const { atelier } = req.params
     const { stockData } = req.body // { productId: quantity, ... }
-    
+
     if (!stockData || typeof stockData !== 'object') {
       return res.status(400).json({ error: 'Données de stock invalides' })
     }
-    
+
     for (const [productId, quantity] of Object.entries(stockData)) {
       await setStock(productId, quantity)
     }
-    
+
     res.json({ success: true, message: 'Stock du jour mis à jour', atelier })
   } catch (error) {
     console.error('Erreur PUT /api/stock/daily/:atelier :', error)
