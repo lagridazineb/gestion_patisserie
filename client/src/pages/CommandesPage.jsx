@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
-import { CATEGORIES_COMMANDE as CATEGORIES, findCategory, CUSTOMIZABLE_CATEGORIES, SALE_PLATEAU_COMPOSITIONS, SALE_PLATEAU_COMPONENTS, getLayerVariants, mergeProductsByCategory } from '../data/products'
+import { CATEGORIES_COMMANDE as CATEGORIES, findCategory, CUSTOMIZABLE_CATEGORIES, SALE_PLATEAU_COMPOSITIONS, SALE_PLATEAU_COMPONENTS, getLayerVariants, mergeProductsByCategory, ATELIER_CATEGORY_GROUPS, ATELIERS } from '../data/products'
 import { getProductOverlay } from '../api/products'
 import {
   getStock, subscribeToStockUpdates, getReservations, addReservation,
@@ -28,6 +28,47 @@ import {
 
 function formatQty(qty) {
   return Number.isInteger(qty) ? String(qty) : qty.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+}
+
+// Résout l'atelier (préparateur) responsable d'une catégorie de produit. Certains ateliers
+// regroupent plusieurs catégories (ex: "patisserie" gère aussi entremet + gateaux_kg) — on
+// s'appuie sur ATELIER_CATEGORY_GROUPS pour rester cohérent avec ce que voit le préparateur.
+function getAtelierIdForCategory(category) {
+  for (const [atelierId, cats] of Object.entries(ATELIER_CATEGORY_GROUPS)) {
+    if (cats.includes(category)) return atelierId
+  }
+  return category
+}
+
+// Regroupe les articles d'une commande par atelier, dans l'ordre où ils apparaissent.
+function groupItemsByAtelier(items) {
+  const groups = {}
+  const order = []
+  items.forEach((item) => {
+    const atelierId = getAtelierIdForCategory(item.category)
+    if (!groups[atelierId]) { groups[atelierId] = []; order.push(atelierId) }
+    groups[atelierId].push(item)
+  })
+  return { groups, order }
+}
+
+// Liste des lignes d'articles d'un reçu. `withPrices` masque le prix (bon de préparation).
+function ReceiptItemsList({ items, withPrices, lang, itemTotal }) {
+  return (
+    <div className="border-t border-dashed border-[#E7CCB4] pt-2">
+      {items.map((item) => (
+        <div key={item.id} className="receipt-line flex justify-between py-1">
+          <span className="name">{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}</span>
+          {withPrices && <span className="value font-semibold">{itemTotal(item).toFixed(2)} DH</span>}
+        </div>
+      ))}
+      {items.some((i) => i.customNote) && (
+        <p className="text-[10px] text-[#8B6A3A] italic mt-1">
+          {items.filter((i) => i.customNote).map((i) => `* ${getProductDisplayName(i, lang)} : "${i.customNote}"`).join(' — ')}
+        </p>
+      )}
+    </div>
+  )
 }
 
 export default function CommandesPage() {
@@ -192,6 +233,11 @@ export default function CommandesPage() {
   const [showReceipt, setShowReceipt] = useState(false)
   const [lastReservation, setLastReservation] = useState(null)
   const [showConfirmPayment, setShowConfirmPayment] = useState(false)
+
+  const { groups: atelierGroups, order: atelierOrder } = useMemo(
+    () => lastReservation ? groupItemsByAtelier(lastReservation.items) : { groups: {}, order: [] },
+    [lastReservation]
+  )
 
   const finalizeReservation = async () => {
     try {
@@ -544,34 +590,72 @@ export default function CommandesPage() {
                 <h3 className="font-fraunces text-xl font-medium">Commande enregistrée</h3>
                 <p className="text-sm text-[#8B6A3A] mt-1">Reçu à remettre au client</p>
               </div>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-[#E7CCB4]">
-                <ReceiptHeader subtitle="Commande enregistrée">
-                  <p className="text-[#8B6A3A] text-[10.5px] mt-1.5">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
-                </ReceiptHeader>
-                <div className="mb-3 space-y-0.5">
-                  <p><span className="text-[#8B6A3A]">Client :</span> <span className="font-semibold">{lastReservation.clientName}</span></p>
-                  {lastReservation.clientPhone && <p><span className="text-[#8B6A3A]">Téléphone :</span> {lastReservation.clientPhone}</p>}
-                  <p><span className="text-[#8B6A3A]">Livraison :</span> {lastReservation.deliveryDate} à {lastReservation.deliveryTime}</p>
-                  {lastReservation.note && <p><span className="text-[#8B6A3A]">Note :</span> {lastReservation.note}</p>}
+              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-[#E7CCB4] max-h-[50vh] overflow-y-auto">
+                {/* PAGE 1 — EXEMPLAIRE CLIENT */}
+                <div className="receipt-page">
+                  <ReceiptHeader subtitle="Commande enregistrée">
+                    <p className="text-[#8B6A3A] text-[10.5px] mt-1.5">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
+                    {lastReservation.ticketNumber && <p className="text-[#8B6A3A] text-[10.5px]">N° {lastReservation.ticketNumber}</p>}
+                  </ReceiptHeader>
+                  <p className="text-center text-[10.5px] font-semibold text-[#8B6A3A] mb-2 uppercase tracking-wide">Exemplaire client</p>
+                  <div className="mb-3 space-y-0.5">
+                    <p><span className="text-[#8B6A3A]">Client :</span> <span className="font-semibold">{lastReservation.clientName}</span></p>
+                    {lastReservation.clientPhone && <p><span className="text-[#8B6A3A]">Téléphone :</span> {lastReservation.clientPhone}</p>}
+                    <p><span className="text-[#8B6A3A]">Livraison :</span> {lastReservation.deliveryDate} à {lastReservation.deliveryTime}</p>
+                    {lastReservation.note && <p><span className="text-[#8B6A3A]">Note :</span> {lastReservation.note}</p>}
+                  </div>
+                  <ReceiptItemsList items={lastReservation.items} withPrices lang={lang} itemTotal={itemTotal} />
+                  <div className="border-t border-dashed border-[#E7CCB4] pt-2 mt-2 space-y-1">
+                    <div className="flex justify-between font-semibold"><span>Total</span><span>{lastReservation.total.toFixed(2)} DH</span></div>
+                    <div className="flex justify-between text-emerald-700"><span>Avance versée</span><span>{lastReservation.avance.toFixed(2)} DH</span></div>
+                    <div className="flex justify-between font-semibold text-diana-danger"><span>Reste à payer</span><span>{lastReservation.resteAPayer.toFixed(2)} DH</span></div>
+                  </div>
                 </div>
-                <div className="border-t border-dashed border-[#E7CCB4] pt-2">
-                  {lastReservation.items.map((item) => (
-                    <div key={item.id} className="receipt-line flex justify-between py-1">
-                      <span className="name">{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}</span>
-                      <span className="value font-semibold">{itemTotal(item).toFixed(2)} DH</span>
+
+                {/* PAGE 2 — EXEMPLAIRE CAISSIER (infos internes en plus : mode de paiement, opérateur) */}
+                <div className="receipt-page">
+                  <ReceiptHeader subtitle="Commande enregistrée">
+                    <p className="text-[#8B6A3A] text-[10.5px] mt-1.5">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
+                    {lastReservation.ticketNumber && <p className="text-[#8B6A3A] text-[10.5px]">N° {lastReservation.ticketNumber}</p>}
+                  </ReceiptHeader>
+                  <p className="text-center text-[10.5px] font-semibold text-[#8B6A3A] mb-2 uppercase tracking-wide">Exemplaire caisse</p>
+                  <div className="mb-3 space-y-0.5">
+                    <p><span className="text-[#8B6A3A]">Client :</span> <span className="font-semibold">{lastReservation.clientName}</span></p>
+                    {lastReservation.clientPhone && <p><span className="text-[#8B6A3A]">Téléphone :</span> {lastReservation.clientPhone}</p>}
+                    <p><span className="text-[#8B6A3A]">Livraison :</span> {lastReservation.deliveryDate} à {lastReservation.deliveryTime}</p>
+                    {lastReservation.note && <p><span className="text-[#8B6A3A]">Note :</span> {lastReservation.note}</p>}
+                  </div>
+                  <ReceiptItemsList items={lastReservation.items} withPrices lang={lang} itemTotal={itemTotal} />
+                  <div className="border-t border-dashed border-[#E7CCB4] pt-2 mt-2 space-y-1">
+                    <div className="flex justify-between font-semibold"><span>Total</span><span>{lastReservation.total.toFixed(2)} DH</span></div>
+                    <div className="flex justify-between text-emerald-700"><span>Avance versée</span><span>{lastReservation.avance.toFixed(2)} DH</span></div>
+                    <div className="flex justify-between font-semibold text-diana-danger"><span>Reste à payer</span><span>{lastReservation.resteAPayer.toFixed(2)} DH</span></div>
+                    {lastReservation.avance > 0 && (
+                      <div className="flex justify-between"><span className="text-[#8B6A3A]">Mode paiement avance</span><span className="font-semibold">{lastReservation.paymentMode === 'cash' ? 'Espèces' : lastReservation.paymentMode === 'card' ? 'TPE' : '—'}</span></div>
+                    )}
+                    <div className="flex justify-between"><span className="text-[#8B6A3A]">Enregistré par</span><span className="font-semibold">{user?.name || '—'}</span></div>
+                  </div>
+                </div>
+
+                {/* PAGES SUIVANTES — UN BON DE PRÉPARATION PAR ATELIER CONCERNÉ, SANS PRIX */}
+                {atelierOrder.map((atelierId) => {
+                  const atelierObj = ATELIERS.find((a) => a.id === atelierId)
+                  const atelierLabel = atelierObj ? getCategoryLabel(atelierObj, lang) : atelierId
+                  return (
+                    <div className="receipt-page" key={atelierId}>
+                      <ReceiptHeader subtitle="Bon de préparation">
+                        <p className="text-[#8B6A3A] text-[10.5px] mt-1.5">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
+                        {lastReservation.ticketNumber && <p className="text-[#8B6A3A] text-[10.5px]">N° {lastReservation.ticketNumber}</p>}
+                      </ReceiptHeader>
+                      <p className="text-center text-sm font-bold text-[#8B6A3A] mb-2 uppercase tracking-wide">Atelier {atelierLabel}</p>
+                      <div className="mb-3 space-y-0.5">
+                        <p><span className="text-[#8B6A3A]">Client :</span> <span className="font-semibold">{lastReservation.clientName}</span></p>
+                        <p><span className="text-[#8B6A3A]">Livraison :</span> {lastReservation.deliveryDate} à {lastReservation.deliveryTime}</p>
+                      </div>
+                      <ReceiptItemsList items={atelierGroups[atelierId]} withPrices={false} lang={lang} itemTotal={itemTotal} />
                     </div>
-                  ))}
-                  {lastReservation.items.some((i) => i.customNote) && (
-                    <p className="text-[10px] text-[#8B6A3A] italic mt-1">
-                      {lastReservation.items.filter((i) => i.customNote).map((i) => `* ${getProductDisplayName(i, lang)} : "${i.customNote}"`).join(' — ')}
-                    </p>
-                  )}
-                </div>
-                <div className="border-t border-dashed border-[#E7CCB4] pt-2 mt-2 space-y-1">
-                  <div className="flex justify-between font-semibold"><span>Total</span><span>{lastReservation.total.toFixed(2)} DH</span></div>
-                  <div className="flex justify-between text-emerald-700"><span>Avance versée</span><span>{lastReservation.avance.toFixed(2)} DH</span></div>
-                  <div className="flex justify-between font-semibold text-diana-danger"><span>Reste à payer</span><span>{lastReservation.resteAPayer.toFixed(2)} DH</span></div>
-                </div>
+                  )
+                })}
               </div>
               <div className="flex flex-col gap-2.5">
                 <button onClick={handlePrintReceipt}
