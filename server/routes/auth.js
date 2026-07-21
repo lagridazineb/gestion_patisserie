@@ -81,10 +81,10 @@ router.put('/change-my-code', authMiddleware, async (req, res) => {
     const [rows] = await pool.query('SELECT password FROM users WHERE id = ?', [req.user.id])
     const user = rows[0]
     if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
-    
+
     const isMatch = await bcrypt.compare(currentPassword, user.password)
     if (!isMatch) return res.status(401).json({ error: 'Code actuel incorrect' })
-    
+
     const hashed = await bcrypt.hash(newPassword, 10)
     await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashed, req.user.id])
     res.json({ success: true, message: 'Votre code a été mis à jour' })
