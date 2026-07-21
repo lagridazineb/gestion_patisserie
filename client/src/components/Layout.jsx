@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
+import { useNotification } from '../context/NotificationContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiHome, FiBarChart2, FiBox, FiShoppingBag, FiClipboard, FiClock, FiDollarSign, FiLogOut, FiMenu, FiX, FiUser, FiUsers, FiChevronRight, FiLogIn, FiRotateCcw, FiShoppingCart, FiPieChart, FiCalendar, FiTrash2, FiArrowLeft, FiGlobe } from 'react-icons/fi'
 import CodeConfirmModal from './CodeConfirmModal'
@@ -35,6 +36,7 @@ const caissierNavItems = [
 export default function Layout() {
   const { user, isAuthenticated, logout } = useAuth()
   const { t, lang, toggleLang } = useLanguage()
+  const { addNotification } = useNotification()
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -42,7 +44,17 @@ export default function Layout() {
   const navItems = user?.role === 'admin' ? adminNavItems : user?.role === 'caissier' ? caissierNavItems : preparateurNavItems
 
   // La déconnexion nécessite d'abord le code (mot de passe) — voir CodeConfirmModal plus bas.
-  const handleLogout = () => setShowLogoutCode(true)
+  // Un caissier ne peut pas se déconnecter directement : il doit d'abord "Vider la caisse"
+  // (page Caisse), qui clôture la session et déconnecte automatiquement après impression.
+  const handleLogout = () => {
+    if (user?.role === 'caissier') {
+      setSidebarOpen(false)
+      addNotification('Vous devez d\'abord "Vider la caisse" (page Caisse) pour vous déconnecter.', 'error')
+      navigate('/')
+      return
+    }
+    setShowLogoutCode(true)
+  }
   const confirmLogout = async (password) => {
     await closeSession(password) // lève une erreur si le code est incorrect (gérée par le modal)
     setShowLogoutCode(false)
