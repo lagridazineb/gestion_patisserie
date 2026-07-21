@@ -17,11 +17,6 @@ router.get('/daily', authMiddleware, adminMiddleware, async (req, res) => {
     const [purchasesRows] = await pool.query('SELECT * FROM purchases WHERE DATE(created_at) = ?', [date])
     const [fondsRows] = await pool.query('SELECT * FROM fonds_caisse WHERE DATE(created_at) = ?', [date])
 
-    // ✅ Retours du jour dernier
-    const [retoursVeilleRows] = await pool.query('SELECT * FROM retours_veille WHERE date = ?', [date])
-    // ✅ Retours de vidage de caisse du jour
-    const [retoursVidageRows] = await pool.query('SELECT * FROM retours_vidage WHERE date = ?', [date])
-
     const sales = salesRows.map((s) => ({ ...s, total: Number(s.total), paymentType: s.payment_type }))
     const reservations = reservationsTodayRows.map((r) => ({
       ...r, total: Number(r.total), avance: Number(r.avance), avanceInitiale: Number(r.avance_initiale),
@@ -34,10 +29,6 @@ router.get('/daily', authMiddleware, adminMiddleware, async (req, res) => {
     const remboursements = refundsRows.reduce((sum, r) => sum + Number(r.amount), 0)
     const achats = purchasesRows.reduce((sum, p) => sum + Number(p.amount), 0)
     const fondsCaisseTotal = fondsRows.reduce((s, f) => s + Number(f.amount), 0)
-
-    // ✅ Retours
-    const retourVeille = retoursVeilleRows.reduce((sum, r) => sum + Number(r.amount), 0)
-    const retourVidage = retoursVidageRows.reduce((sum, r) => sum + Number(r.amount), 0)
 
     const avanceNouvellesCommandes = reservations.reduce((sum, r) => sum + (r.avance_initiale !== null ? Number(r.avance_initiale) : Number(r.avance)), 0)
     const soldesEncaissesJour = allReservations
@@ -52,7 +43,6 @@ router.get('/daily', authMiddleware, adminMiddleware, async (req, res) => {
     res.json({
       date, ventesCaisse, especes, tpe, depots, remboursements, achats, solde, fondsCaisseTotal, soldesEncaissesJour,
       avanceCommandes: avanceNouvellesCommandes, resteCommandes, totalCommandes,
-      retourVeille, retourVidage,
       nbVentes: sales.length, nbReservations: reservations.length,
       sales: sales.map((s) => ({
         id: s.id, ticketNumber: s.ticket_number, items: typeof s.items === 'string' ? JSON.parse(s.items) : s.items,
@@ -81,8 +71,6 @@ router.get('/commandes', authMiddleware, adminMiddleware, async (req, res) => {
       `SELECT * FROM reservations WHERE solde_paid = 1 AND DATE(solde_paid_at) = ?`, [date]
     )
     const [fondsRows] = await pool.query('SELECT * FROM fonds_caisse WHERE DATE(created_at) = ?', [date])
-    const [retoursVeilleRows] = await pool.query('SELECT * FROM retours_veille WHERE date = ?', [date])
-    const [retoursVidageRows] = await pool.query('SELECT * FROM retours_vidage WHERE date = ?', [date])
 
     const avancesEspeces = nouvellesRows.filter((r) => r.payment_mode === 'cash').reduce((s, r) => s + Number(r.avance_initiale ?? r.avance), 0)
     const avancesTpe = nouvellesRows.filter((r) => r.payment_mode === 'card').reduce((s, r) => s + Number(r.avance_initiale ?? r.avance), 0)
@@ -97,13 +85,9 @@ router.get('/commandes', authMiddleware, adminMiddleware, async (req, res) => {
     const chiffreAffaireJour = totalEspeces + totalTpe
     const totalFondsCaisse = fondsRows.reduce((s, f) => s + Number(f.amount), 0)
 
-    const retourVeille = retoursVeilleRows.reduce((sum, r) => sum + Number(r.amount), 0)
-    const retourVidage = retoursVidageRows.reduce((sum, r) => sum + Number(r.amount), 0)
-
     res.json({
       date, avancesEspeces, avancesTpe, totalAvances, restesEspeces, restesTpe, totalRestes,
       totalEspeces, totalTpe, chiffreAffaireJour, totalFondsCaisse,
-      retourVeille, retourVidage,
       nouvellesCommandes: nouvellesRows.map((r) => ({
         id: r.id, ticketNumber: r.ticket_number, clientName: r.client_name,
         paymentMode: r.payment_mode, avance: Number(r.avance_initiale ?? r.avance),
@@ -116,39 +100,6 @@ router.get('/commandes', authMiddleware, adminMiddleware, async (req, res) => {
     })
   } catch (error) {
     console.error('Erreur GET /api/bilan/commandes :', error)
-    res.status(500).json({ error: 'Erreur serveur' })
-  }
-})
-
-// ✅ API pour enregistrer les retours
-router.post('/retour-veille', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const { atelier, amount, products } = req.body
-    const id = Date.now()
-    const today = todayStr()
-    await pool.query(
-      `INSERT INTO retours_veille (id, atelier, amount, products, date, created_at) VALUES (?, ?, ?, ?, ?, NOW())`,
-      [id, atelier, amount, JSON.stringify(products || {}), today]
-    )
-    res.json({ success: true, id })
-  } catch (error) {
-    console.error('Erreur POST /api/bilan/retour-veille :', error)
-    res.status(500).json({ error: 'Erreur serveur' })
-  }
-})
-
-router.post('/retour-vidage', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const { atelier, amount, products } = req.body
-    const id = Date.now()
-    const today = todayStr()
-    await pool.query(
-      `INSERT INTO retours_vidage (id, atelier, amount, products, date, created_at) VALUES (?, ?, ?, ?, ?, NOW())`,
-      [id, atelier, amount, JSON.stringify(products || {}), today]
-    )
-    res.json({ success: true, id })
-  } catch (error) {
-    console.error('Erreur POST /api/bilan/retour-vidage :', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })
@@ -180,7 +131,9 @@ router.get('/sales-trend', authMiddleware, adminMiddleware, async (req, res) => 
   }
 })
 
-// --- Bilan par utilisateur : ventes + commandes ventilées par caissier/admin ---
+// --- Bilan par utilisateur : ventes + commandes ventilées par caissier/admin, avec
+// détail par catégorie de produit (ex: "Pain : 1000 DH") — page Admin "Utilisateurs".
+// Si `date` est fourni -> uniquement ce jour-là. Sinon -> depuis le début (tout l'historique).
 router.get('/by-user', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const date = req.query.date || null
@@ -204,6 +157,8 @@ router.get('/by-user', authMiddleware, adminMiddleware, async (req, res) => {
       try { return JSON.parse(raw) } catch (e) { return [] }
     }
 
+    // Un "bucket" par utilisateur (+ un bucket spécial "non attribué" pour les ventes/commandes
+    // faites avant l'ajout de ce suivi, qui n'ont pas de created_by).
     function emptyBucket() {
       return { nbVentes: 0, totalVentes: 0, nbCommandes: 0, totalCommandes: 0, categories: {} }
     }
