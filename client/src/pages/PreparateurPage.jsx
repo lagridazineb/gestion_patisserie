@@ -46,7 +46,7 @@ export default function PreparateurPage() {
   const atelierProducts = atelierCategories.flatMap((c) => (PRODUCTS[c] || []).map((p) => ({ ...p, category: c })))
   // Sous-ensembles utilisés uniquement par les 3 sections de la Pâtisserie
   const entremetProducts = PRODUCTS['entremet'] || []
-  const activeCategoryFilter = !isPatisserie ? null : prepTab === 'tranche' ? 'patisserie' : prepTab === 'entremets' ? 'entremet' : prepTab === 'kg' ? 'gateaux_kg' : prepTab === 'trifil' ? 'trifil' : prepTab === 'ganage' ? 'ganage' : null
+  const activeCategoryFilter = !isPatisserie ? null : prepTab === 'tranche' ? 'patisserie' : prepTab === 'entremets' ? 'entremet' : 'gateaux_kg'
   const visibleProducts = isPatisserie
     ? (activeCategoryFilter ? (PRODUCTS[activeCategoryFilter] || []).map((p) => ({ ...p, category: activeCategoryFilter })) : [])
     : atelierProducts
@@ -121,16 +121,9 @@ export default function PreparateurPage() {
     if (!selectedProduct || isNaN(qty) || qty <= 0) return
     const product = (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)
     if (!product) return
-    // "Gâteau par kg" : on ne saisit plus un poids en kg, mais directement le prix du gâteau.
-    // Ce prix est envoyé tel quel (quantity=1) et devient le prix du lot affiché dans le
-    // frigo d'entremet, avec le prix saisi par le préparateur.
-    const isGateauKg = product.category === 'gateaux_kg'
-    const isTrifil = product.category === 'trifil'
-    const isGanage = product.category === 'ganage'
     await addProduction({
-      productId: product.id, product: product.name,
-      quantity: isGateauKg ? 1 : qty, date, time,
-      category: product.category, price: isGateauKg ? qty : product.price,
+      productId: product.id, product: product.name, quantity: qty, date, time,
+      category: product.category, price: product.price,
       atelier: user?.atelier, user: user?.name,
     })
     setSelectedProduct('')
@@ -384,14 +377,14 @@ export default function PreparateurPage() {
               // mutualisé sur le produit de base — stock[p.id] n'est donc jamais mis à jour
               // (ni à la production, ni à la vente) et affichait toujours 0. On compte ici le
               // nombre réel de lots encore en stock (invendus) pour ce produit de base.
-              const qty = (prepTab === 'kg' || prepTab === 'entremets' || prepTab === 'trifil' || prepTab === 'ganage')
+              const qty = (prepTab === 'kg' || prepTab === 'entremets')
                 ? frigoBatches.filter((b) => b.baseProductId === p.id).length
                 : (stock[p.id] ?? 0)
               const isLow = qty <= 5
               return (
                 <div key={p.id} className="flex items-center justify-between gap-3 bg-diana-dark/50 border border-diana-border/30 rounded-xl px-4 py-3">
                   <span className="text-sm text-diana-cream truncate pr-2">{getProductDisplayName(p, lang)}</span>
-                  <span className={`text-sm font-semibold shrink-0 ${isLow ? 'text-diana-danger' : 'text-diana-gold'}`}>{qty} {(prepTab === 'kg' || prepTab === 'entremets' || prepTab === 'trifil' || prepTab === 'ganage') ? t('preparateur.piece') : (p.unit === 'kg' ? t('preparateur.kgUnit') : '')}</span>
+                  <span className={`text-sm font-semibold shrink-0 ${isLow ? 'text-diana-danger' : 'text-diana-gold'}`}>{qty} {(prepTab === 'kg' || prepTab === 'entremets') ? t('preparateur.piece') : (p.unit === 'kg' ? t('preparateur.kgUnit') : '')}</span>
                 </div>
               )
             })}
