@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
@@ -18,6 +18,15 @@ export default function LoginPage() {
   const { addNotification } = useNotification()
   const { t, lang, toggleLang } = useLanguage()
   const navigate = useNavigate()
+
+  // Si cet appareil a été déconnecté automatiquement parce que le compte s'est reconnecté
+  // ailleurs, on l'explique clairement plutôt que de laisser un renvoi silencieux vers /login.
+  useEffect(() => {
+    if (sessionStorage.getItem('diana_session_replaced')) {
+      sessionStorage.removeItem('diana_session_replaced')
+      addNotification('Ce compte vient d\'être connecté sur un autre appareil — vous avez été déconnecté ici.', 'error')
+    }
+  }, [])
 
   const goToSpace = (role) => navigate(role === 'preparateur' ? '/preparateur' : role === 'caissier' ? '/' : '/bilan')
 
