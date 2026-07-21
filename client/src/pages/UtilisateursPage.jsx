@@ -1,184 +1,365 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
-import { FiCalendar, FiUser, FiPackage, FiTrendingUp, FiClock, FiChevronDown, FiChevronUp } from 'react-icons/fi'
-import { getBilanByUser, subscribeToStockUpdates } from '../data/stockStore'
-import { getSessionsHistory } from '../data/sessionsStore'
-import { findCategory } from '../data/products'
-import { getCategoryLabel } from '../i18n/productNames'
-import { useLanguage } from '../context/LanguageContext'
-
-function pillClass(active) {
-  return `px-4 py-2 rounded-xl text-xs font-medium transition-all ${
-    active ? 'bg-diana-gold text-diana-dark' : 'bg-diana-card border border-diana-border text-diana-brown hover:text-diana-cream'
-  }`
-}
+import React, { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { FiUsers, FiPlus, FiTrash2, FiLock, FiEdit3, FiBox, FiSave, FiX } from 'react-icons/fi'
+import { useAuth } from '../context/AuthContext'
+import { useNotification } from '../context/NotificationContext'
+import { apiRequest } from '../api/client'
+import { ATELIERS } from '../data/products'
+import { getStock } from '../data/stockStore'
 
 export default function UtilisateursPage() {
-  const { lang } = useLanguage()
-  const [mode, setMode] = useState('today') // 'today' | 'date' | 'all'
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [data, setData] = useState(null)
-  const [sessions, setSessions] = useState([])
+  const { user } = useAuth()
+  const { addNotification } = useNotification()
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showCodeModal, setShowCodeModal] = useState(false)
+  const [showStockModal, setShowStockModal] = useState(false)
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [stockData, setStockData] = useState({})
+  const [selectedAtelier, setSelectedAtelier] = useState(null)
+  const [stockEdit, setStockEdit] = useState({})
 
-  // Même date "effective" que celle envoyée à getBilanByUser, réutilisée pour filtrer
-  // la liste des connexions par utilisateur (null = tout l'historique).
-  const effectiveDate = mode === 'all' ? null : (mode === 'date' ? date : new Date().toISOString().slice(0, 10))
+  const [formData, setFormData] = useState({
+    name: '', email: '', password: '', role: 'preparateur', atelier: 'pain'
+  })
+  const [codeData, setCodeData] = useState({
+    newPassword: '', currentPassword: ''
+  })
 
-  const refresh = useCallback(async () => {
-    const d = mode === 'all' ? null : (mode === 'date' ? date : new Date().toISOString().slice(0, 10))
-    const [result, sessionsResult] = await Promise.all([getBilanByUser(d), getSessionsHistory()])
-    setData(result)
-    setSessions(sessionsResult)
-  }, [mode, date])
+  const isAdmin = user?.role === 'admin'
 
   useEffect(() => {
-    refresh()
-    return subscribeToStockUpdates(refresh)
-  }, [refresh])
+    fetchUsers()
+  }, [])
 
-  const categoryLabel = (catId) => {
-    if (catId === 'autre') return lang === 'ar' ? 'أخرى' : 'Autre'
-    const cat = findCategory(catId)
-    return cat ? getCategoryLabel(cat, lang) : catId
+  const fetchUsers = async () => {
+    try {
+      const res = await apiRequest('/api/users')
+      setUsers(res.users || [])
+    } catch (e) {
+      addNotification('Erreur chargement utilisateurs', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  if (!data) return null
+  const handleAdd = async (e) => {
+    e.preventDefault()
+    try {
+      await apiRequest('/api/users', {
+        method: 'POST',
+        body: JSON.stringify(formData),
+      })
+      addNotification('Utilisateur créé', 'success')
+      setShowAddModal(false)
+      setFormData({ name: '', email: '', password: '', role: 'preparateur', atelier: 'pain' })
+      fetchUsers()
+    } catch (e) {
+      addNotification(e.message || 'Erreur création', 'error')
+    }
+  }
 
-  const hasUnattributed = data.unattributed.nbVentes > 0 || data.unattributed.nbCommandes > 0
+  const handleDelete = async (id) => {
+    if (!window.confirm('Supprimer cet utilisateur ?')) return
+    try {
+      await apiRequest(`/api/users/${id}`, { method: 'DELETE' })
+      addNotification('Utilisateur supprimé', 'success')
+      fetchUsers()
+    } catch (e) {
+      addNotification('Erreur suppression', 'error')
+    }
+  }
+
+  // ✅ ADMIN : Changer le code d'un utilisateur
+  const handleChangeCode = async (e) => {
+    e.preventDefault()
+    if (!selectedUser) return
+    try {
+      await apiRequest(`/api/auth/change-code/${selectedUser.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ newPassword: codeData.newPassword }),
+      })
+      addNotification(`Code de ${selectedUser.name} mis à jour`, 'success')
+      setShowCodeModal(false)
+      setCodeData({ newPassword: '', currentPassword: '' })
+      setSelectedUser(null)
+    } catch (e) {
+      addNotification(e.message || 'Erreur modification code', 'error')
+    }
+  }
+
+  // ✅ ADMIN : Changer son propre code
+  const handleChangeMyCode = async (e) => {
+    e.preventDefault()
+    try {
+      await apiRequest('/api/auth/change-my-code', {
+        method: 'PUT',
+        body: JSON.stringify({
+          newPassword: codeData.newPassword,
+          currentPassword: codeData.currentPassword,
+        }),
+      })
+      addNotification('Votre code a été mis à jour', 'success')
+      setShowCodeModal(false)
+      setCodeData({ newPassword: '', currentPassword: '' })
+    } catch (e) {
+      addNotification(e.message || 'Code actuel incorrect', 'error')
+    }
+  }
+
+  // ✅ ADMIN : Ouvrir le modal de stock
+  const openStockModal = async (atelier) => {
+    setSelectedAtelier(atelier)
+    try {
+      const stock = await getStock()
+      setStockData(stock)
+      setStockEdit({})
+      setShowStockModal(true)
+    } catch (e) {
+      addNotification('Erreur chargement stock', 'error')
+    }
+  }
+
+  // ✅ ADMIN : Modifier le stock
+  const handleStockUpdate = async () => {
+    try {
+      await apiRequest(`/api/stock/daily/${selectedAtelier}`, {
+        method: 'PUT',
+        body: JSON.stringify({ stockData: stockEdit }),
+      })
+      addNotification('Stock du jour mis à jour', 'success')
+      setShowStockModal(false)
+      setStockEdit({})
+    } catch (e) {
+      addNotification('Erreur mise à jour stock', 'error')
+    }
+  }
+
+  const updateStockValue = (productId, value) => {
+    setStockEdit((prev) => ({ ...prev, [productId]: Number(value) || 0 }))
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="h-full flex items-center justify-center p-8">
+        <p className="text-diana-brown">Accès réservé aux administrateurs</p>
+      </div>
+    )
+  }
 
   return (
     <div className="h-full overflow-y-auto p-4 sm:p-8">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="mb-6 flex items-center justify-between flex-wrap gap-3">
+          className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">Admin</p>
+            <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">Gestion</p>
             <h2 className="font-fraunces text-3xl font-medium text-diana-cream">Utilisateurs</h2>
-            <p className="text-sm text-diana-brown mt-1">Ventes et commandes détaillées par caissier / admin</p>
+            <p className="text-sm text-diana-brown mt-1">Gérer les préparateurs, caissiers et codes</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowCodeModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-diana-gold text-diana-dark rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
+              <FiLock size={16} /> Mon code
+            </button>
+            <button onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-diana-gold text-diana-dark rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
+              <FiPlus size={16} /> Ajouter
+            </button>
           </div>
         </motion.div>
 
-        <div className="flex items-center gap-2 mb-8 flex-wrap">
-          <button onClick={() => setMode('today')} className={pillClass(mode === 'today')}>Aujourd'hui</button>
-          <button onClick={() => setMode('date')} className={pillClass(mode === 'date')}>Choisir une date</button>
-          <button onClick={() => setMode('all')} className={pillClass(mode === 'all')}>Tout l'historique</button>
-          {mode === 'date' && (
-            <div className="flex items-center gap-2">
-              <FiCalendar className="text-diana-brown" size={15} />
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                className="px-3 py-2 text-sm bg-diana-card border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50" />
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          {data.users.map((u, i) => (
-            <UserCard key={u.id} user={u} index={i} categoryLabel={categoryLabel}
-              sessions={sessions.filter((s) => s.userId === u.id && (!effectiveDate || s.openedAt.slice(0, 10) === effectiveDate))} />
-          ))}
-          {hasUnattributed && (
-            <UserCard
-              user={{ name: 'Ventes / commandes non attribuées', role: null, ...data.unattributed }}
-              index={data.users.length}
-              categoryLabel={categoryLabel}
-              muted
-              roleText="Antérieures à ce suivi (avant l'ajout du suivi par utilisateur) — impossible de savoir quel caissier les a faites."
-            />
-          )}
-          {data.users.length === 0 && !hasUnattributed && (
-            <p className="text-sm italic text-diana-brownLight">Aucun utilisateur admin/caissier trouvé.</p>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function UserCard({ user, index, categoryLabel, muted = false, roleText = null, sessions = [] }) {
-  const [showSessions, setShowSessions] = useState(false)
-  const roleLabel = roleText || (user.role === 'admin' ? 'Administrateur' : 'Caissier')
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
-      className={`bg-diana-card border rounded-2xl p-6 ${muted ? 'border-diana-border/40 opacity-80' : 'border-diana-border'}`}>
-      <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-            muted ? 'bg-diana-border/30 text-diana-brown' : user.role === 'admin' ? 'bg-diana-gold/15 text-diana-gold' : 'bg-blue-500/10 text-blue-400'
-          }`}>
-            <FiUser size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="font-fraunces text-lg text-diana-cream truncate">{user.name}</p>
-            <p className="text-xs text-diana-brown">{roleLabel}</p>
-          </div>
-        </div>
-        <p className="font-fraunces text-2xl font-semibold text-diana-gold shrink-0">{user.totalGeneral.toFixed(2)} DH</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 mb-5">
-        <div className="bg-diana-dark/30 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-diana-brown mb-1.5"><FiTrendingUp size={13} /><p className="text-xs">Ventes caisse</p></div>
-          <p className="text-sm text-diana-cream">{user.nbVentes} vente{user.nbVentes !== 1 ? 's' : ''}</p>
-          <p className="font-semibold text-diana-cream">{user.totalVentes.toFixed(2)} DH</p>
-        </div>
-        <div className="bg-diana-dark/30 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-diana-brown mb-1.5"><FiPackage size={13} /><p className="text-xs">Commandes</p></div>
-          <p className="text-sm text-diana-cream">{user.nbCommandes} commande{user.nbCommandes !== 1 ? 's' : ''}</p>
-          <p className="font-semibold text-diana-cream">{user.totalCommandes.toFixed(2)} DH</p>
-        </div>
-      </div>
-
-      {user.categories.length === 0 ? (
-        <p className="text-xs italic text-diana-brownLight">Aucune vente/commande sur cette période.</p>
-      ) : (
-        <div>
-          <p className="text-[10px] tracking-[1.5px] uppercase text-diana-brown mb-2">Détail par catégorie</p>
-          <div className="space-y-1.5">
-            {user.categories.map((c) => (
-              <div key={c.category} className="flex items-center justify-between text-sm">
-                <span className="text-diana-brownLight">{categoryLabel(c.category)}</span>
-                <span className="text-diana-cream font-medium">
-                  {c.value.toFixed(2)} DH <span className="text-diana-brown text-xs">({c.qty})</span>
+        {/* Liste des utilisateurs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          {users.map((u) => (
+            <motion.div key={u.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              className="bg-diana-card border border-diana-border rounded-2xl p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-diana-gold/15 flex items-center justify-center text-diana-gold font-bold">
+                  {u.name?.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-fraunces text-base text-diana-cream">{u.name}</h3>
+                  <p className="text-xs text-diana-brown">{u.email}</p>
+                </div>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                  u.role === 'admin' ? 'bg-diana-accent/15 text-diana-accentLight' :
+                  u.role === 'caissier' ? 'bg-emerald-500/15 text-emerald-400' :
+                  'bg-blue-500/15 text-blue-400'
+                }`}>
+                  {u.role}
                 </span>
               </div>
+              <div className="flex items-center gap-2 text-xs text-diana-brown mb-4">
+                <FiBox size={12} />
+                {u.atelier ? ATELIERS.find(a => a.id === u.atelier)?.label || u.atelier : '—'}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setSelectedUser(u); setShowCodeModal(true); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-diana-gold/15 text-diana-gold border border-diana-gold/30 text-xs font-semibold hover:bg-diana-gold/25 transition-colors">
+                  <FiLock size={12} /> Code
+                </button>
+                <button onClick={() => handleDelete(u.id)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-diana-danger/15 text-diana-danger border border-diana-danger/30 text-xs font-semibold hover:bg-diana-danger/25 transition-colors">
+                  <FiTrash2 size={12} />
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* ✅ Section Stock du jour par atelier */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <h3 className="font-fraunces text-lg text-diana-cream mb-4 flex items-center gap-2">
+            <FiBox className="text-diana-gold" /> Stock du jour par atelier
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {ATELIERS.map((atelier) => (
+              <button key={atelier.id} onClick={() => openStockModal(atelier.id)}
+                className="bg-diana-card border border-diana-border rounded-xl p-4 text-left hover:border-diana-gold/40 transition-colors">
+                <p className="text-sm font-medium text-diana-cream">{atelier.label}</p>
+                <p className="text-xs text-diana-brown mt-1">Modifier le stock</p>
+              </button>
             ))}
           </div>
-        </div>
-      )}
+        </motion.div>
+      </div>
 
-      {sessions.length > 0 && (
-        <div className="mt-5 pt-4 border-t border-diana-border/50">
-          <button onClick={() => setShowSessions((v) => !v)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-diana-brown hover:text-diana-gold transition-colors">
-            <FiClock size={13} /> Connexions ({sessions.length})
-            {showSessions ? <FiChevronUp size={13} /> : <FiChevronDown size={13} />}
-          </button>
-          {showSessions && (
-            <div className="mt-3 space-y-2">
-              {sessions.map((s) => (
-                <div key={s.id} className="bg-diana-dark/30 rounded-lg p-3 text-xs">
-                  <div className="flex items-center justify-between flex-wrap gap-1.5 mb-1.5">
-                    <span className="text-diana-cream font-medium">Entrée : {new Date(s.openedAt).toLocaleString('fr-FR')}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                      s.status === 'open' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-diana-border/40 text-diana-brown'
-                    }`}>
-                      {s.status === 'open' ? 'Session en cours' : 'Clôturée'}
-                    </span>
-                  </div>
-                  <p className="text-diana-brown">Sortie : {s.closedAt ? new Date(s.closedAt).toLocaleString('fr-FR') : '—'}</p>
-                  <p className="text-diana-brown">Dépôt d'ouverture : {s.openingAmount.toFixed(2)} DH</p>
-                  {s.status === 'closed' && (
-                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-diana-cream">
-                      <span>Ventes : <span className="font-semibold">{(s.closingSalesTotal ?? 0).toFixed(2)} DH</span> ({s.closingSalesCount ?? 0})</span>
-                      <span>Commandes : <span className="font-semibold">{(s.closingCommandesTotal ?? 0).toFixed(2)} DH</span> ({s.closingCommandesCount ?? 0})</span>
-                    </div>
-                  )}
+      {/* Modal Ajouter */}
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              className="bg-diana-card border border-diana-border rounded-2xl p-6 w-full max-w-md">
+              <h3 className="font-fraunces text-xl text-diana-cream mb-4">Nouvel utilisateur</h3>
+              <form onSubmit={handleAdd} className="space-y-4">
+                <div>
+                  <label className="text-xs text-diana-brown mb-1.5 block">Nom</label>
+                  <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-3 py-2.5 bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream text-sm" required />
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </motion.div>
+                <div>
+                  <label className="text-xs text-diana-brown mb-1.5 block">Email</label>
+                  <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    className="w-full px-3 py-2.5 bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream text-sm" required />
+                </div>
+                <div>
+                  <label className="text-xs text-diana-brown mb-1.5 block">Mot de passe</label>
+                  <input type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    className="w-full px-3 py-2.5 bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream text-sm" required />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-diana-brown mb-1.5 block">Rôle</label>
+                    <select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}
+                      className="w-full px-3 py-2.5 bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream text-sm">
+                      <option value="preparateur">Préparateur</option>
+                      <option value="caissier">Caissier</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-diana-brown mb-1.5 block">Atelier</label>
+                    <select value={formData.atelier} onChange={(e) => setFormData({...formData, atelier: e.target.value})}
+                      className="w-full px-3 py-2.5 bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream text-sm">
+                      {ATELIERS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setShowAddModal(false)}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-diana-dark text-diana-cream text-sm font-medium">Annuler</button>
+                  <button type="submit"
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-diana-gold text-diana-dark text-sm font-semibold">Créer</button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Changer Code */}
+      <AnimatePresence>
+        {showCodeModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              className="bg-diana-card border border-diana-border rounded-2xl p-6 w-full max-w-md">
+              <h3 className="font-fraunces text-xl text-diana-cream mb-4">
+                {selectedUser ? `Changer le code de ${selectedUser.name}` : 'Changer mon code'}
+              </h3>
+              <form onSubmit={selectedUser ? handleChangeCode : handleChangeMyCode} className="space-y-4">
+                {!selectedUser && (
+                  <div>
+                    <label className="text-xs text-diana-brown mb-1.5 block">Code actuel</label>
+                    <input type="password" value={codeData.currentPassword}
+                      onChange={(e) => setCodeData({...codeData, currentPassword: e.target.value})}
+                      className="w-full px-3 py-2.5 bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream text-sm" required />
+                  </div>
+                )}
+                <div>
+                  <label className="text-xs text-diana-brown mb-1.5 block">
+                    {selectedUser ? 'Nouveau code' : 'Nouveau code'}
+                  </label>
+                  <input type="password" value={codeData.newPassword}
+                    onChange={(e) => setCodeData({...codeData, newPassword: e.target.value})}
+                    className="w-full px-3 py-2.5 bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream text-sm" required minLength={4} />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => { setShowCodeModal(false); setSelectedUser(null); }}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-diana-dark text-diana-cream text-sm font-medium">Annuler</button>
+                  <button type="submit"
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-diana-gold text-diana-dark text-sm font-semibold">Enregistrer</button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ✅ Modal Stock du jour */}
+      <AnimatePresence>
+        {showStockModal && selectedAtelier && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              className="bg-diana-card border border-diana-border rounded-2xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-fraunces text-xl text-diana-cream">
+                  Stock du jour — {ATELIERS.find(a => a.id === selectedAtelier)?.label}
+                </h3>
+                <button onClick={() => setShowStockModal(false)} className="text-diana-brown hover:text-diana-cream">
+                  <FiX size={20} />
+                </button>
+              </div>
+              <div className="space-y-3 mb-6">
+                {Object.entries(stockData).map(([productId, quantity]) => (
+                  <div key={productId} className="flex items-center gap-3">
+                    <span className="text-sm text-diana-cream flex-1">{productId}</span>
+                    <input
+                      type="number"
+                      defaultValue={quantity}
+                      onChange={(e) => updateStockValue(productId, e.target.value)}
+                      className="w-24 px-3 py-2 bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream text-sm text-center"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setShowStockModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-diana-dark text-diana-cream text-sm font-medium">Annuler</button>
+                <button onClick={handleStockUpdate}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-diana-gold text-diana-dark text-sm font-semibold flex items-center justify-center gap-2">
+                  <FiSave size={14} /> Enregistrer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
