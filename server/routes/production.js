@@ -29,17 +29,17 @@ router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
   try {
     const { productId, product, quantity, category, price, atelier, date, time, image, user } = req.body
     const id = Date.now()
-    
+
     // Pour gâteaux_kg, la "quantity" est en fait le PRIX saisi par le préparateur
     let actualQuantity = quantity
     let actualPrice = price
-    
+
     if (category === 'gateaux_kg') {
       // Le préparateur entre le prix du gâteau, pas la quantité en kg
       actualPrice = Number(quantity) || 0
       actualQuantity = 1 // Un gâteau = 1 unité
     }
-    
+
     await pool.query(
       `INSERT INTO production_entries
         (id, product_id, product_name, quantity, category, price, atelier, user_name, production_date, production_time, created_at)
@@ -49,7 +49,7 @@ router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
 
     let frigoBatch = null
     let frigoBatches = null
-    
+
     if (category === 'gateaux_kg' && actualPrice > 0) {
       // Gâteau au kg : le prix est saisi par le préparateur
       const batchId = `frigobatch_${id}_${Math.random().toString(36).slice(2, 8)}`
