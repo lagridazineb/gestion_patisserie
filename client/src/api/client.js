@@ -16,6 +16,9 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('diana_token')
       localStorage.removeItem('diana_user')
+      if (error.response?.data?.code === 'SESSION_REPLACED') {
+        sessionStorage.setItem('diana_session_replaced', '1')
+      }
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = '/login'
       }
