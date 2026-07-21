@@ -54,6 +54,7 @@ app.use('/api/refunds', require('./routes/refunds'))
 app.use('/api/purchases', require('./routes/purchases'))
 app.use('/api/fonds-caisse', require('./routes/fondsCaisse'))
 app.use('/api/rziza', require('./routes/rziza'))
+app.use('/api/retours', require('./routes/retours'))
 app.use('/api/bilan', require('./routes/bilan'))
 app.use('/api/sessions', require('./routes/sessions'))
 
