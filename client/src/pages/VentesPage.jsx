@@ -166,7 +166,6 @@ export default function VentesPage() {
   const totalVentesNet = atelierSummary.reduce((sum, a) => sum + a.netRevenue, 0)
   const totalRefunds = atelierSummary.reduce((sum, a) => sum + a.totalRefundValue, 0)
   const totalCommandes = commandesBilan ? commandesBilan.totalAvances + commandesBilan.totalRestes : 0
-  const totalGeneral = totalVentesNet + totalCommandes
   // Case 4 : total production + CA commandes + retour du jour précédent (récupéré, vendable
   // aujourd'hui) - retour de fermeture du jour (invendu du jour, pas encore récupéré).
   const retourPrecedentValue = retours.previous?.totalValue || 0
@@ -198,12 +197,13 @@ export default function VentesPage() {
         </motion.div>
 
         {/* Totaux généraux du jour */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
           {[
             { label: 'Total production', value: `${totalProductionValue.toFixed(2)} DH`, icon: FiBox, color: 'bg-blue-500/10 text-blue-400' },
             { label: "Chiffre d'affaires commandes", value: `${totalCommandes.toFixed(2)} DH`, icon: FiCalendar, color: 'bg-emerald-500/10 text-emerald-400' },
-            { label: 'Total général (ventes + commandes)', value: `${totalGeneral.toFixed(2)} DH`, icon: FiDollarSign, color: 'bg-orange-400/10 text-orange-400' },
-            { label: 'Bilan avec retours (production + commandes + retour précédent - retour du jour)', value: `${bilanAvecRetours.toFixed(2)} DH`, icon: FiRotateCcw, color: 'bg-diana-gold/10 text-diana-gold' },
+            { label: 'Retour du jour précédent', value: `${retourPrecedentValue.toFixed(2)} DH`, icon: FiRotateCcw, color: 'bg-purple-500/10 text-purple-400' },
+            { label: 'Bilan avec retours (production + commandes + retour précédent - retour du jour)', value: `${bilanAvecRetours.toFixed(2)} DH`, icon: FiDollarSign, color: 'bg-diana-gold/10 text-diana-gold' },
+            { label: 'Retours de fermeture', value: `${retourFermetureValue.toFixed(2)} DH`, icon: FiRotateCcw, color: 'bg-orange-400/10 text-orange-400' },
           ].map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
               className="bg-diana-card border border-diana-border rounded-2xl p-5">
