@@ -482,7 +482,7 @@ export default function POSPage() {
               </div>
               <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-gray-300 text-black">
                 <ReceiptHeader>
-                  <div className="flex justify-between items-baseline mt-2 text-[10.5px] text-gray-500">
+                  <div className="flex justify-between items-baseline mt-2 text-[10.5px] text-black">
                     <span>{new Date().toLocaleDateString('fr-FR')} — {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                     <span className="font-semibold text-black">Ticket n°{String(ticketNumber).padStart(3, '0')}</span>
                   </div>
@@ -492,7 +492,7 @@ export default function POSPage() {
                     <div key={item.id} className="receipt-line flex items-baseline justify-between gap-3">
                       <span className="name text-black font-medium">
                         {getProductDisplayName(item, lang)}
-                        <span className="text-gray-500 font-normal"> × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</span>
+                        <span className="text-black font-normal"> × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</span>
                       </span>
                       <span className="value shrink-0 font-semibold text-black">{(item.price * item.qty).toFixed(2)} DH</span>
                     </div>
@@ -501,21 +501,21 @@ export default function POSPage() {
                 <div className="border-t border-dashed border-gray-300 pt-2 mt-2 space-y-1">
                   {remise > 0 && (
                     <>
-                      <div className="flex justify-between text-gray-600"><span>Sous-total</span><span>{subtotal.toFixed(2)} DH</span></div>
-                      <div className="flex justify-between text-gray-600"><span>Remise ({remise}%)</span><span>-{remiseAmount.toFixed(2)} DH</span></div>
+                      <div className="flex justify-between text-black"><span>Sous-total</span><span>{subtotal.toFixed(2)} DH</span></div>
+                      <div className="flex justify-between text-black"><span>Remise ({remise}%)</span><span>-{remiseAmount.toFixed(2)} DH</span></div>
                     </>
                   )}
                 </div>
                 <div className="border-t border-black pt-2 mt-2">
                   <div className="total flex justify-between items-baseline font-bold text-sm text-black"><span>TOTAL</span><span>{total.toFixed(2)} DH</span></div>
                 </div>
-                <div className="border-t border-dashed border-gray-300 pt-2 mt-2 space-y-1 text-gray-600">
+                <div className="border-t border-dashed border-gray-300 pt-2 mt-2 space-y-1 text-black">
                   <div className="flex justify-between"><span>Règlement</span><span>{paymentType === 'cash' ? 'Espèces' : 'Carte'}</span></div>
                   {paymentType === 'cash' && changeGiven > 0 && (
                     <div className="flex justify-between"><span>Monnaie rendue</span><span>{changeGiven.toFixed(2)} DH</span></div>
                   )}
                 </div>
-                <p className="footer text-center text-gray-500 text-[11px] italic mt-3">Merci de votre visite !</p>
+                <p className="footer text-center text-black text-[11px] italic mt-3">Merci de votre visite !</p>
               </div>
               <div className="flex flex-col gap-2.5">
                 <button onClick={handlePrint}
@@ -575,7 +575,7 @@ export default function POSPage() {
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
                 <ReceiptHeader subtitle="Bon de livraison — Rziza">
-                  <p className="text-gray-500 text-[10.5px] mt-1.5">{new Date(rzizaBon.timestamp).toLocaleDateString('fr-FR')} à {new Date(rzizaBon.timestamp).toLocaleTimeString('fr-FR')}</p>
+                  <p className="text-black text-[10.5px] mt-1.5">{new Date(rzizaBon.timestamp).toLocaleDateString('fr-FR')} à {new Date(rzizaBon.timestamp).toLocaleTimeString('fr-FR')}</p>
                 </ReceiptHeader>
                 <div className="receipt-line flex justify-between py-1"><span>Quantité livrée</span><span className="value font-semibold">{rzizaBon.quantity}</span></div>
                 <div className="receipt-line flex justify-between py-1"><span>Prix d'achat / unité</span><span className="value font-semibold">{rzizaBon.prixAchat.toFixed(2)} DH</span></div>
@@ -583,7 +583,7 @@ export default function POSPage() {
                   <div className="total flex justify-between font-semibold"><span>Montant dû</span><span>{rzizaBon.montantDu.toFixed(2)} DH</span></div>
                   <div className="flex justify-between text-black font-semibold mt-1"><span>Statut</span><span>NON PAYÉ</span></div>
                 </div>
-                <p className="footer text-gray-500 italic mt-3 text-center">Réglé personnellement — sans lien avec la caisse</p>
+                <p className="footer text-black italic mt-3 text-center">Réglé personnellement — sans lien avec la caisse</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => window.print()}
@@ -609,7 +609,7 @@ export default function POSPage() {
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
                 <ReceiptHeader subtitle={clearReceipt.label}>
-                  <p className="text-gray-500 text-[10.5px] mt-1.5">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
+                  <p className="text-black text-[10.5px] mt-1.5">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
                 </ReceiptHeader>
 
                 {clearReceipt.productionSummary?.length > 0 && (
@@ -627,7 +627,7 @@ export default function POSPage() {
                 <p className="font-bold text-black border-b border-dashed border-gray-300 pb-1 mb-1.5">Vidé ce soir (invendu)</p>
                 <div className="space-y-1.5 mb-2">
                   {clearReceipt.entries.length === 0 && (
-                    <p className="italic text-gray-500 text-center py-1">Rien à vider</p>
+                    <p className="italic text-black text-center py-1">Rien à vider</p>
                   )}
                   {clearReceipt.entries.map((e) => (
                     <div key={e.productId} className="receipt-line flex justify-between py-0.5">
@@ -692,9 +692,9 @@ export default function POSPage() {
               <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
                 <ReceiptHeader subtitle="Clôture de caisse">
                   <p className="text-black text-[11px] font-semibold mt-1.5">{viderReceipt.closedSession.userName}</p>
-                  <p className="text-gray-500 text-[10.5px] mt-1">Entrée : {new Date(viderReceipt.closedSession.openedAt).toLocaleString('fr-FR')}</p>
-                  <p className="text-gray-500 text-[10.5px]">Sortie : {new Date(viderReceipt.closedSession.closedAt).toLocaleString('fr-FR')}</p>
-                  <p className="text-gray-500 text-[10.5px]">Dépôt initial : {viderReceipt.closedSession.openingAmount.toFixed(2)} DH</p>
+                  <p className="text-black text-[10.5px] mt-1">Entrée : {new Date(viderReceipt.closedSession.openedAt).toLocaleString('fr-FR')}</p>
+                  <p className="text-black text-[10.5px]">Sortie : {new Date(viderReceipt.closedSession.closedAt).toLocaleString('fr-FR')}</p>
+                  <p className="text-black text-[10.5px]">Dépôt initial : {viderReceipt.closedSession.openingAmount.toFixed(2)} DH</p>
                 </ReceiptHeader>
 
                 {viderReceipt.sales.length > 0 && (
@@ -702,7 +702,7 @@ export default function POSPage() {
                     <p className="font-bold text-black border-b border-dashed border-gray-300 pb-1 mb-1.5">Ventes ({viderReceipt.sales.length})</p>
                     {viderReceipt.sales.map((sale) => (
                       <div key={sale.id} className="mb-2">
-                        <div className="flex justify-between text-[10.5px] text-gray-500 font-semibold">
+                        <div className="flex justify-between text-[10.5px] text-black font-semibold">
                           <span>Ticket n°{String(sale.ticketNumber).padStart(3, '0')}</span>
                           <span>{new Date(sale.createdAt).toLocaleTimeString('fr-FR')}</span>
                         </div>
@@ -723,7 +723,7 @@ export default function POSPage() {
                     <p className="font-bold text-black border-b border-dashed border-gray-300 pb-1 mb-1.5">Commandes ({viderReceipt.reservations.length})</p>
                     {viderReceipt.reservations.map((r) => (
                       <div key={r.id} className="mb-2">
-                        <div className="flex justify-between text-[10.5px] text-gray-500 font-semibold">
+                        <div className="flex justify-between text-[10.5px] text-black font-semibold">
                           <span>{r.clientName}</span>
                           <span>{new Date(r.createdAt).toLocaleTimeString('fr-FR')}</span>
                         </div>
@@ -740,7 +740,7 @@ export default function POSPage() {
                 )}
 
                 {viderReceipt.sales.length === 0 && viderReceipt.reservations.length === 0 && (
-                  <p className="text-center italic text-gray-500 mb-2">Aucune transaction sur cette session.</p>
+                  <p className="text-center italic text-black mb-2">Aucune transaction sur cette session.</p>
                 )}
 
                 <div className="border-t border-dashed border-gray-300 pt-2 mt-2">
@@ -751,7 +751,7 @@ export default function POSPage() {
                     <span>{(viderReceipt.closedSession.closingSalesTotal + viderReceipt.closedSession.closingCommandesTotal).toFixed(2)} DH</span>
                   </div>
                 </div>
-                <p className="footer text-center text-gray-500 italic mt-3">Caisse vidée avec succès</p>
+                <p className="footer text-center text-black italic mt-3">Caisse vidée avec succès</p>
               </div>
               <div className="flex gap-2 print:hidden">
                 <button onClick={handlePrintViderCaisseAndLogout}
