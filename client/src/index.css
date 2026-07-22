@@ -36,41 +36,24 @@
   .text-balance { text-wrap: balance; }
 }
 
-/* Séparateur visuel entre les exemplaires d'un reçu de commande (aperçu à l'écran
-   uniquement — à l'impression, .receipt-page ci-dessous force déjà un saut de page). */
-.receipt-print .receipt-page + .receipt-page {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 2px dashed #C9A15F;
-  position: relative;
-}
-.receipt-print .receipt-page + .receipt-page::before {
-  content: '✂ - - - - - - - - - - - - - - - - - - - - - -';
-  position: absolute;
-  top: -9px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #fff;
-  padding: 0 6px;
-  font-size: 9px;
-  color: #C9A15F;
-  white-space: nowrap;
-}
-@media print {
+/* ============================================
+   STYLES DE REÇU IMPRIMABLE - Ticket thermique
+   Style Café Lumière (sans logo)
+   ============================================ */
 
+@media print {
   @page {
     size: 80mm auto;
     margin: 0;
   }
 
-  html,
-  body {
+  html, body {
     width: 80mm;
     margin: 0;
     padding: 0;
     background: #fff;
     color: #000;
-    font-family: "Courier New", monospace;
+    font-family: "Courier New", "Monaco", monospace;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -92,7 +75,7 @@
     padding: 5mm;
     background: white;
     color: black;
-    font-family: "Courier New", monospace;
+    font-family: "Courier New", "Monaco", monospace;
     font-size: 13px;
     line-height: 1.45;
     font-weight: 500;
@@ -100,168 +83,129 @@
     border: none;
   }
 
-  /* Logo / Nom magasin */
-
-  .receipt-print h1{
-      text-align:center;
-      font-size:28px;
-      font-weight:900;
-      margin:0;
-      letter-spacing:1px;
-      text-transform:uppercase;
-  }
-
-  /* Adresse */
-
-  .receipt-print .address{
-      text-align:center;
-      font-size:12px;
-      color:#555;
-      margin-top:3px;
-  }
-
-  /* Téléphone */
-
-  .receipt-print .phone{
-      text-align:center;
-      font-size:12px;
-      color:#555;
-      margin-bottom:10px;
+  /* En-tête */
+  .receipt-print h1 {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 900;
+    margin: 0;
+    letter-spacing: 1px;
+    text-transform: uppercase;
   }
 
   /* Ligne séparatrice */
-
-  .receipt-print hr{
-      border:none;
-      border-top:1px dashed #777;
-      margin:10px 0;
+  .receipt-print .border-t,
+  .receipt-print .border-b {
+    border-color: #777 !important;
   }
 
-  /* Informations */
-
-  .receipt-print .info{
-      display:flex;
-      justify-content:space-between;
-      font-size:13px;
-      margin-bottom:3px;
+  .receipt-print .border-dashed {
+    border-style: dashed !important;
   }
 
-  /* Produits */
-
-  .receipt-print table{
-      width:100%;
-      border-collapse:collapse;
-      margin-top:8px;
-      margin-bottom:8px;
+  /* Tableau des produits */
+  .receipt-print table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    margin-bottom: 8px;
   }
 
-  .receipt-print td{
-      padding:4px 0;
-      font-size:14px;
+  .receipt-print td {
+    padding: 4px 0;
+    font-size: 13px;
   }
 
-  .receipt-print td:first-child{
-      text-align:left;
+  .receipt-print td:first-child {
+    text-align: left;
   }
 
-  .receipt-print td:last-child{
-      text-align:right;
-      white-space:nowrap;
+  .receipt-print td:last-child {
+    text-align: right;
+    white-space: nowrap;
   }
 
-  /* Ligne produit */
-
-  .receipt-print .receipt-line{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      font-size:14px;
-      margin:4px 0;
+  /* Totaux */
+  .receipt-print .font-bold {
+    font-weight: 700;
   }
 
-  .receipt-print .receipt-line .name{
-      flex:1;
-      text-align:left;
+  .receipt-print .text-lg {
+    font-size: 18px;
   }
 
-  .receipt-print .receipt-line .value{
-      min-width:75px;
-      text-align:right;
-      font-weight:bold;
+  .receipt-print .text-base {
+    font-size: 16px;
   }
 
-  /* Sous total */
-
-  .receipt-print .summary{
-      margin-top:8px;
+  /* Code-barre */
+  .receipt-print .barcode-line {
+    background: black !important;
   }
 
-  .receipt-print .summary div{
-      display:flex;
-      justify-content:space-between;
-      padding:2px 0;
-      font-size:13px;
+  /* Pied de page */
+  .receipt-print .text-center {
+    text-align: center;
   }
 
-  /* TOTAL */
-
-  .receipt-print .total{
-      margin-top:12px;
-      padding-top:8px;
-      border-top:2px solid #000;
-
-      display:flex;
-      justify-content:space-between;
-
-      font-size:24px;
-      font-weight:900;
+  /* Exemplaires multiples (commandes) */
+  .receipt-print .receipt-page {
+    page-break-after: always;
+    break-after: page;
+    padding-bottom: 10mm;
   }
 
-  /* Paiement */
-
-  .receipt-print .payment{
-      margin-top:12px;
-      font-size:13px;
+  .receipt-print .receipt-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
   }
 
-  .receipt-print .payment div{
-      display:flex;
-      justify-content:space-between;
-      padding:2px 0;
+  /* Étiquette d'exemplaire */
+  .receipt-print .bg-gray-100 {
+    background-color: #f3f3f3 !important;
   }
+}
 
-  /* Code barre */
+/* Styles à l'écran (aperçu avant impression) */
+.receipt-print {
+  background: white;
+  color: black;
+  font-family: "Courier New", "Monaco", monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 80mm;
+  margin: 0 auto;
+  padding: 5mm;
+}
 
-  .receipt-print .barcode{
-      text-align:center;
-      margin:18px 0 12px;
-  }
+.receipt-print .receipt-page {
+  padding: 15px;
+  border: 1px dashed #ccc;
+  margin-bottom: 20px;
+  background: white;
+}
 
-  .receipt-print .barcode img{
-      width:100%;
-      max-width:210px;
-  }
+.receipt-print .receipt-page + .receipt-page {
+  margin-top: 20px;
+}
 
-  /* Pied */
+/* Séparateur visuel entre les exemplaires d'un reçu de commande */
+.receipt-print .receipt-page + .receipt-page {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 2px dashed #C9A15F;
+  position: relative;
+}
 
-  .receipt-print .footer{
-      text-align:center;
-      font-size:12px;
-      margin-top:15px;
-      color:#444;
-      line-height:1.6;
-  }
-
-  /* Plusieurs exemplaires */
-
-  .receipt-print .receipt-page{
-      page-break-after:always;
-      break-after:page;
-  }
-
-  .receipt-print .receipt-page:last-child{
-      page-break-after:auto;
-      break-after:auto;
-  }
-
+.receipt-print .receipt-page + .receipt-page::before {
+  content: '✂ - - - - - - - - - - - - - - - - - - - - - -';
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 0 6px;
+  font-size: 9px;
+  color: #C9A15F;
+  white-space: nowrap;
 }
