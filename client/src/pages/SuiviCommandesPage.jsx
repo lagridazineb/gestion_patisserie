@@ -241,14 +241,14 @@ export default function SuiviCommandesPage() {
               </div>
               <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-gray-300 text-black">
                 <ReceiptHeader subtitle="Solde encaissé">
-                  <p className="text-gray-500 text-[10.5px] mt-1.5">Ticket n°{receipt.ticketNumber}</p>
+                  <p className="text-black text-[10.5px] mt-1.5">Ticket n°{receipt.ticketNumber}</p>
                 </ReceiptHeader>
-                <p><span className="text-gray-500">Client :</span> <span className="font-semibold">{receipt.clientName}</span></p>
+                <p><span className="text-black">Client :</span> <span className="font-semibold">{receipt.clientName}</span></p>
                 <div className="border-t border-dashed border-gray-300 pt-2 mt-2 space-y-1">
                   <div className="flex justify-between"><span>Total commande</span><span>{receipt.total.toFixed(2)} DH</span></div>
                   <div className="flex justify-between text-black"><span>Déjà versé (avance)</span><span>{(receipt.total - (receipt.soldeAmount || 0)).toFixed(2)} DH</span></div>
                   <div className="flex justify-between font-semibold"><span>Solde encaissé aujourd'hui</span><span>{(receipt.soldeAmount || 0).toFixed(2)} DH</span></div>
-                  <div className="flex justify-between text-[11px] text-gray-500"><span>Mode</span><span>{receipt.soldePaymentMode === 'cash' ? 'Espèces' : 'TPE'}</span></div>
+                  <div className="flex justify-between text-[11px] text-black"><span>Mode</span><span>{receipt.soldePaymentMode === 'cash' ? 'Espèces' : 'TPE'}</span></div>
                 </div>
               </div>
               <div className="flex flex-col gap-2.5">
