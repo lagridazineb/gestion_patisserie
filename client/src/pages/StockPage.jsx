@@ -479,14 +479,14 @@ export default function StockPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setClearReceipt(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
                 <ReceiptHeader subtitle={clearReceipt.label}>
-                  <p className="text-diana-brown text-[10.5px] mt-1.5">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
+                  <p className="text-gray-500 text-[10.5px] mt-1.5">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
                 </ReceiptHeader>
 
                 {clearReceipt.productionSummary?.length > 0 && (
                   <div className="mb-3">
-                    <p className="font-bold text-diana-dark border-b border-dashed border-diana-creamDark pb-1 mb-1.5">Production du jour</p>
+                    <p className="font-bold text-black border-b border-dashed border-gray-300 pb-1 mb-1.5">Production du jour</p>
                     {clearReceipt.productionSummary.map((p) => (
                       <div key={p.category} className="receipt-line flex justify-between py-0.5">
                         <span className="name pr-2">{atelierLabel(p.category)} × {p.qty}</span>
@@ -504,21 +504,21 @@ export default function StockPage() {
                     </div>
                   ))}
                 </div>
-                <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
+                <div className="border-t border-dashed border-gray-300 pt-2 mt-2">
                   <div className="flex justify-between py-0.5"><span>Quantité totale</span><span>{clearReceipt.totalQuantity}</span></div>
                   <div className="total flex justify-between font-semibold"><span>Valeur totale</span><span>{clearReceipt.totalValue.toFixed(2)} DH</span></div>
                 </div>
 
                 {clearReceipt.carryover?.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-dashed border-diana-creamDark">
-                    <p className="font-bold text-diana-dark pb-1 mb-1.5">Retour — vendable un autre jour</p>
+                  <div className="mt-3 pt-3 border-t border-dashed border-gray-300">
+                    <p className="font-bold text-black pb-1 mb-1.5">Retour — vendable un autre jour</p>
                     {clearReceipt.carryover.map((e) => (
                       <div key={e.productId} className="receipt-line flex justify-between py-0.5">
                         <span className="name pr-2">{e.name} × {e.qty}</span>
                         <span className="value shrink-0 font-semibold">{e.value.toFixed(2)} DH</span>
                       </div>
                     ))}
-                    <div className="total flex justify-between font-semibold mt-1.5 pt-1.5 border-t border-dashed border-diana-creamDark">
+                    <div className="total flex justify-between font-semibold mt-1.5 pt-1.5 border-t border-dashed border-gray-300">
                       <span>Valeur totale du retour</span>
                       <span>{clearReceipt.carryover.reduce((s, e) => s + e.value, 0).toFixed(2)} DH</span>
                     </div>
