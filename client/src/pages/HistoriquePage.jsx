@@ -146,7 +146,7 @@ export default function HistoriquePage() {
 
                 <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
                   <ReceiptHeader>
-                    <p className="text-gray-500 text-[10.5px] mt-1.5">
+                    <p className="text-black text-[10.5px] mt-1.5">
                       {new Date(selected.type === 'ticket' ? selected.data.timestamp : selected.data.createdAt).toLocaleDateString('fr-FR')}
                       {' '}
                       {new Date(selected.type === 'ticket' ? selected.data.timestamp : selected.data.createdAt).toLocaleTimeString('fr-FR')}
@@ -160,7 +160,7 @@ export default function HistoriquePage() {
                     <div className="mb-3 space-y-0.5">
                       <p className="flex items-center gap-1.5"><FiUser size={11} /> {selected.data.clientName}</p>
                       {selected.data.clientPhone && <p className="flex items-center gap-1.5"><FiPhone size={11} /> {selected.data.clientPhone}</p>}
-                      <p className="text-gray-500">Livraison : {selected.data.deliveryDate} à {selected.data.deliveryTime}</p>
+                      <p className="text-black">Livraison : {selected.data.deliveryDate} à {selected.data.deliveryTime}</p>
                     </div>
                   )}
 
@@ -175,7 +175,7 @@ export default function HistoriquePage() {
                     {selected.type === 'ticket' ? (
                       <>
                         <div className="flex justify-between font-semibold"><span>Total</span><span>{(selected.data.total || 0).toFixed(2)} DH</span></div>
-                        <div className="flex justify-between text-gray-500 mt-1"><span>Paiement</span><span>{selected.data.paymentType === 'cash' ? 'Espèces' : 'TPE'}</span></div>
+                        <div className="flex justify-between text-black mt-1"><span>Paiement</span><span>{selected.data.paymentType === 'cash' ? 'Espèces' : 'TPE'}</span></div>
                       </>
                     ) : (
                       <>
