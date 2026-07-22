@@ -38,7 +38,7 @@ export default function POSPage() {
   const [showReceipt, setShowReceipt] = useState(false)
   const [discountInput, setDiscountInput] = useState('')
   const [stock, setStock] = useState({})
-  const [qtyModalState, setQtyModalState] = useState({ open: false, product: null, initialValue: 1 })
+  const [qtyModalState, setQtyModalState] = useState({ open: false, product: null, initialValue: 1, mode: 'add' })
   const [ticketNumber, setTicketNumber] = useState(0)
   const [frigoBatches, setFrigoBatches] = useState([])
   const { addNotification } = useNotification()
@@ -108,9 +108,11 @@ export default function POSPage() {
     ).slice(0, 12)
   }, [searchQuery, lang])
 
-  // Ouvre le clavier numérique pour saisir/éditer une quantité (au lieu d'ajouter +1 directement)
-  const openQuantityModal = (product, initialValue) => {
-    setQtyModalState({ open: true, product, initialValue })
+  // Ouvre le clavier numérique pour saisir une quantité. `mode: 'add'` (depuis un clic sur un
+  // produit) additionne la quantité saisie à celle déjà présente dans la commande ; `mode: 'edit'`
+  // (depuis le crayon dans le récap de commande) remplace la quantité de la ligne existante.
+  const openQuantityModal = (product, initialValue, mode = 'add') => {
+    setQtyModalState({ open: true, product, initialValue, mode })
   }
 
   const displayStock = (product) => {
@@ -132,21 +134,31 @@ export default function POSPage() {
       return
     }
     const existing = order.find((i) => i.id === product.id)
-    openQuantityModal(product, existing ? existing.qty : 1)
+    openQuantityModal(product, existing ? existing.qty : 1, 'add')
   }
 
   const handleEditOrderQty = (item) => {
-    openQuantityModal(item, item.qty)
+    openQuantityModal(item, item.qty, 'edit')
   }
 
   const confirmQuantity = (qty) => {
     const product = qtyModalState.product
-    setQtyModalState({ open: false, product: null, initialValue: 1 })
-    setItemQuantity(product, qty)
-    addNotification(`${getProductDisplayName(product, lang)} : ${formatQty(qty)} ${product.unit === 'kg' ? (lang === 'ar' ? 'كغ' : 'kg') : (lang === 'ar' ? 'قطعة' : 'pièce(s)')}`, 'success')
+    const mode = qtyModalState.mode
+    setQtyModalState({ open: false, product: null, initialValue: 1, mode: 'add' })
+    if (mode === 'edit') {
+      // Édition d'une ligne déjà dans la commande : la quantité saisie remplace l'ancienne.
+      setItemQuantity(product, qty)
+    } else {
+      // Nouvel ajout depuis le catalogue : la quantité saisie s'ajoute à ce qui est déjà commandé
+      // (au lieu d'écraser la ligne existante).
+      addToOrder(product, qty)
+    }
+    const existing = order.find((i) => i.id === product.id)
+    const newTotalQty = mode === 'edit' ? qty : (existing ? existing.qty + qty : qty)
+    addNotification(`${getProductDisplayName(product, lang)} : ${formatQty(newTotalQty)} ${product.unit === 'kg' ? (lang === 'ar' ? 'كغ' : 'kg') : (lang === 'ar' ? 'قطعة' : 'pièce(s)')}`, 'success')
   }
 
-  const cancelQuantity = () => setQtyModalState({ open: false, product: null, initialValue: 1 })
+  const cancelQuantity = () => setQtyModalState({ open: false, product: null, initialValue: 1, mode: 'add' })
 
   // Ouvre directement la confirmation de paiement (méthode déjà choisie via le bouton cliqué)
   const openConfirmPayment = (method) => {
@@ -446,7 +458,7 @@ export default function POSPage() {
       </main>
 
       {/* QUANTITY MODAL */}
-      <QuantityModal open={qtyModalState.open} product={qtyModalState.product} initialValue={qtyModalState.initialValue}
+      <QuantityModal open={qtyModalState.open} product={qtyModalState.product} initialValue={qtyModalState.initialValue} mode={qtyModalState.mode}
         onConfirm={confirmQuantity} onCancel={cancelQuantity} />
 
 
@@ -485,9 +497,16 @@ export default function POSPage() {
                   ))}
                 </div>
                 <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
+                  {remise > 0 && (
+                    <>
+                      <div className="flex justify-between text-diana-brown"><span>Sous-total</span><span>{subtotal.toFixed(2)} DH</span></div>
+                      <div className="flex justify-between text-diana-brown"><span>Remise ({remise}%)</span><span>-{remiseAmount.toFixed(2)} DH</span></div>
+                    </>
+                  )}
                   <div className="total flex justify-between items-baseline font-bold text-sm"><span>Total</span><span>{total.toFixed(2)} DH</span></div>
+                  <div className="flex justify-between text-diana-brown mt-1"><span>Règlement</span><span>{paymentType === 'cash' ? 'Espèces' : 'Carte'}</span></div>
                   {paymentType === 'cash' && changeGiven > 0 && (
-                    <div className="flex justify-between text-emerald-700 mt-1"><span>Monnaie rendue</span><span>{changeGiven.toFixed(2)} DH</span></div>
+                    <div className="flex justify-between text-diana-brown"><span>Monnaie rendue</span><span>{changeGiven.toFixed(2)} DH</span></div>
                   )}
                 </div>
                 <p className="footer text-center text-diana-brown text-[11px] italic mt-3">Merci de votre visite !</p>
