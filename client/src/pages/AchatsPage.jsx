@@ -185,17 +185,17 @@ export default function AchatsPage() {
               className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setRzizaBon(null)}>
               <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
                 className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
                   <ReceiptHeader subtitle="Bon de livraison — Rziza">
-                    <p className="text-diana-brown text-[10.5px] mt-1.5">{new Date(rzizaBon.timestamp).toLocaleDateString('fr-FR')} à {new Date(rzizaBon.timestamp).toLocaleTimeString('fr-FR')}</p>
+                    <p className="text-gray-500 text-[10.5px] mt-1.5">{new Date(rzizaBon.timestamp).toLocaleDateString('fr-FR')} à {new Date(rzizaBon.timestamp).toLocaleTimeString('fr-FR')}</p>
                   </ReceiptHeader>
                   <div className="receipt-line flex justify-between py-1"><span>Quantité livrée</span><span className="value font-semibold">{rzizaBon.quantity}</span></div>
                   <div className="receipt-line flex justify-between py-1"><span>Prix d'achat / unité</span><span className="value font-semibold">{rzizaBon.prixAchat.toFixed(2)} DH</span></div>
-                  <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
+                  <div className="border-t border-dashed border-gray-300 pt-2 mt-2">
                     <div className="total flex justify-between font-semibold"><span>Montant dû</span><span>{rzizaBon.montantDu.toFixed(2)} DH</span></div>
-                    <div className="flex justify-between text-diana-accentLight font-semibold mt-1"><span>Statut</span><span>NON PAYÉ</span></div>
+                    <div className="flex justify-between text-black font-semibold mt-1"><span>Statut</span><span>NON PAYÉ</span></div>
                   </div>
-                  <p className="footer text-diana-brown italic mt-3 text-center">Réglé personnellement — sans lien avec la caisse</p>
+                  <p className="footer text-gray-500 italic mt-3 text-center">Réglé personnellement — sans lien avec la caisse</p>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => window.print()}
