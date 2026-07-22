@@ -110,8 +110,8 @@ export default function CommandeRzizaPage() {
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
                 <ReceiptHeader subtitle="Commande fournisseur — Rziza">
-                  <p className="text-gray-500 text-[10.5px] mt-1.5">Ticket n°{String(receipt.task.ticketNumber).padStart(3, '0')} · {receipt.task.clientName}</p>
-                  <p className="text-gray-500 text-[10.5px]">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
+                  <p className="text-black text-[10.5px] mt-1.5">Ticket n°{String(receipt.task.ticketNumber).padStart(3, '0')} · {receipt.task.clientName}</p>
+                  <p className="text-black text-[10.5px]">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
                 </ReceiptHeader>
                 <div className="space-y-1 mb-2">
                   {receipt.items.map((i) => (
@@ -123,7 +123,7 @@ export default function CommandeRzizaPage() {
                 <div className="border-t border-dashed border-gray-300 pt-2 mt-2">
                   <div className="flex justify-between text-black font-semibold"><span>Statut</span><span>NON PAYÉ</span></div>
                 </div>
-                <p className="text-gray-500 italic mt-3 text-center">À transmettre au fournisseur — sans impact sur le stock</p>
+                <p className="text-black italic mt-3 text-center">À transmettre au fournisseur — sans impact sur le stock</p>
               </div>
               <div className="flex gap-2 print:hidden">
                 <button onClick={() => window.print()}
