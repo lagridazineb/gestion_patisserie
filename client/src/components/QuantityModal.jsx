@@ -4,7 +4,7 @@ import { FiDelete, FiX } from 'react-icons/fi'
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back']
 
-export default function QuantityModal({ open, product, initialValue = 1, onConfirm, onCancel }) {
+export default function QuantityModal({ open, product, initialValue = 1, mode = 'add', onConfirm, onCancel }) {
   const [value, setValue] = useState('')
 
   useEffect(() => {
@@ -61,7 +61,11 @@ export default function QuantityModal({ open, product, initialValue = 1, onConfi
                 <p className="font-fraunces text-base text-diana-cream truncate">{product.name}</p>
                 <p className="text-xs text-diana-gold mt-0.5">{(product.price || 0).toFixed(2)} DH / {unit}</p>
                 {initialValue > 0 && (
-                  <p className="text-[11px] text-diana-brownLight mt-0.5">Quantité actuelle : {Number.isInteger(initialValue) ? initialValue : initialValue.toFixed(2)} {unit}</p>
+                  <p className="text-[11px] text-diana-brownLight mt-0.5">
+                    {mode === 'edit'
+                      ? `Quantité actuelle : ${Number.isInteger(initialValue) ? initialValue : initialValue.toFixed(2)} ${unit}`
+                      : `Déjà dans la commande : ${Number.isInteger(initialValue) ? initialValue : initialValue.toFixed(2)} ${unit} — la quantité saisie s'ajoutera`}
+                  </p>
                 )}
               </div>
               <button onClick={onCancel} className="shrink-0 text-diana-brown hover:text-diana-cream transition-colors p-1">
