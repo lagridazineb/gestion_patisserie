@@ -25,7 +25,7 @@ export default function VentesPage() {
   const [retours, setRetours] = useState({ current: null, previous: null })
   const [commandesBilan, setCommandesBilan] = useState(null)
   const [expandedAtelier, setExpandedAtelier] = useState(null)
-  const [expandedRetour, setExpandedRetour] = useState(null) // 'previous' | 'current' | null
+  const [retourTab, setRetourTab] = useState('previous') // 'previous' | 'current'
   const [ventesTab, setVentesTab] = useState('production') // 'production' | 'vente'
   const [productOverlay, setProductOverlay] = useState({ customProducts: [], edits: [], deletedIds: [] })
 
@@ -200,59 +200,74 @@ export default function VentesPage() {
           ))}
         </div>
 
-        {/* Retours : deux cases bien séparées, jamais mélangées avec le calcul des ventes.
-            Chacune peut être dépliée pour voir le détail produit par produit. */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          {[
-            { key: 'previous', data: retours.previous, title: 'Retour du jour précédent', color: 'bg-purple-500/10 text-purple-400',
-              emptyLabel: "Pas encore de retour enregistré pour le jour précédent.",
-              filledLabel: (r) => `Calculé le ${r.date} — réutilisé comme fond de caisse aujourd'hui.` },
-            { key: 'current', data: retours.current, title: 'Retour (fermeture de caisse du jour)', color: 'bg-diana-gold/10 text-diana-gold',
-              emptyLabel: "Pas encore calculé : se fait automatiquement au vidage de fin de journée (page Stock).",
-              filledLabel: () => "Stock invendu d'entremet/gâteau/cake/pâtisserie au vidage de ce soir-là — servira de fond de caisse demain." },
-          ].map(({ key, data, title, color, emptyLabel, filledLabel }, i) => {
-            const isOpen = expandedRetour === key
+        {/* Retours : même principe de séparation par onglet que Production/Vente. Le détail
+            produit par produit du cas sélectionné est toujours affiché en dessous, sans avoir
+            besoin de déplier quoi que ce soit. */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="mb-8">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+            <h3 className="font-fraunces text-lg text-diana-cream">Retours de caisse</h3>
+            <div className="inline-flex bg-diana-card border border-diana-border rounded-xl p-1">
+              <button onClick={() => setRetourTab('previous')}
+                className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${retourTab === 'previous' ? 'bg-purple-500 text-white' : 'text-diana-brown hover:text-diana-cream'}`}>
+                Jour précédent
+              </button>
+              <button onClick={() => setRetourTab('current')}
+                className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${retourTab === 'current' ? 'bg-diana-gold text-diana-dark' : 'text-diana-brown hover:text-diana-cream'}`}>
+                Fermeture du jour
+              </button>
+            </div>
+          </div>
+
+          {(() => {
+            const isPrevious = retourTab === 'previous'
+            const data = isPrevious ? retours.previous : retours.current
+            const color = isPrevious ? 'bg-purple-500/10 text-purple-400' : 'bg-diana-gold/10 text-diana-gold'
+            const emptyLabel = isPrevious
+              ? "Pas encore de retour enregistré pour le jour précédent."
+              : "Pas encore calculé : se fait automatiquement au vidage de fin de journée (page Stock)."
+            const filledLabel = data
+              ? (isPrevious
+                  ? `Calculé le ${data.date} — réutilisé comme fond de caisse aujourd'hui.`
+                  : "Stock invendu d'entremet/gâteau/cake/pâtisserie au vidage de ce soir-là — servira de fond de caisse demain.")
+              : null
             const entries = data?.entries || []
             return (
-              <motion.div key={key} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 + i * 0.06 }}
-                className="bg-diana-card border border-diana-border rounded-2xl p-5">
-                <button onClick={() => data && setExpandedRetour(isOpen ? null : key)} className="w-full text-left" disabled={!data}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center`}><FiRotateCcw size={18} /></div>
-                    {data && <FiChevronDown className={`text-diana-brown transition-transform ${isOpen ? 'rotate-180' : ''}`} size={16} />}
+              <div className="bg-diana-card border border-diana-border rounded-2xl p-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center`}><FiRotateCcw size={18} /></div>
+                  <div>
+                    <p className="font-fraunces text-2xl font-semibold text-diana-cream">{data ? `${data.totalValue.toFixed(2)} DH` : '—'}</p>
+                    <p className="text-[11px] text-diana-brownLight">{data ? filledLabel : emptyLabel}</p>
                   </div>
-                  <p className="font-fraunces text-2xl font-semibold text-diana-cream mb-1">{data ? `${data.totalValue.toFixed(2)} DH` : '—'}</p>
-                  <p className="text-xs text-diana-brown">{title}</p>
-                  <p className="text-[11px] text-diana-brownLight mt-1">{data ? filledLabel(data) : emptyLabel}</p>
-                </button>
-                {isOpen && (
-                  <div className="mt-4 pt-4 border-t border-diana-border/40">
-                    <p className="text-[11px] uppercase tracking-wide text-diana-brown mb-2">Détail produit par produit</p>
-                    {entries.length === 0 ? (
-                      <p className="text-xs italic text-diana-brownLight">Aucun produit dans ce retour</p>
-                    ) : (
-                      <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                        {entries.map((e, idx) => (
-                          <div key={`${e.productId || e.name}-${idx}`} className="flex justify-between text-xs gap-2">
-                            <span className="text-diana-cream truncate flex items-center gap-1.5">
-                              <FiPackage size={11} className="text-diana-brown shrink-0" /> {e.name} × {e.qty}
-                              {e.price ? <span className="text-diana-brownLight"> ({Number(e.price).toFixed(2)} DH/u)</span> : null}
-                            </span>
-                            <span className="text-diana-gold font-medium shrink-0">{Number(e.value).toFixed(2)} DH</span>
-                          </div>
-                        ))}
-                        <div className="flex justify-between text-xs gap-2 pt-2 border-t border-diana-border/40 font-semibold">
-                          <span className="text-diana-brown">Total ({entries.length} produit{entries.length > 1 ? 's' : ''})</span>
-                          <span className="text-diana-gold">{data.totalValue.toFixed(2)} DH</span>
+                </div>
+                <div className="mt-4 pt-4 border-t border-diana-border/40">
+                  <p className="text-[11px] uppercase tracking-wide text-diana-brown mb-2">Détail produit par produit</p>
+                  {entries.length === 0 ? (
+                    <p className="text-xs italic text-diana-brownLight">
+                      {data ? 'Aucun produit dans ce retour' : "Rien à afficher — aucune clôture de fin de journée n'a encore été enregistrée pour ce cas."}
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+                      {entries.map((e, idx) => (
+                        <div key={`${e.productId || e.name}-${idx}`} className="flex justify-between text-xs gap-2">
+                          <span className="text-diana-cream truncate flex items-center gap-1.5">
+                            <FiPackage size={11} className="text-diana-brown shrink-0" /> {e.name} × {e.qty}
+                            {e.price ? <span className="text-diana-brownLight"> ({Number(e.price).toFixed(2)} DH/u)</span> : null}
+                          </span>
+                          <span className="text-diana-gold font-medium shrink-0">{Number(e.value).toFixed(2)} DH</span>
                         </div>
+                      ))}
+                      <div className="flex justify-between text-xs gap-2 pt-2 border-t border-diana-border/40 font-semibold">
+                        <span className="text-diana-brown">Total ({entries.length} produit{entries.length > 1 ? 's' : ''})</span>
+                        <span className="text-diana-gold">{data.totalValue.toFixed(2)} DH</span>
                       </div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
+                    </div>
+                  )}
+                </div>
+              </div>
             )
-          })}
-        </div>
+          })()}
+        </motion.div>
 
         {/* Détail par atelier / préparateur — séparé en 2 onglets Production / Vente */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-8">
