@@ -50,19 +50,6 @@ Diana/
 └── package.json            # Configuration monorepo
 ```
 
-## 🔑 Comptes de démonstration
-
-| Email | Mot de passe | Rôle |
-|-------|-------------|------|
-| admin@diana.ma | diana2024 | Administrateur |
-| pain@diana.ma | diana2024 | Préparateur Pain |
-| viennoiserie@diana.ma | diana2024 | Préparateur Viennoiserie |
-| patisserie@diana.ma | diana2024 | Préparateur Pâtisserie |
-| sale@diana.ma | diana2024 | Préparateur Salé |
-| gateau@diana.ma | diana2024 | Préparateur Gâteau Marocain |
-| entremet@diana.ma | diana2024 | Préparateur Entremets |
-| millefeuille@diana.ma | diana2024 | Préparateur Millefeuille / Cake |
-| rziza@diana.ma | diana2024 | Préparateur Rziza |
 
 ## 🎨 Design
 
