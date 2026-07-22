@@ -8,6 +8,7 @@ const morgan = require('morgan')
 dotenv.config()
 
 const { pool, testConnection } = require('./config/db')
+const { checkServerAutoClosing } = require('./utils/stockHelpers')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -81,6 +82,17 @@ app.listen(PORT, async () => {
   try {
     await testConnection()
     console.log('✅  Connexion à la base de données MySQL réussie\n')
+
+    // Clôture de fin de journée : vérifiée ici, dans le processus serveur, toutes les
+    // minutes — donc même si personne n'a la page Stock ouverte dans un navigateur, la
+    // clôture (et le retour de caisse qui en découle) se fait bien à l'heure configurée.
+    const runEodCheck = () => {
+      checkServerAutoClosing().catch((err) => {
+        console.error('❌  Erreur lors de la vérification de clôture automatique :', err.message)
+      })
+    }
+    runEodCheck()
+    setInterval(runEodCheck, 60 * 1000)
   } catch (err) {
     console.error('❌  Impossible de se connecter à la base de données')
     console.error('   Code erreur :', err.code || '(aucun)')
