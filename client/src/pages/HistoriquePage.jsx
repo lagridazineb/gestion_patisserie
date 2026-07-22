@@ -144,14 +144,14 @@ export default function HistoriquePage() {
                   <button onClick={() => setSelected(null)} className="text-diana-brown hover:text-diana-dark"><FiX size={18} /></button>
                 </div>
 
-                <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-diana-creamDark">
+                <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
                   <ReceiptHeader>
-                    <p className="text-diana-brown text-[10.5px] mt-1.5">
+                    <p className="text-gray-500 text-[10.5px] mt-1.5">
                       {new Date(selected.type === 'ticket' ? selected.data.timestamp : selected.data.createdAt).toLocaleDateString('fr-FR')}
                       {' '}
                       {new Date(selected.type === 'ticket' ? selected.data.timestamp : selected.data.createdAt).toLocaleTimeString('fr-FR')}
                     </p>
-                    <p className="text-diana-dark text-[11px] font-semibold">
+                    <p className="text-black text-[11px] font-semibold">
                       {selected.type === 'ticket' ? `Ticket n°${String(selected.data.ticketNumber).padStart(3, '0')}` : `Commande n°${selected.data.ticketNumber}`}
                     </p>
                   </ReceiptHeader>
@@ -160,7 +160,7 @@ export default function HistoriquePage() {
                     <div className="mb-3 space-y-0.5">
                       <p className="flex items-center gap-1.5"><FiUser size={11} /> {selected.data.clientName}</p>
                       {selected.data.clientPhone && <p className="flex items-center gap-1.5"><FiPhone size={11} /> {selected.data.clientPhone}</p>}
-                      <p className="text-diana-brown">Livraison : {selected.data.deliveryDate} à {selected.data.deliveryTime}</p>
+                      <p className="text-gray-500">Livraison : {selected.data.deliveryDate} à {selected.data.deliveryTime}</p>
                     </div>
                   )}
 
@@ -171,16 +171,16 @@ export default function HistoriquePage() {
                     </div>
                   ))}
 
-                  <div className="border-t border-dashed border-diana-creamDark pt-2 mt-2">
+                  <div className="border-t border-dashed border-gray-300 pt-2 mt-2">
                     {selected.type === 'ticket' ? (
                       <>
                         <div className="flex justify-between font-semibold"><span>Total</span><span>{(selected.data.total || 0).toFixed(2)} DH</span></div>
-                        <div className="flex justify-between text-diana-brown mt-1"><span>Paiement</span><span>{selected.data.paymentType === 'cash' ? 'Espèces' : 'TPE'}</span></div>
+                        <div className="flex justify-between text-gray-500 mt-1"><span>Paiement</span><span>{selected.data.paymentType === 'cash' ? 'Espèces' : 'TPE'}</span></div>
                       </>
                     ) : (
                       <>
                         <div className="flex justify-between font-semibold"><span>Total</span><span>{(selected.data.total || 0).toFixed(2)} DH</span></div>
-                        <div className="flex justify-between text-emerald-700 mt-1"><span>Avance versée</span><span>{(selected.data.avanceInitiale ?? selected.data.avance ?? 0).toFixed(2)} DH</span></div>
+                        <div className="flex justify-between text-black mt-1"><span>Avance versée</span><span>{(selected.data.avanceInitiale ?? selected.data.avance ?? 0).toFixed(2)} DH</span></div>
                         <div className="flex justify-between mt-1"><span>Reste</span><span>{selected.data.soldePaid ? '0.00 DH (soldée)' : `${(selected.data.resteAPayer || 0).toFixed(2)} DH`}</span></div>
                       </>
                     )}
