@@ -73,14 +73,24 @@
     left: 0;
     width: 80mm;
     padding: 5mm;
-    background: white;
-    color: black;
+    background: #fff !important;
+    color: #000 !important;
     font-family: "Courier New", "Monaco", monospace;
     font-size: 13px;
     line-height: 1.45;
     font-weight: 500;
     box-shadow: none;
     border: none;
+  }
+
+  /* Aucune couleur à l'impression : quelle que soit la classe Tailwind utilisée à l'écran
+     (text-diana-gold, text-emerald-700, text-diana-danger, etc.), le ticket imprimé reste
+     entièrement noir sur blanc, comme un ticket de caisse classique. */
+  .receipt-print * {
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #bbb !important;
+    box-shadow: none !important;
   }
 
   /* En-tête */
