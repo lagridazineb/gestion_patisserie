@@ -86,11 +86,21 @@
   /* Aucune couleur à l'impression : quelle que soit la classe Tailwind utilisée à l'écran
      (text-diana-gold, text-emerald-700, text-diana-danger, etc.), le ticket imprimé reste
      entièrement noir sur blanc, comme un ticket de caisse classique. */
+  .receipt-print,
   .receipt-print * {
     color: #000 !important;
     background: transparent !important;
-    border-color: #bbb !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: #999 !important;
     box-shadow: none !important;
+    text-shadow: none !important;
+    -webkit-text-fill-color: #000 !important;
+    opacity: 1 !important;
+  }
+
+  .receipt-print {
+    background: #fff !important;
   }
 
   /* En-tête */
