@@ -34,7 +34,30 @@
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
-}@media print {
+}
+
+/* Séparateur visuel entre les exemplaires d'un reçu de commande (aperçu à l'écran
+   uniquement — à l'impression, .receipt-page ci-dessous force déjà un saut de page). */
+.receipt-print .receipt-page + .receipt-page {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 2px dashed #C9A15F;
+  position: relative;
+}
+.receipt-print .receipt-page + .receipt-page::before {
+  content: '✂ - - - - - - - - - - - - - - - - - - - - - -';
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 0 6px;
+  font-size: 9px;
+  color: #C9A15F;
+  white-space: nowrap;
+}
+
+@media print {
 
   html,
   body {
@@ -86,13 +109,25 @@
     margin: 0 0 4px;
   }
 
-  /* Logo en haut du reçu */
-  .receipt-print img {
-    display: block;
-    width: 42px;
-    height: 42px;
-    margin: 0 auto 6px;
-    object-fit: contain;
+  /* Reçu de commande (CommandesPage) : chaque exemplaire (client / caisse / atelier) est
+     un bloc .receipt-page. On force un saut de page entre chacun pour que l'imprimante
+     thermique découpe le rouleau entre deux exemplaires au lieu de tout coller sur un
+     seul ticket. */
+  .receipt-print .receipt-page {
+    page-break-after: always;
+    break-after: page;
+  }
+  .receipt-print .receipt-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  .receipt-print .receipt-page + .receipt-page {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+  .receipt-print .receipt-page + .receipt-page::before {
+    content: none;
   }
 
   /* Date + ticket */
