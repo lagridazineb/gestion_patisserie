@@ -96,30 +96,38 @@ export default function CommandesPage() {
 
   const [activeCategory, setActiveCategory] = useState(null)
   const [activeSubcategory, setActiveSubcategory] = useState(null)
-  const [qtyModalState, setQtyModalState] = useState({ open: false, product: null, initialValue: 1 })
-  const [customModalState, setCustomModalState] = useState({ open: false, product: null, qty: 1 })
-  const [moroccanModalState, setMoroccanModalState] = useState({ open: false, product: null, qty: 1 })
-  const [salePlateauState, setSalePlateauState] = useState({ open: false, product: null, qty: 1 })
-  const [layerModalState, setLayerModalState] = useState({ open: false, product: null, qty: 1 })
+  const [qtyModalState, setQtyModalState] = useState({ open: false, product: null, initialValue: 1, mode: 'add' })
+  const [customModalState, setCustomModalState] = useState({ open: false, product: null, qty: 1, mode: 'add' })
+  const [moroccanModalState, setMoroccanModalState] = useState({ open: false, product: null, qty: 1, mode: 'add' })
+  const [salePlateauState, setSalePlateauState] = useState({ open: false, product: null, qty: 1, mode: 'add' })
+  const [layerModalState, setLayerModalState] = useState({ open: false, product: null, qty: 1, mode: 'add' })
 
   const currentCategory = activeCategory ? CATEGORIES.find((c) => c.id === activeCategory) : null
   const hasChildren = currentCategory?.children?.length > 0
   const leafCategoryId = hasChildren ? activeSubcategory : activeCategory
   const leafCategory = leafCategoryId ? findCategory(leafCategoryId) : null
 
-  const openQuantityModal = (product, initialValue) => setQtyModalState({ open: true, product, initialValue })
+  // `mode: 'add'` (clic sur un produit du catalogue) additionne la quantité saisie à celle déjà
+  // présente dans la commande ; `mode: 'edit'` (crayon sur une ligne déjà commandée) remplace la
+  // quantité de cette ligne.
+  const openQuantityModal = (product, initialValue, mode = 'add') => setQtyModalState({ open: true, product, initialValue, mode })
 
   const handleProductClick = (product) => {
     const existing = order.find((i) => i.id === product.id)
-    openQuantityModal(product, existing ? existing.qty : 1)
+    openQuantityModal(product, existing ? existing.qty : 1, 'add')
   }
-  const handleEditOrderQty = (item) => openQuantityModal(item, item.qty)
+  const handleEditOrderQty = (item) => openQuantityModal(item, item.qty, 'edit')
 
-  const addOrUpdateItem = (product, qty, extra = {}) => {
+  // mode 'add' additionne à la quantité déjà présente pour ce produit (au lieu de l'écraser) ;
+  // mode 'edit' remplace la quantité de la ligne existante.
+  const addOrUpdateItem = (product, qty, extra = {}, mode = 'add') => {
     setOrder((prev) => {
       if (qty <= 0) return prev.filter((i) => i.id !== product.id)
       const existing = prev.find((i) => i.id === product.id)
-      if (existing) return prev.map((i) => i.id === product.id ? { ...i, qty, ...extra } : i)
+      if (existing) {
+        const newQty = mode === 'add' ? existing.qty + qty : qty
+        return prev.map((i) => i.id === product.id ? { ...i, qty: newQty, ...extra } : i)
+      }
       return [...prev, { ...product, qty, ...extra }]
     })
   }
@@ -146,55 +154,56 @@ export default function CommandesPage() {
 
   const confirmQuantity = (qty) => {
     const product = qtyModalState.product
-    setQtyModalState({ open: false, product: null, initialValue: 1 })
+    const mode = qtyModalState.mode
+    setQtyModalState({ open: false, product: null, initialValue: 1, mode: 'add' })
 
     if (qty > 0 && product.isLayerType) {
-      setLayerModalState({ open: true, product, qty })
+      setLayerModalState({ open: true, product, qty, mode })
       return
     }
     if (qty > 0 && product.category === 'gateau_maroc') {
-      setMoroccanModalState({ open: true, product, qty })
+      setMoroccanModalState({ open: true, product, qty, mode })
       return
     }
     if (qty > 0 && product.id in SALE_PLATEAU_COMPOSITIONS) {
-      setSalePlateauState({ open: true, product, qty })
+      setSalePlateauState({ open: true, product, qty, mode })
       return
     }
     // Pour les catégories de gâteaux, on propose une personnalisation facultative
     // (texte à écrire + photo de référence) avant d'ajouter au panier.
     if (qty > 0 && CUSTOMIZABLE_CATEGORIES.includes(product.category)) {
-      setCustomModalState({ open: true, product, qty })
+      setCustomModalState({ open: true, product, qty, mode })
       return
     }
-    addOrUpdateItem(product, qty)
+    addOrUpdateItem(product, qty, {}, mode)
   }
-  const cancelQuantity = () => setQtyModalState({ open: false, product: null, initialValue: 1 })
+  const cancelQuantity = () => setQtyModalState({ open: false, product: null, initialValue: 1, mode: 'add' })
 
   const confirmCustomization = ({ customNote, customImage, personPhotoSurcharge, price }) => {
-    addOrUpdateItem(customModalState.product, customModalState.qty, { customNote, customImage, personPhotoSurcharge, price })
-    setCustomModalState({ open: false, product: null, qty: 1 })
+    addOrUpdateItem(customModalState.product, customModalState.qty, { customNote, customImage, personPhotoSurcharge, price }, customModalState.mode)
+    setCustomModalState({ open: false, product: null, qty: 1, mode: 'add' })
   }
   const skipCustomization = () => {
-    addOrUpdateItem(customModalState.product, customModalState.qty)
-    setCustomModalState({ open: false, product: null, qty: 1 })
+    addOrUpdateItem(customModalState.product, customModalState.qty, {}, customModalState.mode)
+    setCustomModalState({ open: false, product: null, qty: 1, mode: 'add' })
   }
 
   const confirmMoroccanCustomization = ({ customNote }, finalQty) => {
-    const { product } = moroccanModalState
+    const { product, mode } = moroccanModalState
     const qty = finalQty !== undefined ? finalQty : moroccanModalState.qty
-    addOrUpdateItem(product, qty, { customNote })
-    setMoroccanModalState({ open: false, product: null, qty: 1 })
+    addOrUpdateItem(product, qty, { customNote }, mode)
+    setMoroccanModalState({ open: false, product: null, qty: 1, mode: 'add' })
   }
   const cancelMoroccanCustomization = () => {
-    setMoroccanModalState({ open: false, product: null, qty: 1 })
+    setMoroccanModalState({ open: false, product: null, qty: 1, mode: 'add' })
   }
 
   const confirmSalePlateau = (customNote) => {
-    const { product, qty } = salePlateauState
-    addOrUpdateItem(product, qty, { customNote })
-    setSalePlateauState({ open: false, product: null, qty: 1 })
+    const { product, qty, mode } = salePlateauState
+    addOrUpdateItem(product, qty, { customNote }, mode)
+    setSalePlateauState({ open: false, product: null, qty: 1, mode: 'add' })
   }
-  const cancelSalePlateau = () => setSalePlateauState({ open: false, product: null, qty: 1 })
+  const cancelSalePlateau = () => setSalePlateauState({ open: false, product: null, qty: 1, mode: 'add' })
 
   const removeItem = (id) => setOrder((prev) => prev.filter((i) => i.id !== id))
 
@@ -551,7 +560,7 @@ export default function CommandesPage() {
       </div>
 
       {/* QUANTITY MODAL */}
-      <QuantityModal open={qtyModalState.open} product={qtyModalState.product} initialValue={qtyModalState.initialValue}
+      <QuantityModal open={qtyModalState.open} product={qtyModalState.product} initialValue={qtyModalState.initialValue} mode={qtyModalState.mode}
         onConfirm={confirmQuantity} onCancel={cancelQuantity} />
 
       {/* PERSONNALISATION GÂTEAU (texte + photo) */}
