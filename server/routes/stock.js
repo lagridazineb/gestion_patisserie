@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { pool } = require('../config/db')
 const { authMiddleware, adminMiddleware } = require('../middleware/auth')
-const { adjustStock, setStock, getStockMap } = require('../utils/stockHelpers')
+const { adjustStock, setStock, getStockMap, performClear } = require('../utils/stockHelpers')
 
 // Tous les rôles connectés peuvent lire le stock (caissier, préparateur, admin en ont besoin)
 router.get('/', authMiddleware, async (req, res) => {
@@ -86,80 +86,8 @@ router.post('/clear', authMiddleware, async (req, res) => {
     }
     if (!Array.isArray(affectedProducts)) return res.status(400).json({ error: 'affectedProducts requis' })
 
-    const stock = await getStockMap()
-    const entries = affectedProducts
-      .map((p) => {
-        const qty = stock[p.id] ?? 0
-        return { productId: p.id, name: p.name, category: p.category, qty, price: p.price || 0, value: qty * (p.price || 0) }
-      })
-      .filter((e) => e.qty > 0)
-    const totalQuantity = entries.reduce((s, e) => s + e.qty, 0)
-    const totalValue = entries.reduce((s, e) => s + e.value, 0)
-
-    // "Fin de journée" (type 'soir') : en plus de ce qui est vidé (pain/viennoiserie/salé...),
-    // on calcule le retour vendable des AUTRES catégories encore en stock (pas remises à 0,
-    // donc reportées au lendemain) et un résumé de la production du jour — pour que le reçu
-    // donne une vue complète de la journée.
-    let carryover = []
-    let productionSummary = []
-    if (type === 'soir') {
-      const clearedIds = new Set(affectedProducts.map((p) => p.id))
-      carryover = (Array.isArray(fullCatalog) ? fullCatalog : [])
-        .filter((p) => !clearedIds.has(p.id))
-        .map((p) => {
-          const qty = stock[p.id] ?? 0
-          return { productId: p.id, name: p.name, category: p.category, qty, price: p.price || 0, value: qty * (p.price || 0) }
-        })
-        .filter((e) => e.qty > 0)
-
-      const [prodRows] = await pool.query(
-        `SELECT category, SUM(quantity) AS qty, SUM(quantity * COALESCE(price, 0)) AS value
-         FROM production_entries WHERE production_date = CURDATE() GROUP BY category`
-      )
-      productionSummary = prodRows.map((r) => ({ category: r.category, qty: Number(r.qty), value: Number(r.value) }))
-    }
-
-    for (const p of affectedProducts) {
-      await setStock(p.id, 0)
-    }
-
-    // Remet aussi à zéro le compteur "Fait" du préparateur pour ces produits : sans ça, le
-    // stock repasse à 0 mais l'historique de production du jour reste affiché tel quel côté
-    // préparateur jusqu'au changement de date calendaire.
-    const productIds = affectedProducts.map((p) => p.id).filter(Boolean)
-    if (productIds.length) {
-      const placeholders = productIds.map(() => '?').join(',')
-      await pool.query(
-        `DELETE FROM production_entries WHERE production_date = CURDATE() AND product_id IN (${placeholders})`,
-        productIds
-      )
-    }
-
-    const id = Date.now()
-    await pool.query(
-      `INSERT INTO stock_clear_log (id, type, entries, total_quantity, total_value, product_count, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [id, type, JSON.stringify(entries), totalQuantity, totalValue, entries.length]
-    )
-
-    if (type === 'soir') {
-      const today = new Date().toISOString().slice(0, 10)
-      await pool.query('UPDATE eod_settings SET last_cleared_date = ? WHERE id = 1', [today])
-
-      // Persiste la valeur du "retour" du jour (stock invendu d'entremet/gâteau/cake/pâtisserie,
-      // c'est-à-dire tout ce qui n'a pas été vidé ci-dessus) : servira demain de "retour du jour
-      // précédent" sur la page Ventes, et de fond de caisse réutilisable.
-      const retourTotal = carryover.reduce((s, e) => s + e.value, 0)
-      const retourId = Date.now() + 1
-      await pool.query(
-        `INSERT INTO retours_caisse (id, retour_date, total_value, entries, created_at, updated_at)
-         VALUES (?, ?, ?, ?, NOW(), NOW())
-         ON DUPLICATE KEY UPDATE total_value = VALUES(total_value), entries = VALUES(entries), updated_at = NOW()`,
-        [retourId, today, retourTotal, JSON.stringify(carryover)]
-      )
-    }
-
-    res.json({ success: true, id, type, entries, totalQuantity, totalValue, count: affectedProducts.length, carryover, productionSummary })
+    const result = await performClear({ type, affectedProducts, fullCatalog })
+    res.json(result)
   } catch (error) {
     console.error('Erreur POST /api/stock/clear :', error)
     res.status(500).json({ error: 'Erreur serveur' })
