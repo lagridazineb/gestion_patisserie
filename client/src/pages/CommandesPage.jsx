@@ -253,6 +253,13 @@ export default function CommandesPage() {
   const [showReceipt, setShowReceipt] = useState(false)
   const [lastReservation, setLastReservation] = useState(null)
   const [showConfirmPayment, setShowConfirmPayment] = useState(false)
+  // Impression séquentielle : une commande donne 3 exemplaires ou plus (client, caisse, un bon
+  // par atelier concerné). Sur une imprimante à rouleau, un saut de page CSS ne déclenche pas
+  // toujours une coupe physique du papier entre chaque exemplaire — on envoie donc un job
+  // d'impression DISTINCT par exemplaire (printSeqIndex = index de la page en cours d'impression,
+  // null = pas d'impression séquentielle en cours, on affiche alors tous les exemplaires à l'écran
+  // pour l'aperçu). La plupart des imprimantes tickets coupent le papier à la fin de chaque job.
+  const [printSeqIndex, setPrintSeqIndex] = useState(null)
 
   const { groups: atelierGroups, order: atelierOrder } = useMemo(
     () => lastReservation ? groupItemsByAtelier(lastReservation.items) : { groups: {}, order: [] },
@@ -306,13 +313,45 @@ export default function CommandesPage() {
   const handleCloseReceipt = () => {
     setShowReceipt(false)
     setLastReservation(null)
+    setPrintSeqIndex(null)
     resetForm()
   }
 
+  // Lance l'impression du 1er exemplaire ; les suivants s'enchaînent automatiquement
+  // (voir l'effet ci-dessous basé sur l'évènement 'afterprint').
   const handlePrintReceipt = () => {
-    window.print()
-    setTimeout(handleCloseReceipt, 400)
+    setPrintSeqIndex(0)
   }
+
+  // Nombre total d'exemplaires à imprimer pour la commande en cours : client + caisse + un bon
+  // par atelier concerné.
+  const receiptCopyCount = lastReservation ? 2 + atelierOrder.length : 0
+
+  // Déclenche l'impression du job en cours dès que le DOM a basculé sur l'exemplaire à imprimer.
+  useEffect(() => {
+    if (printSeqIndex === null) return
+    const t = setTimeout(() => window.print(), 150)
+    return () => clearTimeout(t)
+  }, [printSeqIndex])
+
+  // À la fin de chaque job d'impression (fermeture de la boîte de dialogue ou impression
+  // silencieuse terminée), on passe à l'exemplaire suivant ; une fois tous les exemplaires
+  // imprimés, on ferme le reçu.
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setPrintSeqIndex((idx) => {
+        if (idx === null) return null
+        const next = idx + 1
+        if (next >= receiptCopyCount) {
+          setTimeout(handleCloseReceipt, 200)
+          return null
+        }
+        return next
+      })
+    }
+    window.addEventListener('afterprint', handleAfterPrint)
+    return () => window.removeEventListener('afterprint', handleAfterPrint)
+  }, [receiptCopyCount])
 
   // --- Commandes prêtes (compteur affiché sur le bouton, page dédiée /commandes/suivi) ---
   const [reservations, setReservations] = useState([])
@@ -612,6 +651,7 @@ export default function CommandesPage() {
               </div>
               <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-black text-black max-h-[50vh] overflow-y-auto">
                 {/* PAGE 1 — EXEMPLAIRE CLIENT */}
+                {(printSeqIndex === null || printSeqIndex === 0) && (
                 <div className="receipt-page">
                   <ReceiptHeader subtitle="Commande enregistrée">
                     <p className="text-black text-[10.5px] mt-1.5">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
@@ -631,8 +671,10 @@ export default function CommandesPage() {
                     <div className="flex justify-between font-semibold text-black"><span>Reste à payer</span><span>{lastReservation.resteAPayer.toFixed(2)} DH</span></div>
                   </div>
                 </div>
+                )}
 
                 {/* PAGE 2 — EXEMPLAIRE CAISSIER (infos internes en plus : mode de paiement, opérateur) */}
+                {(printSeqIndex === null || printSeqIndex === 1) && (
                 <div className="receipt-page">
                   <ReceiptHeader subtitle="Commande enregistrée">
                     <p className="text-black text-[10.5px] mt-1.5">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
@@ -656,11 +698,14 @@ export default function CommandesPage() {
                     <div className="flex justify-between"><span className="text-black">Enregistré par</span><span className="font-semibold">{user?.name || '—'}</span></div>
                   </div>
                 </div>
+                )}
 
                 {/* PAGES SUIVANTES — UN BON DE PRÉPARATION PAR ATELIER CONCERNÉ, SANS PRIX */}
-                {atelierOrder.map((atelierId) => {
+                {atelierOrder.map((atelierId, atelierIdx) => {
                   const atelierObj = ATELIERS.find((a) => a.id === atelierId)
                   const atelierLabel = atelierObj ? getCategoryLabel(atelierObj, lang) : atelierId
+                  const pageIdx = 2 + atelierIdx
+                  if (printSeqIndex !== null && printSeqIndex !== pageIdx) return null
                   return (
                     <div className="receipt-page" key={atelierId}>
                       <ReceiptHeader subtitle="Bon de préparation" hideAddress>
@@ -677,9 +722,10 @@ export default function CommandesPage() {
                 })}
               </div>
               <div className="flex flex-col gap-2.5">
-                <button onClick={handlePrintReceipt}
-                  className="flex items-center justify-center gap-2 bg-diana-brownDark text-white py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
-                  <FiPrinter size={16} /> Imprimer le reçu
+                <button onClick={handlePrintReceipt} disabled={printSeqIndex !== null}
+                  className="flex items-center justify-center gap-2 bg-diana-brownDark text-white py-3 rounded-xl text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-60 disabled:pointer-events-none">
+                  <FiPrinter size={16} />
+                  {printSeqIndex !== null ? `Impression ${printSeqIndex + 1}/${receiptCopyCount}...` : 'Imprimer le reçu'}
                 </button>
                 <button onClick={handleCloseReceipt}
                   className="flex items-center justify-center gap-2 bg-[#C89A5C] text-white py-3 rounded-xl text-sm font-semibold hover:bg-[#B88443] transition-all">
