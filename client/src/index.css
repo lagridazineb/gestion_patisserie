@@ -72,7 +72,7 @@
     top: 0;
     left: 0;
     width: 80mm;
-    padding: 4mm;
+    padding: 5mm;
     background: #fff !important;
     color: #000 !important;
     font-family: "Courier New", "Monaco", monospace;
@@ -80,16 +80,7 @@
     line-height: 1.45;
     font-weight: 500;
     box-shadow: none;
-    border: 1.5px dashed #000;
-  }
-
-  /* Un ticket sans copies multiples (vente, bon Rziza, clôture de caisse...) : le cadre
-     pointillé est directement sur .receipt-print. Un ticket avec copies (.receipt-page,
-     utilisé pour les commandes) : chaque copie porte SON PROPRE cadre, et le conteneur
-     englobant n'a alors pas besoin de son cadre à lui (sinon on aurait un cadre dans un cadre). */
-  .receipt-print:has(.receipt-page) {
     border: none;
-    padding: 0;
   }
 
   /* Aucune couleur à l'impression : quelle que soit la classe Tailwind utilisée à l'écran
@@ -177,16 +168,11 @@
     text-align: center;
   }
 
-  /* Exemplaires multiples (commandes) : chaque copie (client / caisse / atelier) est
-     imprimée sur SA PROPRE page grâce à un vrai saut de page — c'est l'imprimante qui
-     sépare (et coupe) les copies, pas une bordure ou une ligne en pointillés dessinée
-     en CSS entre elles. */
+  /* Exemplaires multiples (commandes) */
   .receipt-print .receipt-page {
-    border: 1.5px dashed #000;
-    padding: 4mm;
     page-break-after: always;
-    page-break-inside: avoid;
     break-after: page;
+    padding-bottom: 10mm;
   }
 
   .receipt-print .receipt-page:last-child {
@@ -209,24 +195,37 @@
   line-height: 1.45;
   max-width: 80mm;
   margin: 0 auto;
-  padding: 4mm;
-  border: 1.5px dashed #000;
-}
-
-/* Aperçu d'un ticket avec copies multiples : chaque copie a son propre cadre, le
-   conteneur englobant n'a alors pas besoin d'un second cadre autour de tout. */
-.receipt-print:has(.receipt-page) {
-  border: none;
-  padding: 0;
+  padding: 5mm;
 }
 
 .receipt-print .receipt-page {
-  padding: 4mm;
-  border: 1.5px dashed #000;
-  margin-bottom: 14px;
+  padding: 15px;
+  border: 1px dashed #ccc;
+  margin-bottom: 20px;
   background: white;
 }
 
-.receipt-print .receipt-page:last-child {
-  margin-bottom: 0;
+.receipt-print .receipt-page + .receipt-page {
+  margin-top: 20px;
+}
+
+/* Séparateur visuel entre les exemplaires d'un reçu de commande */
+.receipt-print .receipt-page + .receipt-page {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 2px dashed #C9A15F;
+  position: relative;
+}
+
+.receipt-print .receipt-page + .receipt-page::before {
+  content: '✂ - - - - - - - - - - - - - - - - - - - - - -';
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 0 6px;
+  font-size: 9px;
+  color: #C9A15F;
+  white-space: nowrap;
 }
