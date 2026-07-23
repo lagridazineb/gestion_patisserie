@@ -21,7 +21,7 @@ export default function ReceiptHeader({ subtitle, children, hideAddress = false 
           <p className="text-black text-[10px] leading-snug">Tél : {SHOP_INFO.phone}</p>
         </>
       )}
-      {subtitle && <p className="text-black text-[11px] font-semibold mt-2">{subtitle}</p>}
+      {subtitle && <p className="text-black text-[11px] font-bold mt-2">{subtitle}</p>}
       {children}
     </div>
   )
