@@ -33,6 +33,9 @@ export default function PreparateurPage() {
   // Pour le préparateur Pâtisserie uniquement : 3 sections séparées.
   const [prepTab, setPrepTab] = useState('tranche') // 'tranche' | 'entremets' | 'kg'
   const isPatisserie = user?.atelier === 'patisserie'
+  // Calendrier de filtrage des commandes à préparer par date de livraison — commun à
+  // tous les ateliers (Pâtisserie, Viennoiserie, Pain, etc.)
+  const [calendarFilterDate, setCalendarFilterDate] = useState('')
 
   const [productOverlay, setProductOverlay] = useState({ customProducts: [], edits: [], deletedIds: [] })
   useEffect(() => {
@@ -150,7 +153,8 @@ export default function PreparateurPage() {
         </motion.div>
 
         {(() => {
-          const displayTasks = isPatisserie ? patisserieTasks : tasks
+          const displayTasks = (isPatisserie ? patisserieTasks : tasks)
+            .filter((task) => !calendarFilterDate || task.deliveryDate === calendarFilterDate)
           const displayDoneTasks = isPatisserie ? patisserieDoneTasks : doneTasks
           const itemCategoryFilter = isPatisserie ? ['patisserie', 'entremet', 'gateaux_kg'] : atelierCategories
           return (
@@ -158,16 +162,29 @@ export default function PreparateurPage() {
         {/* Commandes à préparer (réservations passées via la page Commande) */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="bg-diana-card border border-diana-border rounded-2xl p-5 sm:p-6 mb-6">
-          <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-3 mb-5 flex-wrap">
             <div className="w-10 h-10 rounded-xl bg-diana-accent/10 flex items-center justify-center"><FiClipboard className="text-diana-accentLight" size={20} /></div>
             <div>
               <h3 className="font-fraunces text-lg text-diana-cream">{t('preparateur.commandesAPreparer')}</h3>
               <p className="text-xs text-diana-brown">{t('preparateur.commandesAPreparerDesc')}</p>
             </div>
-            {displayTasks.length > 0 && <span className="ml-auto bg-diana-accent/15 text-diana-accentLight text-xs font-semibold px-2.5 py-1 rounded-full">{displayTasks.length}</span>}
+            {displayTasks.length > 0 && <span className="bg-diana-accent/15 text-diana-accentLight text-xs font-semibold px-2.5 py-1 rounded-full">{displayTasks.length}</span>}
+            <div className="ml-auto flex items-center gap-2">
+              <div className="relative">
+                <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown pointer-events-none" size={13} />
+                <input type="date" value={calendarFilterDate} onChange={(e) => setCalendarFilterDate(e.target.value)}
+                  className="pl-8 pr-2 py-2 text-xs bg-diana-dark border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50" />
+              </div>
+              {calendarFilterDate && (
+                <button type="button" onClick={() => setCalendarFilterDate('')}
+                  className="text-xs text-diana-brown hover:text-diana-gold underline shrink-0">Tous</button>
+              )}
+            </div>
           </div>
           {displayTasks.length === 0 ? (
-            <p className="text-sm italic text-diana-brownLight text-center py-6">{t('preparateur.aucuneCommandeAttente')}</p>
+            <p className="text-sm italic text-diana-brownLight text-center py-6">
+              {calendarFilterDate ? 'Aucune commande à préparer pour cette date.' : t('preparateur.aucuneCommandeAttente')}
+            </p>
           ) : (
             <div className="space-y-3">
               {displayTasks.map((task) => {
@@ -188,8 +205,8 @@ export default function PreparateurPage() {
                       </button>
                     </div>
                     <ul className="text-sm text-diana-brownLight space-y-2 mb-2">
-                      {atelierItems.map((i) => (
-                        <li key={i.id}>
+                      {atelierItems.map((i, idx) => (
+                        <li key={i.lineId || `${i.id}-${idx}`}>
                           <div>• {getProductDisplayName(i, lang)} × {Number.isInteger(i.qty) ? i.qty : i.qty.toFixed(2)}{i.unit === 'kg' ? ' kg' : ''}</div>
                           {(i.customNote || i.customImage) && (
                             <div className="ml-3 mt-1.5 p-2.5 rounded-lg bg-diana-accent/10 border border-diana-accent/20">
