@@ -210,7 +210,7 @@ export default function PreparateurPage() {
                           <div>• {getProductDisplayName(i, lang)} × {Number.isInteger(i.qty) ? i.qty : i.qty.toFixed(2)}{i.unit === 'kg' ? ' kg' : ''}</div>
                           {(i.customNote || i.customImage) && (
                             <div className="ml-3 mt-1.5 p-2.5 rounded-lg bg-diana-accent/10 border border-diana-accent/20">
-                              {i.customNote && <p className="text-xs text-diana-accentLight font-medium">✍️ "{i.customNote}"</p>}
+                              {i.customNote && <p className="text-base text-black font-bold">✍️ "{i.customNote}"</p>}
                               {i.customImage && (
                                 <img src={i.customImage} alt="Référence gâteau" className="mt-2 w-full max-w-[180px] h-24 object-cover rounded-md border border-diana-border" />
                               )}
