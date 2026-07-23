@@ -108,7 +108,7 @@ export default function CommandeRzizaPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setReceipt(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-black text-black">
                 <ReceiptHeader subtitle="Commande fournisseur — Rziza">
                   <p className="text-black text-[10.5px] mt-1.5">Ticket n°{String(receipt.task.ticketNumber).padStart(3, '0')} · {receipt.task.clientName}</p>
                   <p className="text-black text-[10.5px]">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
@@ -120,7 +120,7 @@ export default function CommandeRzizaPage() {
                     </div>
                   ))}
                 </div>
-                <div className="border-t border-dashed border-gray-300 pt-2 mt-2">
+                <div className="border-t border-dashed border-black pt-2 mt-2">
                   <div className="flex justify-between text-black font-semibold"><span>Statut</span><span>NON PAYÉ</span></div>
                 </div>
                 <p className="text-black italic mt-3 text-center">À transmettre au fournisseur — sans impact sur le stock</p>
