@@ -8,6 +8,7 @@ import { getProductOverlay } from '../api/products'
 import { getStock, addProduction, getProductionLog, subscribeToStockUpdates, getAtelierTasks, getAtelierDoneTasks, markAtelierDone, getActiveFrigoBatches } from '../data/stockStore'
 import { FiBox, FiPlus, FiCheck, FiClock, FiCalendar, FiPackage, FiClipboard, FiUser, FiPhone, FiEye, FiCheckCircle, FiXCircle, FiScissors, FiGrid } from 'react-icons/fi'
 import NumericField from '../components/NumericField'
+import TimeField from '../components/TimeField'
 import { getProductDisplayName, getCategoryLabel } from '../i18n/productNames'
 import { formatT } from '../i18n/translations'
 
@@ -356,9 +357,9 @@ export default function PreparateurPage() {
                 <div className="min-w-0">
                   <label className="block text-xs text-diana-brown mb-1.5">{t('preparateur.heure')}</label>
                   <div className="relative">
-                    <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={14} />
-                    <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
-                      className="w-full min-w-0 pl-10 pr-2 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" required />
+                    <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown z-10" size={14} />
+                    <TimeField value={time} onChange={setTime} title={t('preparateur.heure')}
+                      className="w-full min-w-0 pl-10 pr-2 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" />
                   </div>
                 </div>
               </div>
