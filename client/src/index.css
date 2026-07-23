@@ -70,9 +70,9 @@
   .receipt-print {
     position: absolute;
     top: 0;
-    left: 0;
-    width: 80mm;
-    padding: 5mm;
+    left: 2mm;
+    width: 76mm;
+    padding: 4mm;
     background: #fff !important;
     color: #000 !important;
     font-family: "Courier New", "Monaco", monospace;
