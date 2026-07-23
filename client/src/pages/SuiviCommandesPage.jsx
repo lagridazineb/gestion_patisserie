@@ -239,12 +239,12 @@ export default function SuiviCommandesPage() {
                 <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3"><span className="text-2xl">✓</span></div>
                 <h3 className="font-fraunces text-xl font-medium">Solde encaissé</h3>
               </div>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-gray-300 text-black">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-black text-black">
                 <ReceiptHeader subtitle="Solde encaissé">
                   <p className="text-black text-[10.5px] mt-1.5">Ticket n°{receipt.ticketNumber}</p>
                 </ReceiptHeader>
                 <p><span className="text-black">Client :</span> <span className="font-semibold">{receipt.clientName}</span></p>
-                <div className="border-t border-dashed border-gray-300 pt-2 mt-2 space-y-1">
+                <div className="border-t border-dashed border-black pt-2 mt-2 space-y-1">
                   <div className="flex justify-between"><span>Total commande</span><span>{receipt.total.toFixed(2)} DH</span></div>
                   <div className="flex justify-between text-black"><span>Déjà versé (avance)</span><span>{(receipt.total - (receipt.soldeAmount || 0)).toFixed(2)} DH</span></div>
                   <div className="flex justify-between font-semibold"><span>Solde encaissé aujourd'hui</span><span>{(receipt.soldeAmount || 0).toFixed(2)} DH</span></div>
