@@ -168,16 +168,38 @@
     text-align: center;
   }
 
-  /* Exemplaires multiples (commandes) */
+  /* Exemplaires multiples (commandes) : chaque page a son propre cadre noir en pointillés,
+     et une ligne de coupe (ciseaux) apparaît entre chaque exemplaire pour que ce soit clair
+     où découper le ticket une fois imprimé. */
   .receipt-print .receipt-page {
     page-break-after: always;
     break-after: page;
-    padding-bottom: 10mm;
+    border: 1px dashed #000 !important;
+    padding: 3mm;
+    margin-bottom: 6mm;
   }
 
   .receipt-print .receipt-page:last-child {
     page-break-after: auto;
     break-after: auto;
+  }
+
+  .receipt-print .receipt-page + .receipt-page {
+    margin-top: 8mm;
+    position: relative;
+  }
+
+  .receipt-print .receipt-page + .receipt-page::before {
+    content: '\2702 - - - - - - - - - - - - - - - - - - - - - -';
+    position: absolute;
+    top: -4mm;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    padding: 0 2mm;
+    font-size: 9px;
+    color: #000;
+    white-space: nowrap;
   }
 
   /* Étiquette d'exemplaire */
@@ -200,20 +222,15 @@
 
 .receipt-print .receipt-page {
   padding: 15px;
-  border: 1px dashed #ccc;
-  margin-bottom: 20px;
+  border: 1px dashed #000;
+  margin-bottom: 14px;
   background: white;
 }
 
-.receipt-print .receipt-page + .receipt-page {
-  margin-top: 20px;
-}
-
-/* Séparateur visuel entre les exemplaires d'un reçu de commande */
+/* Séparateur visuel (ligne de coupe) entre les exemplaires d'un reçu de commande — en noir,
+   comme le reste du ticket, et juste au-dessus de chaque page pour rester proche du cadre. */
 .receipt-print .receipt-page + .receipt-page {
   margin-top: 14px;
-  padding-top: 14px;
-  border-top: 2px dashed #C9A15F;
   position: relative;
 }
 
@@ -226,6 +243,6 @@
   background: #fff;
   padding: 0 6px;
   font-size: 9px;
-  color: #C9A15F;
+  color: #000;
   white-space: nowrap;
 }
