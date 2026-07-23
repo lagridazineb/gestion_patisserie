@@ -62,6 +62,19 @@ router.post('/open', authMiddleware, async (req, res) => {
        VALUES (?, ?, ?, ?, ?, NOW(), 'open')`,
       [id, user.id, user.name, user.role, openingAmount]
     )
+
+    // On relie ce dépôt d'ouverture de caisse à la table fonds_caisse, utilisée par
+    // l'admin dans la page "Bilan du jour & Dépôts", pour que le dépôt saisi par le
+    // caissier (caissier1, caissier2, ...) apparaisse automatiquement là-bas, avec le
+    // nom du caissier en note, sans que l'admin ait besoin de le ressaisir manuellement.
+    if (openingAmount > 0) {
+      const fondId = id + 1
+      await pool.query(
+        'INSERT INTO fonds_caisse (id, amount, note, created_at) VALUES (?, ?, ?, NOW())',
+        [fondId, openingAmount, `Dépôt d'ouverture — ${user.name}`]
+      )
+    }
+
     const [rows] = await pool.query('SELECT * FROM cashier_sessions WHERE id = ?', [id])
     res.json({ session: mapSession(rows[0]) })
   } catch (error) {
