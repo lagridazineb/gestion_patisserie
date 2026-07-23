@@ -19,6 +19,7 @@ import LayerModal from '../components/LayerModal'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
 import KeyboardField from '../components/KeyboardField'
 import KeyboardTextarea from '../components/KeyboardTextarea'
+import TimeField from '../components/TimeField'
 import { useLanguage } from '../context/LanguageContext'
 import { getProductDisplayName, getCategoryLabel } from '../i18n/productNames'
 import {
@@ -53,17 +54,25 @@ function groupItemsByAtelier(items) {
 }
 
 // Liste des lignes d'articles d'un reçu. `withPrices` masque le prix (bon de préparation).
-function ReceiptItemsList({ items, withPrices, lang, itemTotal }) {
+// `large` : mise en avant (texte plus grand/gras) pour les bons de préparation destinés aux
+// préparateurs — ils doivent pouvoir lire la commande d'un coup d'œil, sans prix ni détails inutiles.
+function ReceiptItemsList({ items, withPrices, lang, itemTotal, large = false }) {
   return (
     <div className="border-t border-dashed border-black pt-2">
       {items.map((item, idx) => (
-        <div key={item.lineId || `${item.id}-${idx}`} className="receipt-line flex justify-between py-1 text-black">
-          <span className="name">{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}</span>
+        <div key={item.lineId || `${item.id}-${idx}`}
+          className={`receipt-line flex justify-between text-black ${large ? 'py-1.5 text-[14px] font-bold border-b border-dashed border-black last:border-b-0' : 'py-1'}`}>
+          <span className="name">
+            {large && <span className="inline-block min-w-[1.6em] mr-1">{formatQty(item.qty)}×</span>}
+            {getProductDisplayName(item, lang)}
+            {!large && ` × ${formatQty(item.qty)}`}
+            {item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}
+          </span>
           {withPrices && <span className="value font-semibold">{itemTotal(item).toFixed(2)} DH</span>}
         </div>
       ))}
       {items.some((i) => i.customNote) && (
-        <p className="text-[10px] text-black italic mt-1">
+        <p className={`text-black italic mt-1 ${large ? 'text-[11px] font-bold' : 'text-[10px]'}`}>
           {items.filter((i) => i.customNote).map((i) => `* ${getProductDisplayName(i, lang)} : "${i.customNote}"`).join(' — ')}
         </p>
       )}
@@ -337,7 +346,7 @@ export default function CommandesPage() {
                 <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown z-10" size={15} />
                 <KeyboardField value={clientName} onChange={setClientName}
                   placeholder="Nom Client / Vendeur / Table... *"
-                  className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 ${clientName.trim() === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
+                  className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 ${clientName.trim() === '' ? 'border-diana-danger' : 'border-diana-border'}`} />
               </div>
               <div className="relative">
                 <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown z-10" size={15} />
@@ -350,15 +359,15 @@ export default function CommandesPage() {
                 <div className="relative">
                   <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
                   <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)}
-                    className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 ${deliveryDate === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
+                    className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 ${deliveryDate === '' ? 'border-diana-danger' : 'border-diana-border'}`} />
                 </div>
               </div>
               <div>
                 <label className="text-xs text-diana-brown mb-1 block">Heure de livraison *</label>
                 <div className="relative">
-                  <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
-                  <input type="time" value={deliveryTime} onChange={(e) => setDeliveryTime(e.target.value)}
-                    className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 ${deliveryTime === '' ? 'border-diana-danger/50' : 'border-diana-border'}`} />
+                  <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown z-10" size={15} />
+                  <TimeField value={deliveryTime} onChange={setDeliveryTime} title="Heure de livraison"
+                    className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 ${deliveryTime === '' ? 'border-diana-danger' : 'border-diana-border'}`} />
                 </div>
               </div>
               <div>
@@ -653,16 +662,15 @@ export default function CommandesPage() {
                   const atelierLabel = atelierObj ? getCategoryLabel(atelierObj, lang) : atelierId
                   return (
                     <div className="receipt-page" key={atelierId}>
-                      <ReceiptHeader subtitle="Bon de préparation">
-                        <p className="text-black text-[10.5px] mt-1.5">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
-                        {lastReservation.ticketNumber && <p className="text-black text-[10.5px]">N° {lastReservation.ticketNumber}</p>}
+                      <ReceiptHeader subtitle="Bon de préparation" hideAddress>
+                        {lastReservation.ticketNumber && <p className="text-black text-[11px] font-bold mt-1.5">N° {lastReservation.ticketNumber}</p>}
                       </ReceiptHeader>
-                      <p className="text-center text-sm font-bold text-black mb-2 uppercase tracking-wide">Atelier {atelierLabel}</p>
-                      <div className="mb-3 space-y-0.5">
-                        <p><span className="text-black">Client :</span> <span className="font-semibold">{lastReservation.clientName}</span></p>
-                        <p><span className="text-black">Livraison :</span> {lastReservation.deliveryDate} à {lastReservation.deliveryTime}</p>
+                      <p className="text-center text-base font-bold text-black mb-2 uppercase tracking-wide">Atelier {atelierLabel}</p>
+                      <div className="mb-3 space-y-0.5 text-[13px] font-bold">
+                        <p><span className="text-black">Client :</span> <span>{lastReservation.clientName}</span></p>
+                        <p><span className="text-black">Livraison :</span> <span>{lastReservation.deliveryDate} à {lastReservation.deliveryTime}</span></p>
                       </div>
-                      <ReceiptItemsList items={atelierGroups[atelierId]} withPrices={false} lang={lang} itemTotal={itemTotal} />
+                      <ReceiptItemsList items={atelierGroups[atelierId]} withPrices={false} lang={lang} itemTotal={itemTotal} large />
                     </div>
                   )
                 })}
