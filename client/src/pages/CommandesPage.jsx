@@ -53,24 +53,16 @@ function groupItemsByAtelier(items) {
 }
 
 // Liste des lignes d'articles d'un reçu. `withPrices` masque le prix (bon de préparation).
-// `large` : bon destiné aux préparateurs — texte plus grand et en gras pour rester très
-// lisible en atelier, et personnalisation affichée en clair sous chaque article concerné
-// (au lieu d'une petite note groupée en bas, difficile à relier au bon article).
-function ReceiptItemsList({ items, withPrices, lang, itemTotal, large = false }) {
+function ReceiptItemsList({ items, withPrices, lang, itemTotal }) {
   return (
     <div className="border-t border-dashed border-black pt-2">
       {items.map((item, idx) => (
-        <div key={item.lineId || `${item.id}-${idx}`} className={large ? 'py-2 border-b border-dashed border-black last:border-b-0' : 'receipt-line flex justify-between py-1 text-black'}>
-          <div className={large ? 'flex justify-between items-baseline gap-3 text-black font-bold text-[15px]' : 'contents'}>
-            <span className="name">{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}</span>
-            {withPrices && <span className="value font-semibold">{itemTotal(item).toFixed(2)} DH</span>}
-          </div>
-          {large && item.customNote && (
-            <p className="text-black font-semibold text-[13px] mt-1">✍ {item.customNote}</p>
-          )}
+        <div key={item.lineId || `${item.id}-${idx}`} className="receipt-line flex justify-between py-1 text-black">
+          <span className="name">{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}</span>
+          {withPrices && <span className="value font-semibold">{itemTotal(item).toFixed(2)} DH</span>}
         </div>
       ))}
-      {!large && items.some((i) => i.customNote) && (
+      {items.some((i) => i.customNote) && (
         <p className="text-[10px] text-black italic mt-1">
           {items.filter((i) => i.customNote).map((i) => `* ${getProductDisplayName(i, lang)} : "${i.customNote}"`).join(' — ')}
         </p>
@@ -655,23 +647,22 @@ export default function CommandesPage() {
                   </div>
                 </div>
 
-                {/* PAGES SUIVANTES — UN BON DE PRÉPARATION PAR ATELIER CONCERNÉ, SANS PRIX.
-                    Pas besoin de l'adresse/téléphone de la pâtisserie pour le préparateur :
-                    on va droit à l'essentiel, en gros et bien lisible. */}
+                {/* PAGES SUIVANTES — UN BON DE PRÉPARATION PAR ATELIER CONCERNÉ, SANS PRIX */}
                 {atelierOrder.map((atelierId) => {
                   const atelierObj = ATELIERS.find((a) => a.id === atelierId)
                   const atelierLabel = atelierObj ? getCategoryLabel(atelierObj, lang) : atelierId
                   return (
                     <div className="receipt-page" key={atelierId}>
-                      <ReceiptHeader hideAddress subtitle={`Bon de préparation — Atelier ${atelierLabel}`}>
+                      <ReceiptHeader subtitle="Bon de préparation">
                         <p className="text-black text-[10.5px] mt-1.5">{new Date(lastReservation.createdAt).toLocaleDateString('fr-FR')} {new Date(lastReservation.createdAt).toLocaleTimeString('fr-FR')}</p>
                         {lastReservation.ticketNumber && <p className="text-black text-[10.5px]">N° {lastReservation.ticketNumber}</p>}
                       </ReceiptHeader>
-                      <div className="mb-3 space-y-0.5 text-[13px]">
-                        <p><span className="text-black">Client :</span> <span className="font-bold">{lastReservation.clientName}</span></p>
-                        <p className="font-bold">Livraison : {lastReservation.deliveryDate} à {lastReservation.deliveryTime}</p>
+                      <p className="text-center text-sm font-bold text-black mb-2 uppercase tracking-wide">Atelier {atelierLabel}</p>
+                      <div className="mb-3 space-y-0.5">
+                        <p><span className="text-black">Client :</span> <span className="font-semibold">{lastReservation.clientName}</span></p>
+                        <p><span className="text-black">Livraison :</span> {lastReservation.deliveryDate} à {lastReservation.deliveryTime}</p>
                       </div>
-                      <ReceiptItemsList items={atelierGroups[atelierId]} withPrices={false} lang={lang} itemTotal={itemTotal} large />
+                      <ReceiptItemsList items={atelierGroups[atelierId]} withPrices={false} lang={lang} itemTotal={itemTotal} />
                     </div>
                   )
                 })}
