@@ -11,6 +11,7 @@ import {
   removeProductionEntry, sameDay, getRzizaDeliveries,
 } from '../data/stockStore'
 import NumericField from '../components/NumericField'
+import TimeField from '../components/TimeField'
 import ReceiptHeader from '../components/ReceiptHeader'
 
 export default function StockPage() {
@@ -238,7 +239,7 @@ export default function StockPage() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <label className="text-xs text-diana-brown">Heure :</label>
-                <input type="time" value={eodSettings.time} onChange={(e) => handleTimeChange(e.target.value)}
+                <TimeField value={eodSettings.time} onChange={handleTimeChange} title="Heure de clôture"
                   className="px-2 py-1.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50" />
                 <button onClick={handleManualClear}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-diana-danger/10 text-diana-danger border border-diana-danger/30 text-xs font-semibold hover:bg-diana-danger/20 transition-colors">
