@@ -92,7 +92,7 @@
     background: transparent !important;
     background-color: transparent !important;
     background-image: none !important;
-    border-color: #999 !important;
+    border-color: #000 !important;
     box-shadow: none !important;
     text-shadow: none !important;
     -webkit-text-fill-color: #000 !important;
@@ -116,7 +116,7 @@
   /* Ligne séparatrice */
   .receipt-print .border-t,
   .receipt-print .border-b {
-    border-color: #777 !important;
+    border-color: #000 !important;
   }
 
   .receipt-print .border-dashed {
