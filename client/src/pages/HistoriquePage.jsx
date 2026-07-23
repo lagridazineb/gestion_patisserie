@@ -144,7 +144,7 @@ export default function HistoriquePage() {
                   <button onClick={() => setSelected(null)} className="text-diana-brown hover:text-diana-dark"><FiX size={18} /></button>
                 </div>
 
-                <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
+                <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-black text-black">
                   <ReceiptHeader>
                     <p className="text-black text-[10.5px] mt-1.5">
                       {new Date(selected.type === 'ticket' ? selected.data.timestamp : selected.data.createdAt).toLocaleDateString('fr-FR')}
@@ -171,7 +171,7 @@ export default function HistoriquePage() {
                     </div>
                   ))}
 
-                  <div className="border-t border-dashed border-gray-300 pt-2 mt-2">
+                  <div className="border-t border-dashed border-black pt-2 mt-2">
                     {selected.type === 'ticket' ? (
                       <>
                         <div className="flex justify-between font-semibold"><span>Total</span><span>{(selected.data.total || 0).toFixed(2)} DH</span></div>
