@@ -80,7 +80,7 @@
     line-height: 1.45;
     font-weight: 500;
     box-shadow: none;
-    border: 2px dashed #000 !important;
+    border: 3px dashed #000 !important;
   }
 
   /* Aucune couleur à l'impression : quelle que soit la classe Tailwind utilisée à l'écran
