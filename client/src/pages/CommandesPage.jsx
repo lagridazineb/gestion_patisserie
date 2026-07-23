@@ -18,6 +18,7 @@ import SalePlateauModal from '../components/SalePlateauModal'
 import LayerModal from '../components/LayerModal'
 import ConfirmPaymentModal from '../components/ConfirmPaymentModal'
 import KeyboardField from '../components/KeyboardField'
+import DateField from '../components/DateField'
 import KeyboardTextarea from '../components/KeyboardTextarea'
 import TimeField from '../components/TimeField'
 import { useLanguage } from '../context/LanguageContext'
@@ -358,7 +359,7 @@ export default function CommandesPage() {
                 <label className="text-xs text-diana-brown mb-1 block">Date de livraison *</label>
                 <div className="relative">
                   <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown" size={15} />
-                  <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)}
+                  <DateField value={deliveryDate} onChange={setDeliveryDate} title="Date de livraison"
                     className={`w-full pl-9 pr-3 py-2.5 text-sm bg-diana-dark/30 border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50 ${deliveryDate === '' ? 'border-diana-danger' : 'border-diana-border'}`} />
                 </div>
               </div>
