@@ -194,10 +194,10 @@ export default function PreparateurPage() {
                   <div key={task.id} className="bg-diana-dark/40 border border-diana-border/40 rounded-xl p-4">
                     <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
                       <div>
-                        <p className="text-sm font-semibold text-diana-cream flex items-center gap-1.5"><FiUser size={13} /> {task.clientName}</p>
-                        <p className="text-xs text-diana-brown flex items-center gap-2 mt-0.5">
-                          {task.clientPhone && <span className="flex items-center gap-1"><FiPhone size={11} /> {task.clientPhone}</span>}
-                          <span className="flex items-center gap-1"><FiCalendar size={11} /> {task.deliveryDate || '—'} {task.deliveryTime || ''}</span>
+                        <p className="text-base font-bold text-diana-cream flex items-center gap-1.5"><FiUser size={14} /> {task.clientName}</p>
+                        <p className="text-sm text-diana-cream flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                          {task.clientPhone && <span className="flex items-center gap-1 font-semibold"><FiPhone size={12} /> {task.clientPhone}</span>}
+                          <span className="flex items-center gap-1 font-bold text-diana-gold"><FiCalendar size={12} /> {task.deliveryDate || '—'} {task.deliveryTime || ''}</span>
                         </p>
                       </div>
                       <button onClick={() => handleMarkDone(task.id)}
@@ -205,10 +205,10 @@ export default function PreparateurPage() {
                         <FiCheck size={13} /> {t('preparateur.terminee')}
                       </button>
                     </div>
-                    <ul className="text-sm text-diana-brownLight space-y-2 mb-2">
+                    <ul className="text-sm text-diana-cream space-y-2 mb-2">
                       {atelierItems.map((i, idx) => (
                         <li key={i.lineId || `${i.id}-${idx}`}>
-                          <div>• {getProductDisplayName(i, lang)} × {Number.isInteger(i.qty) ? i.qty : i.qty.toFixed(2)}{i.unit === 'kg' ? ' kg' : ''}</div>
+                          <div className="font-bold">• {getProductDisplayName(i, lang)} × {Number.isInteger(i.qty) ? i.qty : i.qty.toFixed(2)}{i.unit === 'kg' ? ' kg' : ''}</div>
                           {(i.customNote || i.customImage) && (
                             <div className="ml-3 mt-1.5 p-2.5 rounded-lg bg-diana-accent/10 border border-diana-accent/20">
                               {i.customNote && <p className="text-base text-black font-bold">✍️ "{i.customNote}"</p>}
@@ -220,7 +220,7 @@ export default function PreparateurPage() {
                         </li>
                       ))}
                     </ul>
-                    {task.note && <p className="text-xs text-diana-brown italic">{t('preparateur.note')} {task.note}</p>}
+                    {task.note && <p className="text-xs text-diana-cream font-bold italic">{t('preparateur.note')} {task.note}</p>}
                   </div>
                 )
               })}
