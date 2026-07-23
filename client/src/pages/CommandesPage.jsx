@@ -56,8 +56,8 @@ function groupItemsByAtelier(items) {
 function ReceiptItemsList({ items, withPrices, lang, itemTotal }) {
   return (
     <div className="border-t border-dashed border-black pt-2">
-      {items.map((item) => (
-        <div key={item.id} className="receipt-line flex justify-between py-1 text-black">
+      {items.map((item, idx) => (
+        <div key={item.lineId || `${item.id}-${idx}`} className="receipt-line flex justify-between py-1 text-black">
           <span className="name">{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}</span>
           {withPrices && <span className="value font-semibold">{itemTotal(item).toFixed(2)} DH</span>}
         </div>
@@ -113,40 +113,41 @@ export default function CommandesPage() {
   const openQuantityModal = (product, initialValue, mode = 'add') => setQtyModalState({ open: true, product, initialValue, mode })
 
   const handleProductClick = (product) => {
-    const existing = order.find((i) => i.id === product.id)
-    openQuantityModal(product, existing ? existing.qty : 1, 'add')
+    // Chaque clic sur un produit du catalogue crée une NOUVELLE ligne de commande,
+    // même si ce produit est déjà présent — voir addOrUpdateItem ci-dessous.
+    openQuantityModal(product, 1, 'add')
   }
   const handleEditOrderQty = (item) => openQuantityModal(item, item.qty, 'edit')
 
-  // mode 'add' additionne à la quantité déjà présente pour ce produit (au lieu de l'écraser) ;
-  // mode 'edit' remplace la quantité de la ligne existante.
+  // mode 'add' (clic depuis le catalogue) : crée toujours une ligne indépendante avec un
+  // identifiant unique (lineId), même si le même produit avec la même quantité a déjà été
+  // ajouté juste avant. Deux "Caramel Coeur 18cm × 1" ajoutés séparément doivent rester deux
+  // lignes distinctes (avec, éventuellement, deux personnalisations différentes) chez le
+  // préparateur et dans le résumé de commande — jamais fusionnés en une seule ligne × 2.
+  // mode 'edit' (crayon sur une ligne déjà commandée) : modifie uniquement CETTE ligne précise,
+  // identifiée par son lineId, sans toucher aux autres lignes du même produit.
   const addOrUpdateItem = (product, qty, extra = {}, mode = 'add') => {
     setOrder((prev) => {
-      if (qty <= 0) return prev.filter((i) => i.id !== product.id)
-      const existing = prev.find((i) => i.id === product.id)
-      if (existing) {
-        const newQty = mode === 'add' ? existing.qty + qty : qty
-        return prev.map((i) => i.id === product.id ? { ...i, qty: newQty, ...extra } : i)
+      if (mode === 'edit') {
+        if (qty <= 0) return prev.filter((i) => i.lineId !== product.lineId)
+        return prev.map((i) => i.lineId === product.lineId ? { ...i, qty, ...extra } : i)
       }
-      return [...prev, { ...product, qty, ...extra }]
+      if (qty <= 0) return prev
+      const lineId = `${product.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      return [...prev, { ...product, qty, lineId, ...extra }]
     })
   }
 
   // Chaque taille de Layer cochée devient sa propre ligne (prix indépendant), avec la quantité
-  // choisie à l'étape précédente ; si elle est déjà dans la commande, on l'additionne.
+  // choisie à l'étape précédente — toujours une nouvelle ligne, jamais fusionnée avec une ligne existante.
   const confirmLayerSelection = (chosenVariants) => {
     const qty = layerModalState.qty || 1
     setOrder((prev) => {
-      let next = [...prev]
-      chosenVariants.forEach((v) => {
-        const existing = next.find((i) => i.id === v.id)
-        if (existing) {
-          next = next.map((i) => i.id === v.id ? { ...i, qty: i.qty + qty } : i)
-        } else {
-          next = [...next, { id: v.id, name: v.name, price: v.price, unit: 'piece', category: 'cake_design', qty }]
-        }
-      })
-      return next
+      const additions = chosenVariants.map((v) => ({
+        id: v.id, name: v.name, price: v.price, unit: 'piece', category: 'cake_design', qty,
+        lineId: `${v.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      }))
+      return [...prev, ...additions]
     })
     setLayerModalState({ open: false, product: null, qty: 1 })
   }
@@ -205,7 +206,7 @@ export default function CommandesPage() {
   }
   const cancelSalePlateau = () => setSalePlateauState({ open: false, product: null, qty: 1, mode: 'add' })
 
-  const removeItem = (id) => setOrder((prev) => prev.filter((i) => i.id !== id))
+  const removeItem = (lineId) => setOrder((prev) => prev.filter((i) => i.lineId !== lineId))
 
   // Le supplément photo (fixe, non multiplié par le kg) s'ajoute une seule fois par article.
   const itemTotal = (i) => i.price * i.qty + (i.personPhotoSurcharge || 0)
@@ -494,7 +495,7 @@ export default function CommandesPage() {
                 </div>
                 <AnimatePresence mode="popLayout">
                   {order.map((item) => (
-                    <motion.div key={item.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -30 }}
+                    <motion.div key={item.lineId} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -30 }}
                       className="grid grid-cols-[1fr,auto,auto] gap-2 items-center py-2 border-b border-[#E7CCB4] text-sm">
                       <span className="truncate flex items-center gap-1">
                         {getProductDisplayName(item, lang)}
@@ -506,7 +507,7 @@ export default function CommandesPage() {
                       </button>
                       <span className="flex items-center gap-1.5 justify-end">
                         {itemTotal(item).toFixed(2)} DH
-                        <button onClick={() => removeItem(item.id)} className="text-diana-danger hover:text-red-700"><FiX size={13} /></button>
+                        <button onClick={() => removeItem(item.lineId)} className="text-diana-danger hover:text-red-700"><FiX size={13} /></button>
                       </span>
                     </motion.div>
                   ))}
