@@ -55,7 +55,7 @@ function groupItemsByAtelier(items) {
 // Liste des lignes d'articles d'un reçu. `withPrices` masque le prix (bon de préparation).
 function ReceiptItemsList({ items, withPrices, lang, itemTotal }) {
   return (
-    <div className="border-t border-dashed border-gray-300 pt-2">
+    <div className="border-t border-dashed border-black pt-2">
       {items.map((item) => (
         <div key={item.id} className="receipt-line flex justify-between py-1 text-black">
           <span className="name">{getProductDisplayName(item, lang)} × {formatQty(item.qty)}{item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}</span>
@@ -599,7 +599,7 @@ export default function CommandesPage() {
                 <h3 className="font-fraunces text-xl font-medium">Commande enregistrée</h3>
                 <p className="text-sm text-[#8B6A3A] mt-1">Reçu à remettre au client</p>
               </div>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-gray-300 text-black max-h-[50vh] overflow-y-auto">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-black text-black max-h-[50vh] overflow-y-auto">
                 {/* PAGE 1 — EXEMPLAIRE CLIENT */}
                 <div className="receipt-page">
                   <ReceiptHeader subtitle="Commande enregistrée">
@@ -614,7 +614,7 @@ export default function CommandesPage() {
                     {lastReservation.note && <p><span className="text-black">Note :</span> {lastReservation.note}</p>}
                   </div>
                   <ReceiptItemsList items={lastReservation.items} withPrices lang={lang} itemTotal={itemTotal} />
-                  <div className="border-t border-dashed border-gray-300 pt-2 mt-2 space-y-1">
+                  <div className="border-t border-dashed border-black pt-2 mt-2 space-y-1">
                     <div className="flex justify-between font-semibold"><span>Total</span><span>{lastReservation.total.toFixed(2)} DH</span></div>
                     <div className="flex justify-between text-black"><span>Avance versée</span><span>{lastReservation.avance.toFixed(2)} DH</span></div>
                     <div className="flex justify-between font-semibold text-black"><span>Reste à payer</span><span>{lastReservation.resteAPayer.toFixed(2)} DH</span></div>
@@ -635,7 +635,7 @@ export default function CommandesPage() {
                     {lastReservation.note && <p><span className="text-black">Note :</span> {lastReservation.note}</p>}
                   </div>
                   <ReceiptItemsList items={lastReservation.items} withPrices lang={lang} itemTotal={itemTotal} />
-                  <div className="border-t border-dashed border-gray-300 pt-2 mt-2 space-y-1">
+                  <div className="border-t border-dashed border-black pt-2 mt-2 space-y-1">
                     <div className="flex justify-between font-semibold"><span>Total</span><span>{lastReservation.total.toFixed(2)} DH</span></div>
                     <div className="flex justify-between text-black"><span>Avance versée</span><span>{lastReservation.avance.toFixed(2)} DH</span></div>
                     <div className="flex justify-between font-semibold text-black"><span>Reste à payer</span><span>{lastReservation.resteAPayer.toFixed(2)} DH</span></div>
