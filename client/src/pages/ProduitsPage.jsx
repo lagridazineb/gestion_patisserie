@@ -21,6 +21,7 @@ export default function ProduitsPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showHidden, setShowHidden] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null) // le produit en attente de confirmation de suppression
   const { addNotification } = useNotification()
   const { t, lang } = useLanguage()
   const fileInputRef = useRef(null)
@@ -127,7 +128,15 @@ export default function ProduitsPage() {
     }
   }
 
-  const handleDelete = async (product) => {
+  // Le clic sur la corbeille n'efface plus directement : il ouvre d'abord un pop-up de
+  // confirmation ("Êtes-vous sûr de vouloir supprimer ce produit ?"), pour éviter les
+  // suppressions accidentelles. La suppression réelle se fait dans confirmDeleteNow().
+  const handleDelete = (product) => setConfirmDelete(product)
+
+  const confirmDeleteNow = async () => {
+    const product = confirmDelete
+    if (!product) return
+    setConfirmDelete(null)
     try {
       await deleteProduct(product.id)
       if (product.isCustom) {
@@ -300,6 +309,38 @@ export default function ProduitsPage() {
                   <button onClick={editingProduct ? handleUpdate : handleAdd} disabled={saving}
                     className="flex-1 py-3 rounded-xl text-sm font-semibold bg-diana-gold text-diana-dark hover:brightness-110 transition-all disabled:opacity-50">
                     {saving ? t('common.saving') : (editingProduct ? t('common.edit') : t('common.add'))}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Pop-up de confirmation avant suppression d'un produit */}
+        <AnimatePresence>
+          {confirmDelete && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+              onClick={() => setConfirmDelete(null)}>
+              <motion.div initial={{ scale: 0.92, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-diana-card border border-diana-border rounded-2xl p-6 max-w-sm w-full shadow-gold-lg">
+                <div className="w-12 h-12 rounded-full bg-diana-danger/15 flex items-center justify-center mx-auto mb-4">
+                  <FiTrash2 size={20} className="text-diana-danger" />
+                </div>
+                <h3 className="font-fraunces text-lg font-medium text-diana-cream text-center mb-2">Supprimer ce produit ?</h3>
+                <p className="text-sm text-diana-brown text-center mb-6">
+                  Êtes-vous sûr de vouloir supprimer <span className="text-diana-cream font-semibold">{getProductDisplayName(confirmDelete, lang)}</span> ? Cette action est irréversible.
+                </p>
+                <div className="flex gap-3">
+                  <button onClick={() => setConfirmDelete(null)}
+                    className="flex-1 py-3 rounded-xl text-sm text-diana-brown border border-diana-border hover:text-diana-cream hover:border-diana-gold/30 transition-colors">
+                    Annuler
+                  </button>
+                  <button onClick={confirmDeleteNow}
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold bg-diana-danger text-white hover:brightness-110 transition-all">
+                    Supprimer
                   </button>
                 </div>
               </motion.div>
