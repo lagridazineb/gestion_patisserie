@@ -480,7 +480,7 @@ export default function POSPage() {
                 <h3 className="font-fraunces text-xl font-medium">Paiement réussi !</h3>
                 <p className="text-sm text-diana-brown mt-1">{paymentType === 'cash' ? 'Paiement en espèces' : 'Paiement par carte'}</p>
               </div>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-gray-300 text-black">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-6 text-xs border border-black text-black">
                 <ReceiptHeader>
                   <div className="flex justify-between items-baseline mt-2 text-[10.5px] text-black">
                     <span>{new Date().toLocaleDateString('fr-FR')} — {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -498,7 +498,7 @@ export default function POSPage() {
                     </div>
                   ))}
                 </div>
-                <div className="border-t border-dashed border-gray-300 pt-2 mt-2 space-y-1">
+                <div className="border-t border-dashed border-black pt-2 mt-2 space-y-1">
                   {remise > 0 && (
                     <>
                       <div className="flex justify-between text-black"><span>Sous-total</span><span>{subtotal.toFixed(2)} DH</span></div>
@@ -509,7 +509,7 @@ export default function POSPage() {
                 <div className="border-t border-black pt-2 mt-2">
                   <div className="total flex justify-between items-baseline font-bold text-sm text-black"><span>TOTAL</span><span>{total.toFixed(2)} DH</span></div>
                 </div>
-                <div className="border-t border-dashed border-gray-300 pt-2 mt-2 space-y-1 text-black">
+                <div className="border-t border-dashed border-black pt-2 mt-2 space-y-1 text-black">
                   <div className="flex justify-between"><span>Règlement</span><span>{paymentType === 'cash' ? 'Espèces' : 'Carte'}</span></div>
                   {paymentType === 'cash' && changeGiven > 0 && (
                     <div className="flex justify-between"><span>Monnaie rendue</span><span>{changeGiven.toFixed(2)} DH</span></div>
@@ -573,13 +573,13 @@ export default function POSPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4" onClick={() => setRzizaBon(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-black text-black">
                 <ReceiptHeader subtitle="Bon de livraison — Rziza">
                   <p className="text-black text-[10.5px] mt-1.5">{new Date(rzizaBon.timestamp).toLocaleDateString('fr-FR')} à {new Date(rzizaBon.timestamp).toLocaleTimeString('fr-FR')}</p>
                 </ReceiptHeader>
                 <div className="receipt-line flex justify-between py-1"><span>Quantité livrée</span><span className="value font-semibold">{rzizaBon.quantity}</span></div>
                 <div className="receipt-line flex justify-between py-1"><span>Prix d'achat / unité</span><span className="value font-semibold">{rzizaBon.prixAchat.toFixed(2)} DH</span></div>
-                <div className="border-t border-dashed border-gray-300 pt-2 mt-2">
+                <div className="border-t border-dashed border-black pt-2 mt-2">
                   <div className="total flex justify-between font-semibold"><span>Montant dû</span><span>{rzizaBon.montantDu.toFixed(2)} DH</span></div>
                   <div className="flex justify-between text-black font-semibold mt-1"><span>Statut</span><span>NON PAYÉ</span></div>
                 </div>
@@ -607,14 +607,14 @@ export default function POSPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setClearReceipt(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-black text-black">
                 <ReceiptHeader subtitle={clearReceipt.label}>
                   <p className="text-black text-[10.5px] mt-1.5">{new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
                 </ReceiptHeader>
 
                 {clearReceipt.productionSummary?.length > 0 && (
                   <div className="mb-3">
-                    <p className="font-bold text-black border-b border-dashed border-gray-300 pb-1 mb-1.5">Production du jour</p>
+                    <p className="font-bold text-black border-b border-dashed border-black pb-1 mb-1.5">Production du jour</p>
                     {clearReceipt.productionSummary.map((p) => (
                       <div key={p.category} className="receipt-line flex justify-between py-0.5">
                         <span className="name pr-2">{clearReceiptCategoryLabel(p.category, lang)} × {formatQty(p.qty)}</span>
@@ -624,7 +624,7 @@ export default function POSPage() {
                   </div>
                 )}
 
-                <p className="font-bold text-black border-b border-dashed border-gray-300 pb-1 mb-1.5">Vidé ce soir (invendu)</p>
+                <p className="font-bold text-black border-b border-dashed border-black pb-1 mb-1.5">Vidé ce soir (invendu)</p>
                 <div className="space-y-1.5 mb-2">
                   {clearReceipt.entries.length === 0 && (
                     <p className="italic text-black text-center py-1">Rien à vider</p>
@@ -636,13 +636,13 @@ export default function POSPage() {
                     </div>
                   ))}
                 </div>
-                <div className="border-t border-dashed border-gray-300 pt-2 mt-2">
+                <div className="border-t border-dashed border-black pt-2 mt-2">
                   <div className="flex justify-between py-0.5"><span>Quantité totale</span><span>{clearReceipt.totalQuantity}</span></div>
                   <div className="total flex justify-between font-semibold"><span>Valeur totale (perte)</span><span>{clearReceipt.totalValue.toFixed(2)} DH</span></div>
                 </div>
 
                 {clearReceipt.carryover?.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-dashed border-gray-300">
+                  <div className="mt-3 pt-3 border-t border-dashed border-black">
                     <p className="font-bold text-black pb-1 mb-1.5">Retour — vendable un autre jour</p>
                     {clearReceipt.carryover.map((e) => (
                       <div key={e.productId} className="receipt-line flex justify-between py-0.5">
@@ -650,7 +650,7 @@ export default function POSPage() {
                         <span className="value shrink-0 font-semibold">{e.value.toFixed(2)} DH</span>
                       </div>
                     ))}
-                    <div className="total flex justify-between font-semibold mt-1.5 pt-1.5 border-t border-dashed border-gray-300">
+                    <div className="total flex justify-between font-semibold mt-1.5 pt-1.5 border-t border-dashed border-black">
                       <span>Valeur totale du retour</span>
                       <span>{clearReceipt.carryover.reduce((s, e) => s + e.value, 0).toFixed(2)} DH</span>
                     </div>
@@ -689,7 +689,7 @@ export default function POSPage() {
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 print:bg-white" onClick={() => setViderReceipt(null)}>
             <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-diana-cream text-diana-dark rounded-2xl p-6 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-gray-300 text-black">
+              <div className="receipt-print bg-white rounded-xl p-4 mb-5 text-xs border border-black text-black">
                 <ReceiptHeader subtitle="Clôture de caisse">
                   <p className="text-black text-[11px] font-semibold mt-1.5">{viderReceipt.closedSession.userName}</p>
                   <p className="text-black text-[10.5px] mt-1">Entrée : {new Date(viderReceipt.closedSession.openedAt).toLocaleString('fr-FR')}</p>
@@ -699,7 +699,7 @@ export default function POSPage() {
 
                 {viderReceipt.sales.length > 0 && (
                   <div className="mb-3">
-                    <p className="font-bold text-black border-b border-dashed border-gray-300 pb-1 mb-1.5">Ventes ({viderReceipt.sales.length})</p>
+                    <p className="font-bold text-black border-b border-dashed border-black pb-1 mb-1.5">Ventes ({viderReceipt.sales.length})</p>
                     {viderReceipt.sales.map((sale) => (
                       <div key={sale.id} className="mb-2">
                         <div className="flex justify-between text-[10.5px] text-black font-semibold">
@@ -720,7 +720,7 @@ export default function POSPage() {
 
                 {viderReceipt.reservations.length > 0 && (
                   <div className="mb-3">
-                    <p className="font-bold text-black border-b border-dashed border-gray-300 pb-1 mb-1.5">Commandes ({viderReceipt.reservations.length})</p>
+                    <p className="font-bold text-black border-b border-dashed border-black pb-1 mb-1.5">Commandes ({viderReceipt.reservations.length})</p>
                     {viderReceipt.reservations.map((r) => (
                       <div key={r.id} className="mb-2">
                         <div className="flex justify-between text-[10.5px] text-black font-semibold">
@@ -743,7 +743,7 @@ export default function POSPage() {
                   <p className="text-center italic text-black mb-2">Aucune transaction sur cette session.</p>
                 )}
 
-                <div className="border-t border-dashed border-gray-300 pt-2 mt-2">
+                <div className="border-t border-dashed border-black pt-2 mt-2">
                   <div className="flex justify-between"><span>Total ventes</span><span>{viderReceipt.closedSession.closingSalesTotal.toFixed(2)} DH</span></div>
                   <div className="flex justify-between"><span>Total commandes</span><span>{viderReceipt.closedSession.closingCommandesTotal.toFixed(2)} DH</span></div>
                   <div className="total flex justify-between font-bold text-sm mt-1.5">
