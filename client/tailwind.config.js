@@ -9,7 +9,7 @@ export default {
           border: '#B98C5E', gold: '#8B5E34', goldLight: '#A8754A',
           goldDark: '#6E492A', cream: '#3A2A18', creamDark: '#2C1F12',
           brown: '#5C4326', brownLight: '#4A3520', brownDark: '#2C1F12',
-          accent: '#8B3A2A', accentLight: '#E08A6F', danger: '#B5564B',
+          accent: '#8B3A2A', accentLight: '#E08A6F', danger: '#E5484D',
         }
       },
       fontFamily: {
