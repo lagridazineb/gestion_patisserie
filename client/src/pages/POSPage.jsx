@@ -35,6 +35,7 @@ export default function POSPage() {
   const [confirmPaymentState, setConfirmPaymentState] = useState({ open: false, method: null })
   const [paymentType, setPaymentType] = useState(null)
   const [changeGiven, setChangeGiven] = useState(0)
+  const [amountReceived, setAmountReceived] = useState(0)
   const [showReceipt, setShowReceipt] = useState(false)
   const [discountInput, setDiscountInput] = useState('')
   const [stock, setStock] = useState({})
@@ -167,11 +168,12 @@ export default function POSPage() {
   }
   const cancelConfirmPayment = () => setConfirmPaymentState({ open: false, method: null })
 
-  const handlePayment = async ({ change }) => {
+  const handlePayment = async ({ change, amountReceived: received }) => {
     const type = confirmPaymentState.method
     setConfirmPaymentState({ open: false, method: null })
     setPaymentType(type)
     setChangeGiven(change || 0)
+    setAmountReceived(received || 0)
     setShowReceipt(true)
     const sale = await recordSale(order, type)
     setTicketNumber(sale.ticketNumber)
@@ -185,6 +187,7 @@ export default function POSPage() {
     setShowReceipt(false)
     setPaymentType(null)
     setChangeGiven(0)
+    setAmountReceived(0)
     setActiveCategory(null)
     setSearchQuery('')
     setTicketNumber(await peekNextTicketNumber())
@@ -198,6 +201,7 @@ export default function POSPage() {
       clearOrder()
       setPaymentType(null)
       setChangeGiven(0)
+      setAmountReceived(0)
       setActiveCategory(null)
       setTicketNumber(await peekNextTicketNumber())
       addNotification('Reçu imprimé', 'success')
@@ -511,6 +515,9 @@ export default function POSPage() {
                 </div>
                 <div className="border-t border-dashed border-black pt-2 mt-2 space-y-1 text-black">
                   <div className="flex justify-between"><span>Règlement</span><span>{paymentType === 'cash' ? 'Espèces' : 'Carte'}</span></div>
+                  {paymentType === 'cash' && (
+                    <div className="flex justify-between"><span>Montant reçu</span><span>{amountReceived.toFixed(2)} DH</span></div>
+                  )}
                   {paymentType === 'cash' && changeGiven > 0 && (
                     <div className="flex justify-between"><span>Monnaie rendue</span><span>{changeGiven.toFixed(2)} DH</span></div>
                   )}
