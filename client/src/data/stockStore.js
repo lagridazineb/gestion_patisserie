@@ -273,23 +273,30 @@ export async function getStockClearLog() {
   }))
 }
 
-export async function clearPerishableStock() {
-  const affected = ALL_PRODUCTS.filter((p) =>
+// `catalog` : catalogue COMPLET et À JOUR (base + produits personnalisés + éditions), tel que
+// vu par l'écran Stock — généralement `mergeProductOverlay(productOverlay)`. Sans ce paramètre,
+// on retombe sur le catalogue de base uniquement (rétro-compatible), mais dans ce cas les
+// produits personnalisés (ex: "Tranche 18") ne sont ni vidés, ni comptés dans le retour —
+// c'est pour corriger exactement ce bug que le paramètre a été ajouté.
+export async function clearPerishableStock(catalog = ALL_PRODUCTS) {
+  const affected = catalog.filter((p) =>
     PERISHABLE_CATEGORIES.includes(p.category) ||
     (p.category === 'millefeuille' && PERISHABLE_MILLEFEUILLE_IDS.includes(p.id))
   )
-  const fullCatalog = ALL_PRODUCTS.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price }))
+  const fullCatalog = catalog.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price }))
   const { data } = await apiClient.post('/stock/clear', { type: 'soir', affectedProducts: affected, fullCatalog })
   return data
 }
 
-export async function resetAllStock() {
-  const { data } = await apiClient.post('/stock/clear', { type: 'complet', affectedProducts: ALL_PRODUCTS })
+export async function resetAllStock(catalog = ALL_PRODUCTS) {
+  const { data } = await apiClient.post('/stock/clear', { type: 'complet', affectedProducts: catalog })
   return data
 }
 
 // À appeler périodiquement (ex: toutes les minutes) pendant que l'app est ouverte.
-export async function checkAutoClosing() {
+// `catalog` : même catalogue complet (base + custom + éditions) à transmettre à clearPerishableStock —
+// voir le commentaire sur clearPerishableStock ci-dessus.
+export async function checkAutoClosing(catalog = ALL_PRODUCTS) {
   const settings = await getEodSettings()
   const today = new Date().toISOString().slice(0, 10)
   if (settings.lastClearedDate === today) return false
@@ -298,7 +305,7 @@ export async function checkAutoClosing() {
   const cutoff = new Date()
   cutoff.setHours(h, m, 0, 0)
   if (now >= cutoff) {
-    await clearPerishableStock()
+    await clearPerishableStock(catalog)
     return true
   }
   return false
