@@ -51,7 +51,7 @@ export default function StockPage() {
   // Vérifie toutes les minutes si l'heure de clôture est dépassée (tant que la page est ouverte)
   useEffect(() => {
     const check = async () => {
-      const triggered = await checkAutoClosing()
+      const triggered = await checkAutoClosing(ALL_PRODUCTS)
       if (triggered) {
         setEodSettingsState(await getEodSettings())
         addNotification('Clôture automatique du soir effectuée (Pain, Viennoiserie, Salé, Millefeuille)', 'success')
@@ -60,7 +60,7 @@ export default function StockPage() {
     check()
     const interval = setInterval(check, 60000)
     return () => clearInterval(interval)
-  }, [addNotification])
+  }, [addNotification, ALL_PRODUCTS])
 
   const refresh = useCallback(async () => {
     const [stockData, productionData, salesData, eodData, rziza] = await Promise.all([
@@ -174,7 +174,10 @@ export default function StockPage() {
   const atelierLabel = (id) => ATELIERS.find(a => a.id === id)?.label || id
 
   const handleManualClear = async () => {
-    const result = await clearPerishableStock()
+    // On passe le catalogue COMPLET (base + produits personnalisés + éditions) — sinon les
+    // produits ajoutés depuis l'admin (ex: "Tranche 18") sont invisibles pour la clôture et
+    // n'apparaissent ni dans "Vidé ce soir" ni dans "Retour", même avec du stock.
+    const result = await clearPerishableStock(ALL_PRODUCTS)
     refresh()
     addNotification(`Stock vidé pour ${result.count} produits (Pain, Viennoiserie, Salé, Millefeuille) — valeur ${result.totalValue.toFixed(2)} DH`, 'success')
     if (result.entries?.length > 0 || result.carryover?.length > 0 || result.productionSummary?.length > 0) {
@@ -184,7 +187,7 @@ export default function StockPage() {
 
   const handleResetAllStock = async () => {
     if (!window.confirm('Remettre TOUT le stock (toutes catégories) à 0 ? Cette action est irréversible.')) return
-    const result = await resetAllStock()
+    const result = await resetAllStock(ALL_PRODUCTS)
     refresh()
     addNotification(`Stock remis à 0 pour ${result.count} produits — valeur ${result.totalValue.toFixed(2)} DH`, 'success')
     if (result.entries?.length > 0) setClearReceipt({ ...result, label: 'Remise à zéro complète du stock' })
