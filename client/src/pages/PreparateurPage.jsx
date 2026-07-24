@@ -133,7 +133,7 @@ export default function PreparateurPage() {
       productId: product.id, product: product.name,
       quantity: isGateauKg ? 1 : qty, date, time,
       category: product.category, price: isGateauKg ? qty : product.price,
-      atelier: user?.atelier, user: user?.name,
+      atelier: user?.atelier, user: user?.name, image: product.image,
     })
     setSelectedProduct('')
     setQuantity('')
