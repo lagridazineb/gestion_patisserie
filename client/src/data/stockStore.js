@@ -37,9 +37,17 @@ export async function getProductionLog(atelier, date) {
   }))
 }
 
+// `entry.image`, si fourni par l'appelant (qui connaît déjà le produit via son propre catalogue
+// fusionné base+personnalisés), est utilisé en priorité. Sinon, on retombe sur une recherche
+// dans le catalogue de base — mais celle-ci échoue silencieusement (image null) pour tout
+// produit personnalisé, d'où l'intérêt de toujours fournir `entry.image` quand on l'a.
 export async function addProduction(entry) {
-  const baseProduct = ALL_PRODUCTS.find((p) => p.id === entry.productId)
-  const { data } = await apiClient.post('/production', { ...entry, image: baseProduct?.image || null })
+  let image = entry.image
+  if (image === undefined) {
+    const baseProduct = ALL_PRODUCTS.find((p) => p.id === entry.productId)
+    image = baseProduct?.image || null
+  }
+  const { data } = await apiClient.post('/production', { ...entry, image })
   return data
 }
 
