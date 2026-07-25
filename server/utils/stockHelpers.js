@@ -66,10 +66,10 @@ async function loadProductsModule() {
   return cachedProductsModule
 }
 
-// Catégories/produits "périssables" vidés chaque soir — dupliqué ici volontairement (constante
-// triviale) car client/src/data/stockStore.js n'est pas portable côté serveur (il importe axios).
-const PERISHABLE_CATEGORIES = ['pain', 'viennoiserie', 'sale']
-const PERISHABLE_MILLEFEUILLE_IDS = ['m1b']
+// Catégories "périssables" vidées à chaque "Fin de journée" — dupliqué ici volontairement
+// (constante triviale) car client/src/data/stockStore.js n'est pas portable côté serveur
+// (il importe axios). Toute la catégorie Millefeuille est incluse (pas seulement un produit).
+const PERISHABLE_CATEGORIES = ['pain', 'viennoiserie', 'sale', 'millefeuille']
 
 // Reconstitue le catalogue complet à jour (base + surcouche admin), sous la forme
 // { id, name, category, price } utilisée par performClear ci-dessous.
@@ -174,10 +174,7 @@ async function checkServerAutoClosing() {
   if (now < cutoff) return false
 
   const catalog = await getServerCatalog()
-  const affectedProducts = catalog.filter((p) =>
-    PERISHABLE_CATEGORIES.includes(p.category) ||
-    (p.category === 'millefeuille' && PERISHABLE_MILLEFEUILLE_IDS.includes(p.id))
-  )
+  const affectedProducts = catalog.filter((p) => PERISHABLE_CATEGORIES.includes(p.category))
   await performClear({ type: 'soir', affectedProducts, fullCatalog: catalog })
   console.log(`[EOD] Clôture automatique du soir effectuée côté serveur (${today})`)
   return true
