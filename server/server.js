@@ -8,7 +8,6 @@ const morgan = require('morgan')
 dotenv.config()
 
 const { pool, testConnection } = require('./config/db')
-const { checkServerAutoClosing } = require('./utils/stockHelpers')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -83,16 +82,13 @@ app.listen(PORT, async () => {
     await testConnection()
     console.log('✅  Connexion à la base de données MySQL réussie\n')
 
-    // Clôture de fin de journée : vérifiée ici, dans le processus serveur, toutes les
-    // minutes — donc même si personne n'a la page Stock ouverte dans un navigateur, la
-    // clôture (et le retour de caisse qui en découle) se fait bien à l'heure configurée.
-    const runEodCheck = () => {
-      checkServerAutoClosing().catch((err) => {
-        console.error('❌  Erreur lors de la vérification de clôture automatique :', err.message)
-      })
-    }
-    runEodCheck()
-    setInterval(runEodCheck, 60 * 1000)
+    // Clôture de fin de journée : DÉSACTIVÉE volontairement en automatique. La clôture
+    // (vidage du stock Pain/Viennoiserie/Salé/Millefeuille + calcul du retour) ne doit se
+    // déclencher QUE quand un utilisateur clique sur le bouton "Fin de journée" dans la
+    // Caisse — jamais toute seule en arrière-plan, pour éviter qu'elle se déclenche avant
+    // que le magasin ait réellement fermé (ce qui faussait le reçu : stock déjà à 0 au
+    // moment du clic manuel). checkServerAutoClosing() reste disponible plus bas si on
+    // veut un jour la réactiver, mais elle n'est plus appelée ici.
   } catch (err) {
     console.error('❌  Impossible de se connecter à la base de données')
     console.error('   Code erreur :', err.code || '(aucun)')
