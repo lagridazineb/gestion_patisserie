@@ -219,7 +219,7 @@ export default function POSPage() {
 
   const handleClearPerishables = async () => {
     if (!window.confirm("Vider le stock invendu de Pain, Viennoiserie (croissants inclus), Salé et Millefeuille ? Cette action remet ces stocks à 0, à la caisse comme chez les préparateurs concernés.")) return
-    const result = await clearPerishableStock()
+    const result = await clearPerishableStock(ALL_PRODUCTS)
     refreshStock()
     addNotification(`Stock vidé pour ${result.count} produits (valeur: ${result.totalValue.toFixed(2)} DH)`, 'success')
     if (result.entries?.length > 0 || result.carryover?.length > 0 || result.productionSummary?.length > 0) {
@@ -241,7 +241,7 @@ export default function POSPage() {
   // Génère aussi un reçu récapitulatif de ce qui a été vidé (comme la clôture du soir).
   const handleResetAllStock = async () => {
     if (!window.confirm("Remettre TOUT le stock (toutes les catégories) à 0 (rupture) ? Cette action est irréversible.")) return
-    const result = await resetAllStock()
+    const result = await resetAllStock(ALL_PRODUCTS)
     refreshStock()
     addNotification(`Stock remis à 0 pour ${result.count} produits — valeur ${result.totalValue.toFixed(2)} DH`, 'success')
     if (result.entries?.length > 0) setClearReceipt({ ...result, label: 'Remise à zéro complète du stock (rupture)' })
