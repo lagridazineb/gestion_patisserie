@@ -7,11 +7,10 @@ import { getProductOverlay } from '../api/products'
 import { useNotification } from '../context/NotificationContext'
 import {
   getStock, setProductStock, adjustStock, getProductionLog, getSalesLog, subscribeToStockUpdates,
-  getEodSettings, setEodTime, clearPerishableStock, checkAutoClosing, PERISHABLE_CATEGORIES, resetAllStock,
+  getEodSettings, clearPerishableStock, PERISHABLE_CATEGORIES, resetAllStock,
   removeProductionEntry, sameDay, getRzizaDeliveries,
 } from '../data/stockStore'
 import NumericField from '../components/NumericField'
-import TimeField from '../components/TimeField'
 import ReceiptHeader from '../components/ReceiptHeader'
 
 export default function StockPage() {
@@ -47,20 +46,6 @@ export default function StockPage() {
       return () => clearTimeout(t)
     }
   }, [clearReceipt])
-
-  // Vérifie toutes les minutes si l'heure de clôture est dépassée (tant que la page est ouverte)
-  useEffect(() => {
-    const check = async () => {
-      const triggered = await checkAutoClosing(ALL_PRODUCTS)
-      if (triggered) {
-        setEodSettingsState(await getEodSettings())
-        addNotification('Clôture automatique du soir effectuée (Pain, Viennoiserie, Salé, Millefeuille)', 'success')
-      }
-    }
-    check()
-    const interval = setInterval(check, 60000)
-    return () => clearInterval(interval)
-  }, [addNotification, ALL_PRODUCTS])
 
   const refresh = useCallback(async () => {
     const [stockData, productionData, salesData, eodData, rziza] = await Promise.all([
@@ -193,11 +178,6 @@ export default function StockPage() {
     if (result.entries?.length > 0) setClearReceipt({ ...result, label: 'Remise à zéro complète du stock' })
   }
 
-  const handleTimeChange = async (time) => {
-    const updated = await setEodTime(time)
-    setEodSettingsState((prev) => ({ ...prev, time: updated.time }))
-  }
-
   return (
     <div className="h-full overflow-y-auto p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
@@ -234,16 +214,13 @@ export default function StockPage() {
                 <div className="w-10 h-10 rounded-xl bg-diana-accent/10 flex items-center justify-center shrink-0"><FiSunset className="text-diana-accentLight" size={18} /></div>
                 <div>
                   <p className="font-fraunces text-base text-diana-cream">Clôture du soir</p>
-                  <p className="text-xs text-diana-brown mt-0.5">Vide automatiquement le stock invendu de Pain, Viennoiserie, Salé et Millefeuille (produits périssables uniquement).</p>
+                  <p className="text-xs text-diana-brown mt-0.5">Vide le stock invendu de Pain, Viennoiserie, Salé et Millefeuille quand tu cliques sur "Vider maintenant" — jamais automatiquement.</p>
                   {eodSettings.lastClearedDate === new Date().toISOString().slice(0, 10) && (
                     <p className="text-[11px] text-emerald-400 mt-1">✓ Déjà effectuée aujourd'hui</p>
                   )}
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <label className="text-xs text-diana-brown">Heure :</label>
-                <TimeField value={eodSettings.time} onChange={handleTimeChange} title="Heure de clôture"
-                  className="px-2 py-1.5 text-sm bg-diana-dark/30 border border-diana-border rounded-lg text-diana-cream focus:outline-none focus:border-diana-gold/50" />
                 <button onClick={handleManualClear}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-diana-danger/10 text-diana-danger border border-diana-danger/30 text-xs font-semibold hover:bg-diana-danger/20 transition-colors">
                   <FiTrash2 size={13} /> Vider maintenant
