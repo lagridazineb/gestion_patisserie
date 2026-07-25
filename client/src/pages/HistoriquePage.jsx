@@ -29,18 +29,20 @@ export default function HistoriquePage() {
   }, [refresh])
 
   const filteredSales = useMemo(() => {
+    if (!date) return [] // rien tant qu'aucune date n'est choisie
     const q = search.trim().toLowerCase()
     return sales.filter((s) => {
-      if (date && !sameDay(s.timestamp, date)) return false
+      if (!sameDay(s.timestamp, date)) return false
       if (!q) return true
       return String(s.ticketNumber).includes(q) || (s.items || []).some((i) => i.name.toLowerCase().includes(q))
     })
   }, [sales, date, search])
 
   const filteredReservations = useMemo(() => {
+    if (!date) return [] // rien tant qu'aucune date n'est choisie
     const q = search.trim().toLowerCase()
     return reservations.filter((r) => {
-      if (date && !sameDay(r.createdAt, date)) return false
+      if (!sameDay(r.createdAt, date)) return false
       if (!q) return true
       return String(r.ticketNumber).includes(q) ||
         (r.clientName || '').toLowerCase().includes(q) ||
@@ -82,14 +84,16 @@ export default function HistoriquePage() {
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
               className="px-3 py-2 text-sm bg-diana-card border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50" />
             {date && (
-              <button onClick={() => setDate('')} className="text-xs text-diana-brown hover:text-diana-gold underline">Toutes les dates</button>
+              <button onClick={() => setDate('')} className="text-xs text-diana-brown hover:text-diana-gold underline">Effacer la date</button>
             )}
           </div>
         </div>
 
         {tab === 'tickets' ? (
           filteredSales.length === 0 ? (
-            <p className="text-sm italic text-diana-brownLight text-center py-16">Aucun ticket trouvé</p>
+            <p className="text-sm italic text-diana-brownLight text-center py-16">
+              {date ? 'Aucun ticket trouvé pour cette date' : 'Choisissez une date pour afficher les tickets'}
+            </p>
           ) : (
             <div className="space-y-2.5">
               {filteredSales.map((s) => (
@@ -109,7 +113,9 @@ export default function HistoriquePage() {
           )
         ) : (
           filteredReservations.length === 0 ? (
-            <p className="text-sm italic text-diana-brownLight text-center py-16">Aucune commande trouvée</p>
+            <p className="text-sm italic text-diana-brownLight text-center py-16">
+              {date ? 'Aucune commande trouvée pour cette date' : 'Choisissez une date pour afficher les commandes'}
+            </p>
           ) : (
             <div className="space-y-2.5">
               {filteredReservations.map((r) => (
