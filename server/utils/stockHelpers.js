@@ -118,6 +118,22 @@ async function performClear({ type, affectedProducts, fullCatalog }) {
        FROM production_entries WHERE production_date = CURDATE() GROUP BY category`
     )
     productionSummary = prodRows.map((r) => ({ category: r.category, qty: Number(r.qty), value: Number(r.value) }))
+
+    // Lots "Frigo Entremet" (entremets + gâteaux au kg) encore en stock : ils ne font pas
+    // partie du catalogue statique (fullCatalog vient de products.js), donc sans ce bloc ils
+    // n'apparaissaient jamais dans le retour de fermeture, même invendus.
+    const [frigoRows] = await pool.query(
+      `SELECT fb.id, fb.name, fb.category, fb.price, sq.quantity AS qty
+       FROM frigo_batches fb
+       JOIN stock_quantities sq ON sq.product_id = fb.id
+       WHERE sq.quantity > 0`
+    )
+    const frigoCarryover = frigoRows.map((b) => {
+      const qty = Number(b.qty)
+      const price = Number(b.price) || 0
+      return { productId: b.id, name: b.name, category: b.category || 'gateaux_kg', qty, price, value: qty * price }
+    })
+    carryover = [...carryover, ...frigoCarryover]
   }
 
   for (const p of affectedProducts) {
@@ -157,10 +173,6 @@ async function performClear({ type, affectedProducts, fullCatalog }) {
   return { success: true, id, type, entries, totalQuantity, totalValue, count: affectedProducts.length, carryover, productionSummary }
 }
 
-// À appeler périodiquement côté serveur (voir server.js). Contrairement à l'ancien
-// checkAutoClosing() client (qui ne s'exécutait que si un navigateur avait la page Stock
-// ouverte), celui-ci tourne dans le processus Node tant que le serveur est en vie — donc
-// même la nuit, sans personne connecté.
 async function checkServerAutoClosing() {
   const [rows] = await pool.query('SELECT clear_time, last_cleared_date FROM eod_settings WHERE id = 1')
   const settings = rows[0] || { clear_time: '22:00', last_cleared_date: null }
