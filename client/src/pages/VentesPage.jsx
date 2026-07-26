@@ -5,6 +5,7 @@ import { ATELIERS, mergeProductOverlay } from '../data/products'
 import { getProductOverlay } from '../api/products'
 import {
   getProductionLog, getSalesLog, getRefunds, getCommandesBilan, subscribeToStockUpdates, sameDay, getRzizaDeliveries, getRetours,
+  getStockClearLog,
 } from '../data/stockStore'
 
 const EXCLUDED_CATEGORIES = ['melange', 'cake_design', 'gateaux_kg']
@@ -30,6 +31,7 @@ export default function VentesPage() {
   const [refunds, setRefunds] = useState([])
   const [rzizaDeliveries, setRzizaDeliveries] = useState([])
   const [retours, setRetours] = useState({ current: null, previous: null })
+  const [clearLog, setClearLog] = useState([])
   const [commandesBilan, setCommandesBilan] = useState(null)
   const [expandedAtelier, setExpandedAtelier] = useState(null)
   const [retourTab, setRetourTab] = useState('previous') // 'previous' | 'current'
@@ -43,8 +45,9 @@ export default function VentesPage() {
 
   const refresh = useCallback(async () => {
     const commandesDate = date || todayStr()
-    const [productionData, salesData, refundsData, bilan, rziza, retoursData] = await Promise.all([
+    const [productionData, salesData, refundsData, bilan, rziza, retoursData, clearLogData] = await Promise.all([
       getProductionLog(), getSalesLog(), getRefunds(), getCommandesBilan(commandesDate), getRzizaDeliveries(), getRetours(commandesDate),
+      getStockClearLog(),
     ])
     setProductionLog(productionData)
     setSalesLog(salesData)
@@ -52,6 +55,7 @@ export default function VentesPage() {
     setCommandesBilan(bilan)
     setRzizaDeliveries(rziza)
     setRetours(retoursData)
+    setClearLog(clearLogData)
   }, [date])
 
   useEffect(() => {
@@ -168,10 +172,34 @@ export default function VentesPage() {
   const totalVentesNet = atelierSummary.reduce((sum, a) => sum + a.netRevenue, 0)
   const totalRefunds = atelierSummary.reduce((sum, a) => sum + a.totalRefundValue, 0)
   const totalCommandes = commandesBilan ? commandesBilan.totalAvances + commandesBilan.totalRestes : 0
+
+  // Perte de fermeture : pain / viennoiserie / millefeuille / salé vidés (jetés) au vidage du
+  // soir — pas récupérables, contrairement au "retour" (entremet/frigo, lui vendable plus
+  // tard). On les fusionne par produit pour la date sélectionnée (ou tout l'historique).
+  const perteFermeture = useMemo(() => {
+    const filtered = clearLog.filter((l) => l.type === 'soir' && (date ? sameDay(l.timestamp, date) : true))
+    const merged = {}
+    let totalValue = 0
+    filtered.forEach((log) => {
+      totalValue += log.totalValue
+      ;(log.entries || []).forEach((e) => {
+        const key = e.productId || e.name
+        if (!merged[key]) merged[key] = { productId: e.productId, name: e.name, category: e.category, qty: 0, value: 0, price: e.price }
+        merged[key].qty += e.qty
+        merged[key].value += e.value
+      })
+    })
+    return { totalValue, entries: Object.values(merged).sort((a, b) => b.value - a.value) }
+  }, [clearLog, date])
+
   // Case 4 : total production + CA commandes + retour du jour précédent (récupéré, vendable
   // aujourd'hui) - retour de fermeture du jour (invendu du jour, pas encore récupéré).
   const retourPrecedentValue = retours.previous?.totalValue || 0
   const retourFermetureValue = retours.current?.totalValue || 0
+  const perteFermetureValue = perteFermeture.totalValue
+  // Total de ce qui restait invendu à la fermeture du jour, toutes catégories confondues :
+  // ce qui sera revendu (retour) + ce qui a été jeté (perte).
+  const totalFermetureValue = retourFermetureValue + perteFermetureValue
   const bilanAvecRetours = totalProductionValue + totalCommandes + retourPrecedentValue - retourFermetureValue
 
   return (
@@ -204,8 +232,6 @@ export default function VentesPage() {
             { label: 'Total production', value: `${totalProductionValue.toFixed(2)} DH`, icon: FiBox, color: 'bg-blue-500/10 text-blue-400' },
             { label: "Chiffre d'affaires commandes", value: `${totalCommandes.toFixed(2)} DH`, icon: FiCalendar, color: 'bg-emerald-500/10 text-emerald-400' },
             { label: 'Retour du jour précédent', value: `${retourPrecedentValue.toFixed(2)} DH`, icon: FiRotateCcw, color: 'bg-purple-500/10 text-purple-400' },
-            { label: 'Retours de fermeture', value: `${retourFermetureValue.toFixed(2)} DH`, icon: FiRotateCcw, color: 'bg-orange-400/10 text-orange-400' },
-            { label: 'Bilan avec retours (production + commandes + retour précédent - retour du jour)', value: `${bilanAvecRetours.toFixed(2)} DH`, icon: FiDollarSign, color: 'bg-diana-gold/10 text-diana-gold' },
           ].map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
               className="bg-diana-card border border-diana-border rounded-2xl p-5">
@@ -214,6 +240,27 @@ export default function VentesPage() {
               <p className="text-xs text-diana-brown">{stat.label}</p>
             </motion.div>
           ))}
+
+          {/* Case 4 : Retours de fermeture — total de tout ce qui restait invendu ce soir-là
+              (pain/viennoiserie/frigo/entremet/salé confondus), avec le détail Perte (jeté,
+              non récupérable) / Retour (revendable le lendemain) affiché en petit en dessous. */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 3 * 0.06 }}
+            className="bg-diana-card border border-diana-border rounded-2xl p-5">
+            <div className="w-10 h-10 rounded-xl bg-orange-400/10 text-orange-400 flex items-center justify-center mb-3"><FiRotateCcw size={18} /></div>
+            <p className="font-fraunces text-2xl font-semibold text-diana-cream mb-1">{totalFermetureValue.toFixed(2)} DH</p>
+            <p className="text-xs text-diana-brown mb-2">Retours de fermeture</p>
+            <div className="flex items-center justify-between text-[11px] pt-2 border-t border-diana-border/40">
+              <span className="text-diana-danger">Perte : {perteFermetureValue.toFixed(2)} DH</span>
+              <span className="text-diana-gold">Retour : {retourFermetureValue.toFixed(2)} DH</span>
+            </div>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 4 * 0.06 }}
+            className="bg-diana-card border border-diana-border rounded-2xl p-5">
+            <div className="w-10 h-10 rounded-xl bg-diana-gold/10 text-diana-gold flex items-center justify-center mb-3"><FiDollarSign size={18} /></div>
+            <p className="font-fraunces text-2xl font-semibold text-diana-cream mb-1">{bilanAvecRetours.toFixed(2)} DH</p>
+            <p className="text-xs text-diana-brown">Bilan avec retours (production + commandes + retour précédent - retour du jour)</p>
+          </motion.div>
         </div>
 
         {/* Retours : même principe de séparation par onglet que Production/Vente. Le détail
@@ -244,38 +291,54 @@ export default function VentesPage() {
             const filledLabel = data
               ? (isPrevious
                   ? `Calculé le ${data.date} — réutilisé comme fond de caisse aujourd'hui.`
-                  : "Stock invendu d'entremet/gâteau/cake/pâtisserie au vidage de ce soir-là — servira de fond de caisse demain.")
+                  : "Toutes catégories confondues (pain, viennoiserie, frigo, entremet, salé) : ce qui sera revendu (retour) et ce qui a été jeté (perte).")
               : null
-            const entries = data?.entries || []
+            // Pour la fermeture du jour (current), on fusionne le retour (revendable) et la
+            // perte (jetée) en une seule liste, chaque ligne étant étiquetée, pour montrer
+            // TOUT ce qui restait invendu à la fermeture, pas seulement la part "retour".
+            const entries = isPrevious
+              ? (data?.entries || [])
+              : [
+                  ...(data?.entries || []).map((e) => ({ ...e, kind: 'retour' })),
+                  ...perteFermeture.entries.map((e) => ({ ...e, kind: 'perte' })),
+                ]
+            const totalValue = isPrevious ? (data?.totalValue || 0) : totalFermetureValue
+            const hasData = isPrevious ? !!data : (!!data || perteFermeture.entries.length > 0)
             return (
               <div className="bg-diana-card border border-diana-border rounded-2xl p-5">
                 <div className="flex items-center gap-3 mb-2">
                   <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center`}><FiRotateCcw size={18} /></div>
                   <div>
-                    <p className="font-fraunces text-2xl font-semibold text-diana-cream">{data ? `${data.totalValue.toFixed(2)} DH` : '—'}</p>
-                    <p className="text-[11px] text-diana-brownLight">{data ? filledLabel : emptyLabel}</p>
+                    <p className="font-fraunces text-2xl font-semibold text-diana-cream">{hasData ? `${totalValue.toFixed(2)} DH` : '—'}</p>
+                    <p className="text-[11px] text-diana-brownLight">{hasData ? filledLabel : emptyLabel}</p>
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-diana-border/40">
                   <p className="text-[11px] uppercase tracking-wide text-diana-brown mb-2">Détail produit par produit</p>
                   {entries.length === 0 ? (
                     <p className="text-xs italic text-diana-brownLight">
-                      {data ? 'Aucun produit dans ce retour' : "Rien à afficher — aucune clôture de fin de journée n'a encore été enregistrée pour ce cas."}
+                      {hasData ? 'Aucun produit dans ce retour' : "Rien à afficher — aucune clôture de fin de journée n'a encore été enregistrée pour ce cas."}
                     </p>
                   ) : (
                     <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
                       {entries.map((e, idx) => (
-                        <div key={`${e.productId || e.name}-${idx}`} className="flex justify-between text-xs gap-2">
+                        <div key={`${e.productId || e.name}-${e.kind || ''}-${idx}`} className="flex justify-between text-xs gap-2">
                           <span className="text-diana-cream truncate flex items-center gap-1.5">
                             <FiPackage size={11} className="text-diana-brown shrink-0" /> {e.name} × {e.qty}
                             {e.price ? <span className="text-diana-brownLight"> ({Number(e.price).toFixed(2)} DH/u)</span> : null}
+                            {e.kind === 'perte' && (
+                              <span className="text-[9px] uppercase tracking-wide text-diana-danger bg-diana-danger/10 px-1.5 py-0.5 rounded shrink-0">Perte</span>
+                            )}
+                            {e.kind === 'retour' && (
+                              <span className="text-[9px] uppercase tracking-wide text-diana-gold bg-diana-gold/10 px-1.5 py-0.5 rounded shrink-0">Retour</span>
+                            )}
                           </span>
-                          <span className="text-diana-gold font-medium shrink-0">{Number(e.value).toFixed(2)} DH</span>
+                          <span className={`font-medium shrink-0 ${e.kind === 'perte' ? 'text-diana-danger' : 'text-diana-gold'}`}>{Number(e.value).toFixed(2)} DH</span>
                         </div>
                       ))}
                       <div className="flex justify-between text-xs gap-2 pt-2 border-t border-diana-border/40 font-semibold">
                         <span className="text-diana-brown">Total ({entries.length} produit{entries.length > 1 ? 's' : ''})</span>
-                        <span className="text-diana-gold">{data.totalValue.toFixed(2)} DH</span>
+                        <span className="text-diana-gold">{totalValue.toFixed(2)} DH</span>
                       </div>
                     </div>
                   )}
