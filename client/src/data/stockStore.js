@@ -61,7 +61,7 @@ export async function getActiveFrigoBatches() {
   return data.batches.map((b) => ({
     id: b.id, productionEntryId: b.production_entry_id, baseProductId: b.base_product_id,
     name: b.name, price: Number(b.price), weightKg: b.weight_kg !== null ? Number(b.weight_kg) : null,
-    unit: 'piece', category: 'gateaux_kg', image: b.image, createdAt: b.created_at,
+    unit: 'piece', category: b.category || 'gateaux_kg', image: b.image, createdAt: b.created_at,
   }))
 }
 
@@ -331,7 +331,16 @@ export async function addFondCaisse(amount, note = '') {
 }
 
 export function sameDay(isoString, dateStr) {
-  return new Date(isoString).toISOString().slice(0, 10) === dateStr
+  // On compare en heure LOCALE (getFullYear/getMonth/getDate), pas en UTC.
+  // `new Date(isoString)` interprète déjà une chaîne MySQL "YYYY-MM-DD HH:mm:ss" (sans "T"/"Z")
+  // comme une heure locale du navigateur. Repasser ensuite par `.toISOString()` reconvertit
+  // cette heure locale en UTC, ce qui décale la date d'un jour pour toute entrée créée près de
+  // minuit (le cas typique : une production enregistrée à 00:20 disparaissait du filtre du jour
+  // demandé car elle retombait, après ce double décalage, sur la veille). En lisant directement
+  // les composants locaux de la Date, on évite cette double conversion.
+  const d = new Date(isoString)
+  const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return local === dateStr
 }
 
 // --- Rziza (fournisseur externe) ---
