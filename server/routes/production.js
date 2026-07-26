@@ -46,9 +46,9 @@ router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
       const batchPrice = Math.round(price * quantity * 100) / 100
       const batchName = `${product} — ${batchPrice.toFixed(2)} DH`
       await pool.query(
-        `INSERT INTO frigo_batches (id, production_entry_id, base_product_id, name, price, weight_kg, image, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [batchId, id, productId, batchName, batchPrice, null, image || null]
+        `INSERT INTO frigo_batches (id, production_entry_id, base_product_id, category, name, price, weight_kg, image, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [batchId, id, productId, 'gateaux_kg', batchName, batchPrice, null, image || null]
       )
       await adjustStock(batchId, 1)
       frigoBatch = { id: batchId, name: batchName, price: batchPrice }
@@ -60,9 +60,9 @@ router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
       for (let i = 0; i < unitCount; i++) {
         const batchId = `frigobatch_${id}_${i}_${Math.random().toString(36).slice(2, 8)}`
         await pool.query(
-          `INSERT INTO frigo_batches (id, production_entry_id, base_product_id, name, price, weight_kg, image, created_at)
-           VALUES (?, ?, ?, ?, ?, NULL, ?, NOW())`,
-          [batchId, id, productId, product, price, image || null]
+          `INSERT INTO frigo_batches (id, production_entry_id, base_product_id, category, name, price, weight_kg, image, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, NULL, ?, NOW())`,
+          [batchId, id, productId, 'entremet', product, price, image || null]
         )
         await adjustStock(batchId, 1)
         frigoBatches.push({ id: batchId, name: product, price })
