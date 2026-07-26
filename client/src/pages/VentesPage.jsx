@@ -7,14 +7,13 @@ import {
   getProductionLog, getSalesLog, getRefunds, getCommandesBilan, subscribeToStockUpdates, sameDay, getRzizaDeliveries, getRetours,
 } from '../data/stockStore'
 
-// Catégories retirées de la page Ventes : elles sont désormais gérées via le "Frigo
-// d'entremet" (prix saisi directement par le préparateur) et n'ont plus leur place ici en
-// tant que production/vente classique par quantité.
-const EXCLUDED_CATEGORIES = ['entremet', 'melange', 'cake_design', 'gateaux_kg']
+const EXCLUDED_CATEGORIES = ['melange', 'cake_design', 'gateaux_kg']
 
-// Catégories affichées en plus des ATELIERS "classiques" (préparateurs) dans la section
-// Production & ventes : Millefeuille et Rziza n'ont pas de préparateur dédié dans ATELIERS
-// (products.js), mais doivent quand même apparaître en permanence ici, même à 0.
+function mapToAtelier(categoryId) {
+  return categoryId === 'entremet' ? 'patisserie' : categoryId
+}
+const NO_OWN_CARD_CATEGORIES = ['entremet']
+
 const EXTRA_VENTES_CATEGORIES = [
   { id: 'millefeuille', label: 'Millefeuille / Cake' },
   { id: 'rziza', label: 'Rziza' },
@@ -77,14 +76,14 @@ export default function VentesPage() {
   // production (qté produite × prix) d'un côté, vendu (net des retours) de l'autre — avec
   // le détail produit par produit pour chacun des deux.
   const atelierSummary = useMemo(() => {
-    const filteredProduction = (date ? productionLog.filter((e) => sameDay(e.timestamp, date)) : productionLog)
+    const filteredProduction = (date ? productionLog.filter((e) => e.date === date) : productionLog)
       .filter((e) => !EXCLUDED_CATEGORIES.includes(e.category))
     const filteredSales = date ? salesLog.filter((s) => sameDay(s.timestamp, date)) : salesLog
     const filteredRefunds = date ? refunds.filter((r) => sameDay(r.timestamp, date)) : refunds
     const filteredRziza = date ? rzizaDeliveries.filter((r) => sameDay(r.timestamp, date)) : rzizaDeliveries
 
     const summary = {}
-    ;[...ATELIERS.filter((a) => !EXCLUDED_CATEGORIES.includes(a.id)), ...EXTRA_VENTES_CATEGORIES].forEach((a) => {
+    ;[...ATELIERS.filter((a) => !EXCLUDED_CATEGORIES.includes(a.id) && !NO_OWN_CARD_CATEGORIES.includes(a.id)), ...EXTRA_VENTES_CATEGORIES].forEach((a) => {
       summary[a.id] = {
         atelier: a.id, label: a.label,
         totalProducedQty: 0, totalProducedValue: 0,
@@ -106,7 +105,7 @@ export default function VentesPage() {
     }
 
     filteredProduction.forEach((entry) => {
-      const s = ensure(entry.atelier)
+      const s = ensure(mapToAtelier(entry.atelier))
       if (!s) return
       const value = entry.price !== null ? entry.price * entry.quantity : 0
       s.totalProducedQty += entry.quantity
@@ -131,9 +130,12 @@ export default function VentesPage() {
 
     filteredSales.forEach((sale) => {
       sale.items.forEach((item) => {
-        const cat = productCategoryMap[item.id]
+        // item.category : présent directement sur l'article vendu pour les lots du Frigo
+        // Entremet (entremets, gâteaux au kg), qui n'existent pas dans le catalogue statique
+        // et sont donc introuvables via productCategoryMap[item.id].
+        const cat = item.category || productCategoryMap[item.id]
         if (!cat || EXCLUDED_CATEGORIES.includes(cat)) return
-        const s = ensure(cat)
+        const s = ensure(mapToAtelier(cat))
         if (!s) return
         const value = item.qty * item.price
         s.totalSoldQty += item.qty
@@ -147,9 +149,9 @@ export default function VentesPage() {
 
     filteredRefunds.forEach((refund) => {
       (refund.items || []).forEach((item) => {
-        const cat = productCategoryMap[item.id]
+        const cat = item.category || productCategoryMap[item.id]
         if (!cat || EXCLUDED_CATEGORIES.includes(cat)) return
-        const s = ensure(cat)
+        const s = ensure(mapToAtelier(cat))
         if (s) s.totalRefundValue += item.qty * item.price
       })
     })
