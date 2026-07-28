@@ -27,20 +27,29 @@ router.get('/', authMiddleware, async (req, res) => {
 // plusieurs lots "Frigo Entremet" individuels au lieu de créditer un stock mutualisé.
 router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
   try {
-    const { productId, product, quantity, category, price, atelier, date, time, image, user } = req.body
+    const { productId, product, quantity, category, price, pricePerKg, atelier, date, time, image, user } = req.body
     const id = Date.now()
+
+    // Gâteau au kg : le préparateur saisit le PRIX total du gâteau. On calcule ici le poids
+    // EXACT en kg à partir du prix/kg du produit (envoyé par le front dans `pricePerKg`) :
+    //   poids (kg) = prix saisi / prix au kg
+    // Ex: 195 DH saisis pour un gâteau à 130 DH/kg -> 1.500 kg.
+    let weightKg = null
+    if (category === 'gateaux_kg' && price && pricePerKg && Number(pricePerKg) > 0) {
+      weightKg = Math.round((Number(price) / Number(pricePerKg)) * 1000) / 1000
+    }
+
     await pool.query(
       `INSERT INTO production_entries
-        (id, product_id, product_name, quantity, category, price, atelier, user_name, production_date, production_time, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [id, productId, product, quantity, category, price, atelier, user || req.user.email, date, time]
+        (id, product_id, product_name, quantity, category, price, weight_kg, atelier, user_name, production_date, production_time, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, productId, product, quantity, category, price, weightKg, atelier, user || req.user.email, date, time]
     )
 
     let frigoBatch = null
     let frigoBatches = null
     if (category === 'gateaux_kg' && price) {
-      // Gâteau au kg : le préparateur saisit désormais directement le PRIX du gâteau (quantity
-      // vaut toujours 1 ici, envoyé par le front). Le lot créé porte ce prix tel quel, affiché
+      // Le lot créé porte ce prix tel quel ainsi que le poids exact calculé ci-dessus, affiché
       // ensuite dans le frigo d'entremet.
       const batchId = `frigobatch_${id}_${Math.random().toString(36).slice(2, 8)}`
       const batchPrice = Math.round(price * quantity * 100) / 100
@@ -48,10 +57,10 @@ router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
       await pool.query(
         `INSERT INTO frigo_batches (id, production_entry_id, base_product_id, category, name, price, weight_kg, image, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [batchId, id, productId, 'gateaux_kg', batchName, batchPrice, null, image || null]
+        [batchId, id, productId, 'gateaux_kg', batchName, batchPrice, weightKg, image || null]
       )
       await adjustStock(batchId, 1)
-      frigoBatch = { id: batchId, name: batchName, price: batchPrice }
+      frigoBatch = { id: batchId, name: batchName, price: batchPrice, weightKg }
     } else if (category === 'entremet' && price) {
       // Entremet circulaire : chaque gâteau produit est une pièce vendable indépendante
       // (prix fixe, pas de poids) — on crée un lot par unité produite, comme pour le kg.
