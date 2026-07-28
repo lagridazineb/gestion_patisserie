@@ -8,7 +8,7 @@ import {
   getStockClearLog,
 } from '../data/stockStore'
 
-const EXCLUDED_CATEGORIES = ['melange', 'cake_design', 'gateaux_kg']
+const EXCLUDED_CATEGORIES = ['melange', 'cake_design']
 
 function mapToAtelier(categoryId) {
   return categoryId === 'entremet' ? 'patisserie' : categoryId
@@ -114,9 +114,14 @@ export default function VentesPage() {
       const value = entry.price !== null ? entry.price * entry.quantity : 0
       s.totalProducedQty += entry.quantity
       s.totalProducedValue += value
-      if (!s.productionProducts[entry.product]) s.productionProducts[entry.product] = { name: entry.product, qty: 0, value: 0, price: entry.price }
+      if (!s.productionProducts[entry.product]) s.productionProducts[entry.product] = { name: entry.product, qty: 0, value: 0, price: entry.price, weightKg: 0 }
       s.productionProducts[entry.product].qty += entry.quantity
       s.productionProducts[entry.product].value += value
+      // "Gâteau par kg" : quantity vaut toujours 1 (un gâteau = une entrée), le poids réel est
+      // dans weightKg. On le cumule séparément pour afficher le total en kg produit.
+      if (entry.category === 'gateaux_kg' && entry.weightKg != null) {
+        s.productionProducts[entry.product].weightKg += entry.weightKg
+      }
     })
 
     // Rziza n'a pas de "production" à proprement parler (pas de préparateur) : chaque achat
@@ -145,9 +150,12 @@ export default function VentesPage() {
         s.totalSoldQty += item.qty
         s.totalSoldValue += value
         const name = productNameMap[item.id] || item.name || item.id
-        if (!s.soldProducts[item.id]) s.soldProducts[item.id] = { name, qty: 0, value: 0, price: item.price }
+        if (!s.soldProducts[item.id]) s.soldProducts[item.id] = { name, qty: 0, value: 0, price: item.price, weightKg: 0 }
         s.soldProducts[item.id].qty += item.qty
         s.soldProducts[item.id].value += value
+        if (cat === 'gateaux_kg' && item.weightKg != null) {
+          s.soldProducts[item.id].weightKg += item.weightKg * item.qty
+        }
       })
     })
 
@@ -420,7 +428,10 @@ export default function VentesPage() {
                         <div className="space-y-1.5">
                           {products.map((p) => (
                             <div key={p.name} className="flex justify-between text-xs gap-2">
-                              <span className="text-diana-cream truncate flex items-center gap-1.5"><FiPackage size={11} className="text-diana-brown shrink-0" /> {p.name} × {p.qty}</span>
+                              <span className="text-diana-cream truncate flex items-center gap-1.5">
+                                <FiPackage size={11} className="text-diana-brown shrink-0" /> {p.name} × {p.qty}
+                                {p.weightKg > 0 && <span className="text-diana-brown">({p.weightKg.toFixed(3)} kg)</span>}
+                              </span>
                               <span className="text-diana-gold font-medium shrink-0">{p.value.toFixed(2)} DH</span>
                             </div>
                           ))}
