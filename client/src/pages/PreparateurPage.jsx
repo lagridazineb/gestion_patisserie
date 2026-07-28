@@ -133,6 +133,9 @@ export default function PreparateurPage() {
       productId: product.id, product: product.name,
       quantity: isGateauKg ? 1 : qty, date, time,
       category: product.category, price: isGateauKg ? qty : product.price,
+      // `product.price` est le prix au kg de ce gâteau dans le catalogue (ex: 130 DH/kg) : on
+      // l'envoie au serveur pour qu'il calcule le poids EXACT (prix saisi / prix au kg).
+      pricePerKg: isGateauKg ? product.price : undefined,
       atelier: user?.atelier, user: user?.name, image: product.image,
     })
     setSelectedProduct('')
@@ -389,7 +392,9 @@ export default function PreparateurPage() {
                       <div className="flex items-start justify-between mb-2">
                         <p className="text-sm font-medium text-diana-cream">{getProductDisplayName({ name: prod.product, nameAr: prod.productAr }, lang)}</p>
                         <span className="text-xs text-diana-gold font-medium">
-                          {prod.category === 'gateaux_kg' ? `${Number(prod.price).toFixed(2)} DH` : `+${prod.quantity}`}
+                          {prod.category === 'gateaux_kg'
+                            ? `${Number(prod.price).toFixed(2)} DH${prod.weightKg != null ? ` · ${prod.weightKg.toFixed(3)} kg` : ''}`
+                            : `+${prod.quantity}`}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-diana-brown">
@@ -443,7 +448,9 @@ export default function PreparateurPage() {
                 {frigoBatches.filter((b) => visibleProducts.some((p) => p.id === b.baseProductId)).map((b) => (
                   <div key={b.id} className="flex items-center justify-between gap-3 bg-diana-dark/50 border border-diana-border/30 rounded-xl px-4 py-3">
                     <span className="text-sm text-diana-cream truncate pr-2">{b.name}</span>
-                    <span className="text-sm font-semibold text-diana-gold shrink-0">{b.price.toFixed(2)} DH</span>
+                    <span className="text-sm font-semibold text-diana-gold shrink-0">
+                      {b.price.toFixed(2)} DH{b.weightKg != null ? ` · ${b.weightKg.toFixed(3)} kg` : ''}
+                    </span>
                   </div>
                 ))}
               </div>
