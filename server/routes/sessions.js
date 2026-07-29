@@ -35,21 +35,20 @@ async function verifyPassword(userId, password) {
 
 async function computeSessionTotals(userId, sinceDate) {
   const [salesRows] = await pool.query(
-    'SELECT * FROM sales WHERE created_by = ? AND created_at >= ? ORDER BY created_at ASC',
-    [userId, sinceDate]
+    `SELECT * FROM sales WHERE created_by = ? AND created_at >= ?
+     AND created_at < DATE_ADD(DATE(?), INTERVAL 1 DAY) ORDER BY created_at ASC`,
+    [userId, sinceDate, sinceDate]
   )
   const [reservationRows] = await pool.query(
-    'SELECT * FROM reservations WHERE created_by = ? AND created_at >= ? ORDER BY created_at ASC',
-    [userId, sinceDate]
+    `SELECT * FROM reservations WHERE created_by = ? AND created_at >= ?
+     AND created_at < DATE_ADD(DATE(?), INTERVAL 1 DAY) ORDER BY created_at ASC`,
+    [userId, sinceDate, sinceDate]
   )
   const salesTotal = salesRows.reduce((s, r) => s + Number(r.total), 0)
   const commandesTotal = reservationRows.reduce((s, r) => s + Number(r.total), 0)
   return { salesRows, reservationRows, salesTotal, commandesTotal }
 }
 
-// Indique si l'utilisateur courant a déjà ouvert une session aujourd'hui — utilisé par la page
-// de connexion pour savoir si la popup de dépôt d'ouverture doit encore s'afficher (seulement
-// à la toute première connexion du jour) ou si elle doit être sautée (connexions suivantes).
 router.get('/today-status', authMiddleware, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -63,10 +62,6 @@ router.get('/today-status', authMiddleware, async (req, res) => {
   }
 })
 
-// Ouvre une nouvelle session au login. `openingAmount` (le "dépôt") n'est pris en compte QUE
-// pour la toute première connexion de la journée pour cet utilisateur (le matin) — sur les
-// connexions suivantes du même jour, le dépôt est ignoré et forcé à 0, même s'il est envoyé,
-// pour ne jamais compter deux fois le même dépôt d'ouverture dans la même journée.
 router.post('/open', authMiddleware, async (req, res) => {
   try {
     const requestedAmount = Number(req.body.openingAmount) || 0
@@ -206,7 +201,25 @@ router.post('/vider', authMiddleware, async (req, res) => {
 router.get('/history', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM cashier_sessions ORDER BY opened_at DESC LIMIT 300')
-    res.json({ sessions: rows.map(mapSession) })
+    const mapped = await Promise.all(rows.map(async (s) => {
+      const base = mapSession(s)
+      if (s.status !== 'open') return base
+
+      const { salesRows, reservationRows, salesTotal, commandesTotal } = await computeSessionTotals(s.user_id, s.opened_at)
+      const openedDay = new Date(s.opened_at).toISOString().slice(0, 10)
+      const todayDay = new Date().toISOString().slice(0, 10)
+      return {
+        ...base,
+        closingSalesTotal: salesTotal,
+        closingSalesCount: salesRows.length,
+        closingCommandesTotal: commandesTotal,
+        closingCommandesCount: reservationRows.length,
+        isLive: true,
+  
+        stale: openedDay !== todayDay,
+      }
+    }))
+    res.json({ sessions: mapped })
   } catch (error) {
     console.error('Erreur GET /api/sessions/history :', error)
     res.status(500).json({ error: 'Erreur serveur' })
