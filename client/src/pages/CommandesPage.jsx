@@ -68,10 +68,16 @@ function ReceiptItemsList({ items, withPrices, lang, itemTotal, large = false })
             {getProductDisplayName(item, lang)}
             {!large && ` × ${formatQty(item.qty)}`}
             {item.unit === 'kg' ? ' kg' : ''}{item.customNote ? ' *' : ''}
+            {(item.hasPhoto || item.customImage) ? ' 📷' : ''}
           </span>
           {withPrices && <span className="value font-semibold">{itemTotal(item).toFixed(2)} DH</span>}
         </div>
       ))}
+      {items.some((i) => i.hasPhoto || i.customImage) && (
+        <p className={`text-black italic ${large ? 'text-[11px] font-bold' : 'text-[10px]'}`}>
+          📷 {items.filter((i) => i.hasPhoto || i.customImage).map((i) => getProductDisplayName(i, lang)).join(', ')} : il y a une photo
+        </p>
+      )}
       {items.some((i) => i.customNote) && (
         <p className={`text-black italic mt-1 ${large ? 'text-[11px] font-bold' : 'text-[10px]'}`}>
           {items.filter((i) => i.customNote).map((i) => `* ${getProductDisplayName(i, lang)} : "${i.customNote}"`).join(' — ')}
@@ -190,8 +196,8 @@ export default function CommandesPage() {
   }
   const cancelQuantity = () => setQtyModalState({ open: false, product: null, initialValue: 1, mode: 'add' })
 
-  const confirmCustomization = ({ customNote, customImage, personPhotoSurcharge, price }) => {
-    addOrUpdateItem(customModalState.product, customModalState.qty, { customNote, customImage, personPhotoSurcharge, price }, customModalState.mode)
+  const confirmCustomization = ({ customNote, customImage, hasPhoto, personPhotoSurcharge, price }) => {
+    addOrUpdateItem(customModalState.product, customModalState.qty, { customNote, customImage, hasPhoto, personPhotoSurcharge, price }, customModalState.mode)
     setCustomModalState({ open: false, product: null, qty: 1, mode: 'add' })
   }
   const skipCustomization = () => {
@@ -548,7 +554,7 @@ export default function CommandesPage() {
                       className="grid grid-cols-[1fr,auto,auto] gap-2 items-center py-2 border-b border-[#E7CCB4] text-sm">
                       <span className="truncate flex items-center gap-1">
                         {getProductDisplayName(item, lang)}
-                        {(item.customNote || item.customImage) && <FiFileText size={11} className="text-emerald-600 shrink-0" title="Personnalisé" />}
+                        {(item.customNote || item.customImage || item.hasPhoto) && <FiFileText size={11} className="text-emerald-600 shrink-0" title="Personnalisé" />}
                       </span>
                       <button onClick={() => handleEditOrderQty(item)}
                         className="px-2 py-1 rounded-md border border-[#C89A5C] text-xs font-semibold hover:bg-[#C89A5C] hover:text-white transition-colors">
