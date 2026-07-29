@@ -1,5 +1,13 @@
 import apiClient from '../api/client'
 
+// Vérifie si l'utilisateur courant a déjà ouvert une session aujourd'hui (première connexion
+// du jour) — utilisé par la page de connexion pour savoir si la popup de dépôt d'ouverture
+// doit encore s'afficher.
+export async function hasOpenedSessionToday() {
+  const { data } = await apiClient.get('/sessions/today-status')
+  return data.hasOpenedToday
+}
+
 // Ouvre une session de caisse au login (dépôt d'ouverture — obligatoire pour les caissiers,
 // 0 par défaut pour les autres rôles).
 export async function openSession(openingAmount = 0) {
