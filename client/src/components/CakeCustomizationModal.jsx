@@ -6,10 +6,11 @@ import KeyboardTextarea from './KeyboardTextarea'
 export default function CakeCustomizationModal({ open, product, qty = 1, onConfirm, onSkip }) {
   const [note, setNote] = useState('')
   const [imageData, setImageData] = useState(null)
+  const [hasPhoto, setHasPhoto] = useState(false)
   const PERSON_PHOTO_SURCHARGE = 40
 
   useEffect(() => {
-    if (open) { setNote(''); setImageData(null) }
+    if (open) { setNote(''); setImageData(null); setHasPhoto(false) }
   }, [open, product])
 
   if (!product) return null
@@ -41,9 +42,10 @@ export default function CakeCustomizationModal({ open, product, qty = 1, onConfi
 
   const removeImage = () => setImageData(null)
 
-  // La photo de référence ajoute automatiquement le supplément (portrait à reproduire),
-  // sans case à cocher : dès qu'une photo est jointe, le supplément s'applique.
-  const surcharge = imageData ? PERSON_PHOTO_SURCHARGE : 0
+  // Le supplément s'applique dès qu'une photo est concernée, que ce soit une vraie image jointe
+  // (upload) OU simplement la case "Avec photo" cochée (le client apportera/enverra la photo
+  // plus tard — le préparateur doit quand même être prévenu qu'il y aura une photo à reproduire).
+  const surcharge = (imageData || hasPhoto) ? PERSON_PHOTO_SURCHARGE : 0
   const qtyValue = qty > 0 ? qty : 1
   // Total réel = (prix unitaire x quantité/kg) + supplément fixe (non multiplié par le poids).
   const baseTotal = (product.price || 0) * qtyValue
@@ -57,6 +59,7 @@ export default function CakeCustomizationModal({ open, product, qty = 1, onConfi
   const confirm = () => onConfirm({
     customNote: note.trim(),
     customImage: imageData,
+    hasPhoto: !!(imageData || hasPhoto),
     personPhotoSurcharge: surcharge,
     price: product.price || 0,
   })
@@ -108,10 +111,24 @@ export default function CakeCustomizationModal({ open, product, qty = 1, onConfi
                   </label>
                 )}
               </div>
-              {imageData && (
+
+              {/* Case à cocher indépendante : le client apportera/enverra une photo plus tard
+                  (pas besoin de l'image tout de suite) — coche quand même le supplément et
+                  prévient le préparateur qu'il y aura une photo à reproduire. */}
+              {!imageData && (
+                <label className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-diana-border bg-diana-dark/20 cursor-pointer">
+                  <input type="checkbox" checked={hasPhoto} onChange={(e) => setHasPhoto(e.target.checked)}
+                    className="w-4 h-4 accent-diana-gold shrink-0" />
+                  <span className="text-xs text-diana-cream font-semibold">
+                    Avec photo <span className="font-normal text-diana-brown">(le client apportera/enverra la photo)</span>
+                  </span>
+                </label>
+              )}
+
+              {(imageData || hasPhoto) && (
                 <div className="flex items-start gap-2.5 p-3 rounded-lg bg-diana-accent/10 border border-diana-accent/20">
                   <span className="text-xs text-diana-accentLight">
-                    Photo de référence jointe : supplément portrait ajouté automatiquement <span className="font-semibold">+{PERSON_PHOTO_SURCHARGE} DH</span>
+                    Photo {imageData ? 'jointe' : 'à prévoir'} : supplément portrait ajouté automatiquement <span className="font-semibold">+{PERSON_PHOTO_SURCHARGE} DH</span>
                   </span>
                 </div>
               )}
