@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { useLanguage } from '../context/LanguageContext'
 import { FiMail, FiLock, FiLogIn, FiGlobe } from 'react-icons/fi'
-import { openSession } from '../data/sessionsStore'
+import { openSession, hasOpenedSessionToday } from '../data/sessionsStore'
 import DepositModal from '../components/DepositModal'
 
 export default function LoginPage() {
@@ -39,8 +39,16 @@ export default function LoginPage() {
       addNotification(t('login.connexionReussie'), 'success')
       const role = result.user?.role
       if (role === 'caissier') {
-        // Le caissier doit obligatoirement indiquer le dépôt d'ouverture avant d'accéder à la Caisse.
-        setDepositPrompt({ user: result.user })
+        // Le dépôt d'ouverture n'est demandé qu'à la toute première connexion de la journée
+        // (le matin) — sur les connexions suivantes du même jour, on ouvre directement la
+        // session (dépôt à 0, déjà donné le matin) sans réafficher la popup.
+        const alreadyOpenedToday = await hasOpenedSessionToday().catch(() => false)
+        if (alreadyOpenedToday) {
+          openSession(0).catch(() => {})
+          goToSpace(role)
+        } else {
+          setDepositPrompt({ user: result.user })
+        }
       } else {
         // Les autres rôles ouvrent une session en arrière-plan (dépôt à 0, pas de popup).
         openSession(0).catch(() => {})
