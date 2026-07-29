@@ -259,6 +259,15 @@ export async function getBilanByUser(dateStr) {
   return data
 }
 
+// Montant encaissé (ventes + commandes) sur une plage horaire précise d'une journée — ex :
+// de 14h à 16h, pour un caissier donné ou tous confondus.
+export async function getBilanByHour(dateStr, startHour, endHour, userId = null) {
+  const params = { date: dateStr, startHour, endHour }
+  if (userId) params.userId = userId
+  const { data } = await apiClient.get('/bilan/by-hour', { params })
+  return data
+}
+
 // --- Clôture du soir (remise à zéro du stock des produits périssables) ---
 export const PERISHABLE_CATEGORIES = ['pain', 'viennoiserie', 'sale']
 export const PERISHABLE_MILLEFEUILLE_IDS = ['m1b']
