@@ -5,6 +5,41 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth')
 
 function todayStr() { return new Date().toISOString().slice(0, 10) }
 
+// Montant des ventes/commandes sur une plage horaire précise d'une journée donnée — ex :
+// "combien a été encaissé entre 14h et 16h aujourd'hui", pour un caissier en particulier ou
+// tous confondus. startHour/endHour sont en heure locale du serveur, 0-23, endHour exclusif
+// (14 → 16 couvre donc 14h00:00 à 15h59:59).
+router.get('/by-hour', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const date = req.query.date || todayStr()
+    const startHour = Math.max(0, Math.min(23, parseInt(req.query.startHour, 10) || 0))
+    const endHour = Math.max(startHour + 1, Math.min(24, parseInt(req.query.endHour, 10) || 24))
+    const userId = req.query.userId || null
+
+    const salesParams = [date, startHour, endHour]
+    const resParams = [date, startHour, endHour]
+    let salesQuery = 'SELECT * FROM sales WHERE DATE(created_at) = ? AND HOUR(created_at) >= ? AND HOUR(created_at) < ?'
+    let resQuery = 'SELECT * FROM reservations WHERE DATE(created_at) = ? AND HOUR(created_at) >= ? AND HOUR(created_at) < ?'
+    if (userId) { salesQuery += ' AND created_by = ?'; salesParams.push(userId); resQuery += ' AND created_by = ?'; resParams.push(userId) }
+
+    const [salesRows] = await pool.query(salesQuery, salesParams)
+    const [reservationRows] = await pool.query(resQuery, resParams)
+
+    const totalVentes = salesRows.reduce((s, r) => s + Number(r.total), 0)
+    const totalCommandes = reservationRows.reduce((s, r) => s + Number(r.total), 0)
+
+    res.json({
+      date, startHour, endHour, userId,
+      nbVentes: salesRows.length, totalVentes: Math.round(totalVentes * 100) / 100,
+      nbCommandes: reservationRows.length, totalCommandes: Math.round(totalCommandes * 100) / 100,
+      totalGeneral: Math.round((totalVentes + totalCommandes) * 100) / 100,
+    })
+  } catch (error) {
+    console.error('Erreur GET /api/bilan/by-hour :', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // --- Bilan du jour : ventes caisse, avances/soldes commandes, remboursements, achats, fonds de caisse ---
 router.get('/daily', authMiddleware, adminMiddleware, async (req, res) => {
   try {
