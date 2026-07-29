@@ -47,14 +47,39 @@ async function computeSessionTotals(userId, sinceDate) {
   return { salesRows, reservationRows, salesTotal, commandesTotal }
 }
 
-// Ouvre une nouvelle session au login. `openingAmount` (le "dépôt") est obligatoire côté
-// interface pour les caissiers ; pour les autres rôles, on envoie 0 par défaut sans popup.
+// Indique si l'utilisateur courant a déjà ouvert une session aujourd'hui — utilisé par la page
+// de connexion pour savoir si la popup de dépôt d'ouverture doit encore s'afficher (seulement
+// à la toute première connexion du jour) ou si elle doit être sautée (connexions suivantes).
+router.get('/today-status', authMiddleware, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT id FROM cashier_sessions WHERE user_id = ? AND opened_at >= CURDATE() LIMIT 1",
+      [req.user.id]
+    )
+    res.json({ hasOpenedToday: rows.length > 0 })
+  } catch (error) {
+    console.error('Erreur GET /api/sessions/today-status :', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// Ouvre une nouvelle session au login. `openingAmount` (le "dépôt") n'est pris en compte QUE
+// pour la toute première connexion de la journée pour cet utilisateur (le matin) — sur les
+// connexions suivantes du même jour, le dépôt est ignoré et forcé à 0, même s'il est envoyé,
+// pour ne jamais compter deux fois le même dépôt d'ouverture dans la même journée.
 router.post('/open', authMiddleware, async (req, res) => {
   try {
-    const openingAmount = Number(req.body.openingAmount) || 0
+    const requestedAmount = Number(req.body.openingAmount) || 0
     const [users] = await pool.query('SELECT id, name, role FROM users WHERE id = ?', [req.user.id])
     const user = users[0]
     if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
+
+    const [todayRows] = await pool.query(
+      "SELECT id FROM cashier_sessions WHERE user_id = ? AND opened_at >= CURDATE() LIMIT 1",
+      [user.id]
+    )
+    const isFirstOfDay = todayRows.length === 0
+    const openingAmount = isFirstOfDay ? requestedAmount : 0
 
     const id = Date.now()
     await pool.query(
