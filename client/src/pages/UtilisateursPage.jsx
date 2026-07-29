@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { FiCalendar, FiUser, FiPackage, FiTrendingUp, FiClock, FiChevronDown, FiChevronUp, FiLock, FiCheck } from 'react-icons/fi'
-import { getBilanByUser, subscribeToStockUpdates } from '../data/stockStore'
+import { FiCalendar, FiUser, FiPackage, FiTrendingUp, FiClock, FiChevronDown, FiChevronUp, FiLock, FiCheck, FiSearch, FiInfo, FiAlertTriangle } from 'react-icons/fi'
+import { getBilanByUser, getBilanByHour, subscribeToStockUpdates } from '../data/stockStore'
 import { getSessionsHistory } from '../data/sessionsStore'
 import { findCategory } from '../data/products'
 import { getCategoryLabel } from '../i18n/productNames'
@@ -79,6 +79,8 @@ export default function UtilisateursPage() {
             </div>
           )}
         </div>
+
+        <HourFilterSection defaultDate={effectiveDate || new Date().toISOString().slice(0, 10)} accounts={accounts} />
 
         <div className="space-y-6">
           {data.users.map((u, i) => (
@@ -178,6 +180,85 @@ function CodesAccesSection({ accounts, onChanged, addNotification }) {
   )
 }
 
+// Filtre par plage horaire : "combien a été encaissé entre 14h et 16h aujourd'hui", tous
+// caissiers confondus ou un seul en particulier — répond directement à la question sans avoir
+// besoin de rouvrir/fermer une session.
+function HourFilterSection({ defaultDate, accounts }) {
+  const [date, setDate] = useState(defaultDate)
+  const [startHour, setStartHour] = useState(14)
+  const [endHour, setEndHour] = useState(16)
+  const [userId, setUserId] = useState('')
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => { setDate(defaultDate) }, [defaultDate])
+
+  const search = async () => {
+    setLoading(true)
+    try {
+      const r = await getBilanByHour(date, startHour, endHour, userId || null)
+      setResult(r)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const cashiers = (accounts || []).filter((a) => a.role === 'caissier' || a.role === 'admin')
+
+  return (
+    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+      className="bg-diana-card border border-diana-border rounded-2xl p-5 mb-8">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-diana-gold/10 flex items-center justify-center"><FiClock className="text-diana-gold" size={18} /></div>
+        <div>
+          <h3 className="font-fraunces text-lg text-diana-cream">Montant par plage horaire</h3>
+          <p className="text-xs text-diana-brown">Ex. : de 14h à 16h, combien a été encaissé — tous caissiers ou un seul.</p>
+        </div>
+      </div>
+      <div className="flex items-end gap-3 flex-wrap">
+        <div>
+          <label className="text-[11px] text-diana-brown block mb-1">Date</label>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            className="px-3 py-2 text-sm bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50" />
+        </div>
+        <div>
+          <label className="text-[11px] text-diana-brown block mb-1">De</label>
+          <select value={startHour} onChange={(e) => setStartHour(Number(e.target.value))}
+            className="px-3 py-2 text-sm bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50">
+            {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}h</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-[11px] text-diana-brown block mb-1">À</label>
+          <select value={endHour} onChange={(e) => setEndHour(Number(e.target.value))}
+            className="px-3 py-2 text-sm bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50">
+            {Array.from({ length: 24 }, (_, h) => h + 1).map((h) => <option key={h} value={h}>{String(h % 24).padStart(2, '0')}h</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-[11px] text-diana-brown block mb-1">Caissier</label>
+          <select value={userId} onChange={(e) => setUserId(e.target.value)}
+            className="px-3 py-2 text-sm bg-diana-dark/30 border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50">
+            <option value="">Tous</option>
+            {cashiers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <button onClick={search} disabled={loading}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-diana-gold text-diana-dark text-sm font-semibold disabled:opacity-50">
+          <FiSearch size={14} /> {loading ? 'Recherche…' : 'Voir le montant'}
+        </button>
+      </div>
+      {result && (
+        <div className="mt-4 pt-4 border-t border-diana-border/40 flex flex-wrap gap-x-8 gap-y-2 text-sm">
+          <span className="text-diana-brown">Ventes : <span className="text-diana-cream font-semibold">{result.totalVentes.toFixed(2)} DH</span> <span className="text-diana-brownLight">({result.nbVentes})</span></span>
+          <span className="text-diana-brown">Commandes : <span className="text-diana-cream font-semibold">{result.totalCommandes.toFixed(2)} DH</span> <span className="text-diana-brownLight">({result.nbCommandes})</span></span>
+          <span className="text-diana-brown">Total : <span className="text-diana-gold font-semibold">{result.totalGeneral.toFixed(2)} DH</span></span>
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
 function UserCard({ user, index, categoryLabel, muted = false, roleText = null, sessions = [] }) {
   const [showSessions, setShowSessions] = useState(false)
   const roleLabel = roleText || (user.role === 'admin' ? 'Administrateur' : 'Caissier')
@@ -239,6 +320,13 @@ function UserCard({ user, index, categoryLabel, muted = false, roleText = null, 
           </button>
           {showSessions && (
             <div className="mt-3 space-y-2">
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-diana-dark/20 text-[11px] text-diana-brownLight">
+                <FiInfo size={13} className="text-diana-brown shrink-0 mt-0.5" />
+                <span>
+                  <span className="text-emerald-400 font-semibold">Session en cours</span> = toujours connecté, pas encore déconnecté (avec le code).
+                  <span className="text-diana-cream font-semibold"> Clôturée</span> = déconnexion confirmée avec le code, ventes/commandes comptées et figées.
+                </span>
+              </div>
               {sessions.map((s) => (
                 <div key={s.id} className="bg-diana-dark/30 rounded-lg p-3 text-xs">
                   <div className="flex items-center justify-between flex-wrap gap-1.5 mb-1.5">
@@ -251,10 +339,16 @@ function UserCard({ user, index, categoryLabel, muted = false, roleText = null, 
                   </div>
                   <p className="text-diana-brown">Sortie : {s.closedAt ? new Date(s.closedAt).toLocaleString('fr-FR') : '—'}</p>
                   <p className="text-diana-brown">Dépôt d'ouverture : {s.openingAmount.toFixed(2)} DH</p>
-                  {s.status === 'closed' && (
+                  {s.stale && (
+                    <div className="flex items-center gap-1.5 mt-1.5 text-amber-400">
+                      <FiAlertTriangle size={12} className="shrink-0" />
+                      <span>Ouverte un jour précédent et jamais refermée — probablement oubliée (app/onglet fermé sans déconnexion).</span>
+                    </div>
+                  )}
+                  {(s.status === 'closed' || s.isLive) && (
                     <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-diana-cream">
-                      <span>Ventes : <span className="font-semibold">{(s.closingSalesTotal ?? 0).toFixed(2)} DH</span> ({s.closingSalesCount ?? 0})</span>
-                      <span>Commandes : <span className="font-semibold">{(s.closingCommandesTotal ?? 0).toFixed(2)} DH</span> ({s.closingCommandesCount ?? 0})</span>
+                      <span>Ventes{s.isLive ? ' (en cours)' : ''} : <span className="font-semibold">{(s.closingSalesTotal ?? 0).toFixed(2)} DH</span> ({s.closingSalesCount ?? 0})</span>
+                      <span>Commandes{s.isLive ? ' (en cours)' : ''} : <span className="font-semibold">{(s.closingCommandesTotal ?? 0).toFixed(2)} DH</span> ({s.closingCommandesCount ?? 0})</span>
                     </div>
                   )}
                 </div>
