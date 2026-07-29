@@ -472,8 +472,8 @@ export const MOROCCAN_CAKE_COMPOSITIONS = {
   // Grand plateau amande / sable : même sélection (liste de saveurs) que Mini plateau,
   // avec un nombre de pièces adapté au format "grand" (~2x le mini). À ajuster ici si le
   // nombre exact de pièces par grand plateau est différent.
-  g18: { amande: 8, sable: 0 }, // Grand plateau amande
-  g19: { amande: 0, sable: 8 }, // Grand plateau sable
+  g18: { amande: 6, sable: 0 }, // Grand plateau amande
+  g19: { amande: 0, sable: 6 }, // Grand plateau sable
 };
 
 export const MOROCCAN_CAKE_DIVISION_TYPES = [
