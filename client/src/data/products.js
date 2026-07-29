@@ -1,4 +1,3 @@
-// Catégories affichées dans la Caisse (POS) : liste plate, inchangée par rapport à l'origine.
 export const CATEGORIES_POS = [
   { id: "pain", label: "Pain", labelAr: "خبز", image: "/category-images/pain.jpg" },
   { id: "viennoiserie", label: "Viennoiserie", labelAr: "معجنات", image: "/category-images/viennoiserie.jpg" },
@@ -36,16 +35,11 @@ export const CATEGORIES_COMMANDE = [
   { id: "viennoiserie", label: "Viennoiserie", labelAr: "المعجنات", image: "/category-images/viennoiserie.jpg" },
   { id: "rziza", label: "Rziza", labelAr: "رزيزة", image: "/category-images/rziza.jpg" },
 ];
-
-// "Frigo Entremet" (Caisse) : fusionne les Entremets circulaires ET les Gâteaux au kg
-// produits par le préparateur pâtisserie — ils n'apparaissent plus séparément à la caisse.
 export const FRIGO_ENTREMET_SOURCE_CATEGORIES = ["gateaux_kg", "entremet"]
 export function getFrigoEntremetProducts() {
   return FRIGO_ENTREMET_SOURCE_CATEGORIES.flatMap((cat) => (PRODUCTS[cat] || []).map((p) => ({ ...p, category: cat })))
 }
 
-// Renvoie la définition (top-level ou enfant) d'une catégorie à partir de son id,
-// en cherchant dans la structure imbriquée utilisée par la page Commande.
 export function findCategory(id) {
   for (const cat of CATEGORIES_COMMANDE) {
     if (cat.id === id) return cat;
@@ -57,9 +51,6 @@ export function findCategory(id) {
   return CATEGORIES_POS.find((c) => c.id === id) || null;
 }
 
-// Liste "aplatie" des catégories qui contiennent réellement des produits (utile pour
-// les formulaires d'administration où une catégorie parente comme "Gâteaux" ne doit pas
-// apparaître, seules ses sous-catégories "Entremets" / "Gâteaux Kg" le doivent).
 export const LEAF_CATEGORIES = CATEGORIES_COMMANDE.flatMap((cat) => cat.children ? cat.children : [cat])
 
 export const PRODUCTS = {
@@ -469,11 +460,8 @@ export const MOROCCAN_CAKE_COMPOSITIONS = {
   g15: { amande: 2, sable: 2 },
   g16: { amande: 1, sable: 3 },
   g17: { amande: 1, sable: 5 },
-  // Grand plateau amande / sable : même sélection (liste de saveurs) que Mini plateau,
-  // avec un nombre de pièces adapté au format "grand" (~2x le mini). À ajuster ici si le
-  // nombre exact de pièces par grand plateau est différent.
-  g18: { amande: 6, sable: 0 }, // Grand plateau amande
-  g19: { amande: 0, sable: 6 }, // Grand plateau sable
+  g18: { amande: 6, sable: 0 }, 
+  g19: { amande: 0, sable: 6 }, 
 };
 
 export const MOROCCAN_CAKE_DIVISION_TYPES = [
@@ -482,8 +470,6 @@ export const MOROCCAN_CAKE_DIVISION_TYPES = [
   "Seulement Gazelle"
 ];
 
-// Produits vendus au kg qui utilisent la composition générique "diviser en combien de
-// sortes" (1 à 12), chacun avec sa propre liste de saveurs.
 export const MOROCCAN_GENERIC_KG_COMPONENTS = {
   g2: MOROCCAN_AMANDE_COMPONENTS, // Amande kg
   g3: MOROCCAN_SABLE_COMPONENTS,  // Sable kg
