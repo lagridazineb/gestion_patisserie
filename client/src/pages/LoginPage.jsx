@@ -39,9 +39,7 @@ export default function LoginPage() {
       addNotification(t('login.connexionReussie'), 'success')
       const role = result.user?.role
       if (role === 'caissier') {
-        // Le dépôt d'ouverture n'est demandé qu'à la toute première connexion de la journée
-        // (le matin) — sur les connexions suivantes du même jour, on ouvre directement la
-        // session (dépôt à 0, déjà donné le matin) sans réafficher la popup.
+    
         const alreadyOpenedToday = await hasOpenedSessionToday().catch(() => false)
         if (alreadyOpenedToday) {
           openSession(0).catch(() => {})
@@ -50,7 +48,6 @@ export default function LoginPage() {
           setDepositPrompt({ user: result.user })
         }
       } else {
-        // Les autres rôles ouvrent une session en arrière-plan (dépôt à 0, pas de popup).
         openSession(0).catch(() => {})
         goToSpace(role)
       }
@@ -64,8 +61,6 @@ export default function LoginPage() {
     try {
       await openSession(amount)
     } catch (e) {
-      // Même en cas d'erreur réseau sur l'enregistrement du dépôt, on laisse le caissier
-      // accéder à la caisse plutôt que de le bloquer complètement.
     }
     setDepositLoading(false)
     setDepositPrompt(null)
