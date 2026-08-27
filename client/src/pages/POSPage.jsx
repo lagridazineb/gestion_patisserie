@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { CATEGORIES_POS as CATEGORIES, mergeProductOverlay, mergeProductsByCategory, findCategory } from '../data/products'
 import { getProductOverlay } from '../api/products'
-import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks, addStockToProducts, resetAllStock } from '../data/stockStore'
+import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks, resetAllStock } from '../data/stockStore'
 import QuantityModal from '../components/QuantityModal'
 import ReceiptHeader from '../components/ReceiptHeader'
 import CodeConfirmModal from '../components/CodeConfirmModal'
@@ -227,16 +227,6 @@ export default function POSPage() {
     }
   }
 
-  // Bouton "Stock" (admin) : ajoute +1000 pièces d'un coup au stock de TOUS les produits de
-  // TOUTES les catégories (utile pour réapprovisionner rapidement, ex : "Entremet Dh").
-  const handleBulkAddStock = async () => {
-    if (!window.confirm('Ajouter 1000 pièces au stock de tous les produits, dans toutes les catégories ?')) return
-    const productIds = ALL_PRODUCTS.map((p) => p.id).filter(Boolean)
-    await addStockToProducts(productIds, 1000)
-    refreshStock()
-    addNotification(`Stock rechargé : +1000 sur ${productIds.length} produits`, 'success')
-  }
-
   // Bouton "Rupture" (admin) : remet TOUT le stock (toutes catégories) à 0 d'un coup.
   // Génère aussi un reçu récapitulatif de ce qui a été vidé (comme la clôture du soir).
   const handleResetAllStock = async () => {
@@ -373,12 +363,6 @@ export default function POSPage() {
             <button onClick={() => setShowViderCode(true)}
               className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-accent/40 hover:text-diana-accent transition-colors">
               <FiDollarSign size={14} /> Vider la caisse
-            </button>
-          )}
-          {isAdmin && (
-            <button onClick={handleBulkAddStock}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-gold/40 hover:text-diana-gold transition-colors">
-              <FiPlus size={14} /> Stock (+1000 partout)
             </button>
           )}
           {isCaissierOrAdmin && (
