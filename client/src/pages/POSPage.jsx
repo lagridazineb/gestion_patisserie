@@ -788,7 +788,6 @@ function ProductCard({ product, stock = 0, onAdd }) {
       <p className="font-fraunces text-sm sm:text-base text-diana-gold mb-0.5">
         {product.price > 0 ? `${product.price.toFixed(2)} DH` : (lang === 'ar' ? 'الثمن حسب الطلب' : 'Prix sur devis')}{product.unit === 'kg' ? ' / kg' : ''}
       </p>
-      <p className={`text-[9px] sm:text-[10px] font-medium ${isOut ? 'text-diana-danger' : 'text-diana-brown'}`}>{lang === 'ar' ? 'المخزون' : 'Stock'}: {stock}</p>
     </motion.button>
   )
 }
