@@ -57,6 +57,7 @@ app.use('/api/rziza', require('./routes/rziza'))
 app.use('/api/retours', require('./routes/retours'))
 app.use('/api/bilan', require('./routes/bilan'))
 app.use('/api/sessions', require('./routes/sessions'))
+app.use('/api/admin', require('./routes/admin'))
 
 app.get('/api/health', async (req, res) => {
   try {
