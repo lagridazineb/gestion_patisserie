@@ -57,6 +57,14 @@ export async function removeProductionEntry(id) {
   return { success: true }
 }
 
+// Corrige une erreur de saisie de quantité (admin) — le stock est réajusté par la différence,
+// et comme Vente / Stock / Préparateur lisent tous la même source, la correction apparaît
+// automatiquement partout, sans rien avoir à resynchroniser ailleurs.
+export async function editProductionEntry(id, quantity) {
+  const { data } = await apiClient.put(`/production/${id}`, { quantity })
+  return data
+}
+
 export async function getActiveFrigoBatches() {
   const { data } = await apiClient.get('/production/frigo-batches')
   return data.batches.map((b) => ({
@@ -374,6 +382,14 @@ export async function addRzizaDelivery({ quantity, prixAchat = 3.5, prixVente = 
 export async function removeRzizaDelivery(id) {
   await apiClient.delete(`/rziza/${id}`)
   return { success: true }
+}
+
+// Réinitialisation complète : supprime TOUTES les ventes, commandes, productions, stocks,
+// remboursements, dépôts et sessions — pour repartir de zéro. Irréversible, protégé par le
+// mot de passe de l'admin qui déclenche l'action. Lève une erreur si le mot de passe est incorrect.
+export async function resetAllData(password) {
+  const { data } = await apiClient.post('/admin/reset-all-data', { password })
+  return data
 }
 
 
