@@ -7,10 +7,11 @@ import { getProductOverlay } from '../api/products'
 import { useNotification } from '../context/NotificationContext'
 import {
   getStock, setProductStock, adjustStock, getProductionLog, getSalesLog, subscribeToStockUpdates,
-  getEodSettings, clearPerishableStock, PERISHABLE_CATEGORIES, resetAllStock,
-  removeProductionEntry, sameDay, getRzizaDeliveries,
+  getEodSettings, clearPerishableStock, PERISHABLE_CATEGORIES, resetAllStock, resetAllData,
+  removeProductionEntry, editProductionEntry, sameDay, getRzizaDeliveries,
 } from '../data/stockStore'
 import NumericField from '../components/NumericField'
+import CodeConfirmModal from '../components/CodeConfirmModal'
 import ReceiptHeader from '../components/ReceiptHeader'
 
 export default function StockPage() {
@@ -127,6 +128,27 @@ export default function StockPage() {
     addNotification('Entrée de production supprimée', 'success')
   }
 
+  const [editingProductionId, setEditingProductionId] = useState(null)
+  const [editingProductionValue, setEditingProductionValue] = useState('')
+
+  const startEditProduction = (entry) => {
+    setEditingProductionId(entry.id)
+    setEditingProductionValue(String(entry.quantity))
+  }
+
+  const saveEditProduction = async (entry) => {
+    const newQty = Number(editingProductionValue)
+    setEditingProductionId(null)
+    if (!newQty || newQty <= 0 || newQty === entry.quantity) return
+    try {
+      await editProductionEntry(entry.id, newQty)
+      refresh()
+      addNotification('Quantité corrigée — mise à jour dans le stock, la vente et la page préparateur.', 'success')
+    } catch (e) {
+      addNotification(e.response?.data?.error || 'Impossible de corriger cette entrée', 'error')
+    }
+  }
+
   const filteredProductionLog = useMemo(() => {
     const q = productionSearch.trim().toLowerCase()
     return productionLog.filter((entry) => {
@@ -178,6 +200,22 @@ export default function StockPage() {
     if (result.entries?.length > 0) setClearReceipt({ ...result, label: 'Remise à zéro complète du stock' })
   }
 
+  // Réinitialisation TOTALE (ventes, commandes, production, stock, retours, dépôts, sessions) —
+  // pour repartir de zéro. Double confirmation : d'abord un texte à retaper (empêche un clic
+  // accidentel), puis le mot de passe admin (comme "Vider la caisse"), avant l'appel réel.
+  const [showResetAllPassword, setShowResetAllPassword] = useState(false)
+  const handleAskResetAll = () => {
+    const typed = window.prompt('Cette action supprime DÉFINITIVEMENT toutes les ventes, commandes, productions, stocks, retours, dépôts et sessions.\n\nPour continuer, tapez SUPPRIMER en majuscules :')
+    if (typed !== 'SUPPRIMER') return
+    setShowResetAllPassword(true)
+  }
+  const handleConfirmResetAll = async (password) => {
+    await resetAllData(password) // lève une erreur si le mot de passe est incorrect (gérée par le modal)
+    setShowResetAllPassword(false)
+    refresh()
+    addNotification('Toutes les données ont été réinitialisées. Vous repartez de zéro.', 'success')
+  }
+
   return (
     <div className="h-full overflow-y-auto p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
@@ -203,8 +241,19 @@ export default function StockPage() {
               className="px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 text-diana-brown hover:text-diana-cream">
               <FiTrash2 size={12} /> Vidanges de stock
             </Link>
+            <button onClick={handleAskResetAll}
+              className="px-4 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 text-diana-danger hover:bg-diana-danger/10">
+              <FiAlertTriangle size={12} /> Réinitialisation complète
+            </button>
           </div>
         </motion.div>
+
+        <CodeConfirmModal open={showResetAllPassword}
+          title="Réinitialisation complète"
+          description="Toutes les ventes, commandes, productions, stocks, retours, dépôts et sessions vont être supprimés définitivement. Entrez votre mot de passe pour confirmer."
+          confirmLabel="Tout réinitialiser"
+          onConfirm={handleConfirmResetAll}
+          onCancel={() => setShowResetAllPassword(false)} />
 
         {view === 'stock' ? (
           <>
@@ -442,8 +491,25 @@ export default function StockPage() {
                       <p className="text-xs text-diana-brown mt-0.5">{atelierLabel(entry.atelier)} · {entry.user} · {entry.date} {entry.time}</p>
                     </div>
                     <div className="flex items-center gap-3 self-start sm:self-auto">
-                      <span className="text-sm font-semibold text-diana-gold">+{entry.quantity}</span>
-                      <button onClick={() => handleDeleteProduction(entry)} className="text-diana-danger hover:text-red-700"><FiX size={16} /></button>
+                      {editingProductionId === entry.id ? (
+                        <>
+                          <input type="number" autoFocus value={editingProductionValue}
+                            onChange={(e) => setEditingProductionValue(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveEditProduction(entry); if (e.key === 'Escape') setEditingProductionId(null) }}
+                            className="w-20 px-2 py-1 text-sm bg-diana-dark/30 border border-diana-gold/50 rounded-lg text-diana-cream focus:outline-none" />
+                          <button onClick={() => saveEditProduction(entry)} className="text-emerald-400 hover:text-emerald-300 text-xs font-semibold">OK</button>
+                          <button onClick={() => setEditingProductionId(null)} className="text-diana-brown hover:text-diana-cream text-xs">Annuler</button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-sm font-semibold text-diana-gold">+{entry.quantity}</span>
+                          {entry.category !== 'gateaux_kg' && entry.category !== 'entremet' && (
+                            <button onClick={() => startEditProduction(entry)} title="Corriger la quantité"
+                              className="text-diana-brown hover:text-diana-gold"><FiEdit3 size={15} /></button>
+                          )}
+                          <button onClick={() => handleDeleteProduction(entry)} className="text-diana-danger hover:text-red-700"><FiX size={16} /></button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))
