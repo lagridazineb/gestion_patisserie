@@ -392,6 +392,14 @@ export async function resetAllData(password) {
   return data
 }
 
+// Réinitialisation ciblée : uniquement "Retour du jour précédent" / "Bilan avec retours" (table
+// retours_caisse) — ne touche pas aux ventes, commandes, production ni au stock. Lève une erreur
+// si le mot de passe est incorrect.
+export async function resetRetoursCaisse(password) {
+  const { data } = await apiClient.post('/admin/reset-retours-caisse', { password })
+  return data
+}
+
 
 export function subscribeToStockUpdates(callback, intervalMs = 8000) {
   const id = setInterval(() => callback(), intervalMs)
