@@ -53,4 +53,26 @@ router.post('/reset-all-data', authMiddleware, adminMiddleware, async (req, res)
   }
 })
 
+// Réinitialisation ciblée : uniquement les "retours de caisse" (le report du solde d'un jour
+// sur l'autre — ce qui alimente "Retour du jour précédent" et donc "Bilan avec retours"). Ne
+// touche PAS aux ventes, commandes, production ni au stock — contrairement à /reset-all-data.
+// Utile quand seul ce report est faux et qu'on veut juste repartir avec un solde propre à
+// partir d'aujourd'hui, sans perdre l'historique des ventes.
+router.post('/reset-retours-caisse', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { password } = req.body
+    if (!password) return res.status(400).json({ error: 'Mot de passe requis' })
+    const [users] = await pool.query('SELECT password FROM users WHERE id = ?', [req.user.id])
+    if (!users[0]) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    const ok = await bcrypt.compare(password, users[0].password)
+    if (!ok) return res.status(401).json({ error: 'Mot de passe incorrect' })
+
+    await pool.query('DELETE FROM retours_caisse')
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Erreur POST /api/admin/reset-retours-caisse :', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 module.exports = router
