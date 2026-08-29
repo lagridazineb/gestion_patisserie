@@ -63,8 +63,9 @@ export function autoTranslateProductNameToAr(name) {
 // - AR : product.nameAr (saisi par l'admin) sinon traduction automatique
 export function getProductDisplayName(product, lang) {
   if (!product) return ''
-  if (lang !== 'ar') return product.name
-  return product.nameAr && product.nameAr.trim() ? product.nameAr : autoTranslateProductNameToAr(product.name)
+  const fallback = (product.name && product.name.trim()) ? product.name : (product.id || '')
+  if (lang !== 'ar') return fallback
+  return product.nameAr && product.nameAr.trim() ? product.nameAr : autoTranslateProductNameToAr(fallback)
 }
 
 // Libellé de catégorie selon la langue (voir labelAr ajouté dans data/products.js)
