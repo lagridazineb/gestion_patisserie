@@ -717,12 +717,35 @@ export default function POSPage() {
                   <p className="text-center italic text-black mb-2">Aucune transaction sur cette session.</p>
                 )}
 
+                {viderReceipt.clearLog ? (
+                  <div className="mb-3 pt-2 border-t border-dashed border-black">
+                    <p className="font-bold text-black border-b border-dashed border-black pb-1 mb-1.5">Retours du jour (Pain, Viennoiserie, Salé, Millefeuille)</p>
+                    {viderReceipt.clearLog.entries.length === 0 && (
+                      <p className="italic text-black text-center py-1">Rien à vider</p>
+                    )}
+                    {viderReceipt.clearLog.entries.map((e) => (
+                      <div key={e.productId} className="receipt-line flex justify-between py-0.5">
+                        <span className="name pr-2">{getProductDisplayName(e, lang)} × {e.qty}</span>
+                        <span className="value shrink-0 font-semibold">{e.value.toFixed(2)} DH</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between font-semibold pt-1"><span>Valeur totale (perte)</span><span>{viderReceipt.clearLog.totalValue.toFixed(2)} DH</span></div>
+                  </div>
+                ) : (
+                  <p className="text-[10.5px] italic text-black/60 text-center mb-2 pt-2 border-t border-dashed border-black">
+                    "Fin de journée" n'a pas encore été fait aujourd'hui — aucun retour à afficher.
+                  </p>
+                )}
+
                 <div className="border-t border-dashed border-black pt-2 mt-2">
                   <div className="flex justify-between"><span>Total ventes</span><span>{viderReceipt.closedSession.closingSalesTotal.toFixed(2)} DH</span></div>
                   <div className="flex justify-between"><span>Total commandes</span><span>{viderReceipt.closedSession.closingCommandesTotal.toFixed(2)} DH</span></div>
+                  {viderReceipt.clearLog && (
+                    <div className="flex justify-between"><span>Total retours (perte)</span><span>-{viderReceipt.clearLog.totalValue.toFixed(2)} DH</span></div>
+                  )}
                   <div className="total flex justify-between font-bold text-sm mt-1.5">
                     <span>TOTAL GÉNÉRAL</span>
-                    <span>{(viderReceipt.closedSession.closingSalesTotal + viderReceipt.closedSession.closingCommandesTotal).toFixed(2)} DH</span>
+                    <span>{(viderReceipt.closedSession.closingSalesTotal + viderReceipt.closedSession.closingCommandesTotal - (viderReceipt.clearLog?.totalValue || 0)).toFixed(2)} DH</span>
                   </div>
                 </div>
                 <p className="footer text-center text-black italic mt-3">Caisse vidée avec succès</p>
