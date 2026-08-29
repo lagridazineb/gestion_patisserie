@@ -33,6 +33,10 @@ async function verifyPassword(userId, password) {
   return bcrypt.compare(password || '', rows[0].password)
 }
 
+// Les totaux d'une session sont toujours bornés à la journée (calendaire) où elle a été
+// ouverte — même si la session reste ouverte plus longtemps (oubli de déconnexion, session
+// "fantôme" qui traîne). Sans cette borne, une session ouverte à 23h50 puis refermée le
+// lendemain soir agrégerait par erreur les ventes de 2 jours différents dans un seul total.
 async function computeSessionTotals(userId, sinceDate) {
   const [salesRows] = await pool.query(
     `SELECT * FROM sales WHERE created_by = ? AND created_at >= ?
@@ -49,32 +53,17 @@ async function computeSessionTotals(userId, sinceDate) {
   return { salesRows, reservationRows, salesTotal, commandesTotal }
 }
 
-router.get('/today-status', authMiddleware, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      "SELECT id FROM cashier_sessions WHERE user_id = ? AND opened_at >= CURDATE() LIMIT 1",
-      [req.user.id]
-    )
-    res.json({ hasOpenedToday: rows.length > 0 })
-  } catch (error) {
-    console.error('Erreur GET /api/sessions/today-status :', error)
-    res.status(500).json({ error: 'Erreur serveur' })
-  }
-})
-
+// Ouvre une nouvelle session au login. Le dépôt d'ouverture (`openingAmount`) est pris en
+// compte à chaque connexion : comme /auth/login interdit désormais d'avoir deux sessions
+// ouvertes en même temps pour un caissier, chaque connexion correspond forcément à une vraie
+// reprise de caisse (la précédente a été proprement clôturée), donc on redemande le dépôt à
+// chaque fois plutôt que de deviner s'il s'agit du "premier" login du jour.
 router.post('/open', authMiddleware, async (req, res) => {
   try {
-    const requestedAmount = Number(req.body.openingAmount) || 0
+    const openingAmount = Number(req.body.openingAmount) || 0
     const [users] = await pool.query('SELECT id, name, role FROM users WHERE id = ?', [req.user.id])
     const user = users[0]
     if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
-
-    const [todayRows] = await pool.query(
-      "SELECT id FROM cashier_sessions WHERE user_id = ? AND opened_at >= CURDATE() LIMIT 1",
-      [user.id]
-    )
-    const isFirstOfDay = todayRows.length === 0
-    const openingAmount = isFirstOfDay ? requestedAmount : 0
 
     const id = Date.now()
     await pool.query(
@@ -132,6 +121,37 @@ router.post('/close', authMiddleware, async (req, res) => {
   }
 })
 
+// Clôture forcée par un admin — sans code, pour débloquer un caissier resté coincé avec une
+// session "ouverte" alors qu'il ne peut plus s'y reconnecter (appareil perdu/cassé, navigateur
+// planté, onglet fermé...). Comme /auth/login interdit désormais une deuxième connexion tant
+// qu'une session est ouverte, cette porte de secours est nécessaire pour que le caissier
+// puisse retravailler. Les totaux sont calculés normalement (bornés à la journée d'ouverture).
+router.post('/:id/force-close', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM cashier_sessions WHERE id = ?', [req.params.id])
+    const session = rows[0]
+    if (!session) return res.status(404).json({ error: 'Session introuvable' })
+    if (session.status !== 'open') return res.status(400).json({ error: 'Cette session est déjà clôturée' })
+
+    const { salesRows, reservationRows, salesTotal, commandesTotal } = await computeSessionTotals(session.user_id, session.opened_at)
+    await pool.query(
+      `UPDATE cashier_sessions SET closed_at = NOW(), status = 'closed',
+       closing_sales_total = ?, closing_sales_count = ?, closing_commandes_total = ?, closing_commandes_count = ?
+       WHERE id = ?`,
+      [salesTotal, salesRows.length, commandesTotal, reservationRows.length, session.id]
+    )
+    // On invalide aussi le jeton de connexion de cet utilisateur, pour que l'ancien appareil
+    // (s'il est encore ouvert quelque part) soit proprement déconnecté lui aussi.
+    await pool.query('UPDATE users SET session_token = NULL WHERE id = ?', [session.user_id])
+
+    const [updated] = await pool.query('SELECT * FROM cashier_sessions WHERE id = ?', [session.id])
+    res.json({ session: mapSession(updated[0]) })
+  } catch (error) {
+    console.error('Erreur POST /api/sessions/:id/force-close :', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // "Vider la caisse" : le code est requis, puis on clôture la session en cours avec le détail
 // COMPLET de toutes les ventes/commandes faites depuis l'ouverture (pour le reçu imprimé),
 // et on rouvre aussitôt une nouvelle session (dépôt 0) pour continuer à travailler.
@@ -162,6 +182,22 @@ router.post('/vider', authMiddleware, async (req, res) => {
 
     const { salesRows, reservationRows, salesTotal, commandesTotal } = await computeSessionTotals(req.user.id, session.opened_at)
 
+    // Si "Fin de journée" a été fait aujourd'hui (Pain, Viennoiserie, Salé, Millefeuille), on
+    // inclut ce récapitulatif dans le reçu de clôture de caisse, pour que le caissier n'ait
+    // qu'UN SEUL ticket avec ventes + commandes + retours du jour — au lieu de devoir imprimer
+    // deux reçus séparés. Il faut donc avoir cliqué "Fin de journée" AVANT "Vider la caisse"
+    // pour que cette section apparaisse.
+    const [clearLogRows] = await pool.query(
+      "SELECT * FROM stock_clear_log WHERE type = 'soir' AND DATE(created_at) = CURDATE() ORDER BY created_at DESC LIMIT 1"
+    )
+    const clearLogRow = clearLogRows[0]
+    const clearLog = clearLogRow ? {
+      entries: typeof clearLogRow.entries === 'string' ? JSON.parse(clearLogRow.entries) : clearLogRow.entries,
+      totalQuantity: Number(clearLogRow.total_quantity),
+      totalValue: Number(clearLogRow.total_value),
+      createdAt: clearLogRow.created_at,
+    } : null
+
     await pool.query(
       `UPDATE cashier_sessions SET closed_at = NOW(), status = 'closed',
        closing_sales_total = ?, closing_sales_count = ?, closing_commandes_total = ?, closing_commandes_count = ?
@@ -182,6 +218,7 @@ router.post('/vider', authMiddleware, async (req, res) => {
     res.json({
       closedSession: mapSession(closedRows[0]),
       newSession: mapSession(newRows[0]),
+      clearLog,
       sales: salesRows.map((s) => ({
         id: s.id, ticketNumber: s.ticket_number, items: safeItems(s.items),
         total: Number(s.total), paymentType: s.payment_type, createdAt: s.created_at,
@@ -204,7 +241,9 @@ router.get('/history', authMiddleware, adminMiddleware, async (req, res) => {
     const mapped = await Promise.all(rows.map(async (s) => {
       const base = mapSession(s)
       if (s.status !== 'open') return base
-
+      // Session encore ouverte ("Session en cours") : on calcule quand même les ventes /
+      // commandes déjà faites depuis son ouverture (bornées à sa journée), pour que l'admin
+      // voie un montant même avant la clôture, au lieu de rester vide jusqu'à la déconnexion.
       const { salesRows, reservationRows, salesTotal, commandesTotal } = await computeSessionTotals(s.user_id, s.opened_at)
       const openedDay = new Date(s.opened_at).toISOString().slice(0, 10)
       const todayDay = new Date().toISOString().slice(0, 10)
@@ -215,7 +254,8 @@ router.get('/history', authMiddleware, adminMiddleware, async (req, res) => {
         closingCommandesTotal: commandesTotal,
         closingCommandesCount: reservationRows.length,
         isLive: true,
-  
+        // Ouverte un jour précédent et jamais refermée depuis = très probablement oubliée
+        // (app/onglet fermé sans cliquer sur Déconnexion, ou jeton expiré silencieusement).
         stale: openedDay !== todayDay,
       }
     }))
