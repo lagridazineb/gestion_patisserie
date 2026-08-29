@@ -316,13 +316,19 @@ export function mergeProductOverlay({ customProducts = [], edits = [], deletedId
     .map((p) => {
       const edit = editsById[p.id]
       if (!edit) return p
+      // `?? ` seul ne protège que contre null/undefined — pas contre une chaîne vide "".
+      // Un ancien enregistrement d'édition avec un nom vide écrasait donc silencieusement
+      // le vrai nom du produit (c'est ce qui faisait "disparaître" des noms de gâteaux
+      // comme les Entremets circulaires). On ignore désormais toute valeur vide/blanche.
+      const cleanName = edit.name && edit.name.trim() ? edit.name : p.name
+      const cleanCategory = edit.category && edit.category.trim() ? edit.category : p.category
       return {
         ...p,
-        name: edit.name ?? p.name,
-        nameAr: edit.nameAr ?? p.nameAr,
+        name: cleanName,
+        nameAr: edit.nameAr && edit.nameAr.trim() ? edit.nameAr : p.nameAr,
         price: edit.price ?? p.price,
-        category: edit.category ?? p.category,
-        image: edit.image !== undefined && edit.image !== null ? edit.image : p.image,
+        category: cleanCategory,
+        image: edit.image !== undefined && edit.image !== null && edit.image !== '' ? edit.image : p.image,
       }
     })
 
