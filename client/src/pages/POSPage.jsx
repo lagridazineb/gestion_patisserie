@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { CATEGORIES_POS as CATEGORIES, mergeProductOverlay, mergeProductsByCategory, findCategory } from '../data/products'
 import { getProductOverlay } from '../api/products'
-import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks, resetAllStock } from '../data/stockStore'
+import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks } from '../data/stockStore'
 import QuantityModal from '../components/QuantityModal'
 import ReceiptHeader from '../components/ReceiptHeader'
 import CodeConfirmModal from '../components/CodeConfirmModal'
@@ -44,7 +44,6 @@ export default function POSPage() {
   const [frigoBatches, setFrigoBatches] = useState([])
   const { addNotification } = useNotification()
   const { user, logout } = useAuth()
-  const isAdmin = user?.role === 'admin'
   const isCaissierOrAdmin = user?.role === 'admin' || user?.role === 'caissier'
   const [showViderCode, setShowViderCode] = useState(false)
   const [viderReceipt, setViderReceipt] = useState(null)
@@ -227,16 +226,6 @@ export default function POSPage() {
     }
   }
 
-  // Bouton "Rupture" (admin) : remet TOUT le stock (toutes catégories) à 0 d'un coup.
-  // Génère aussi un reçu récapitulatif de ce qui a été vidé (comme la clôture du soir).
-  const handleResetAllStock = async () => {
-    if (!window.confirm("Remettre TOUT le stock (toutes les catégories) à 0 (rupture) ? Cette action est irréversible.")) return
-    const result = await resetAllStock(ALL_PRODUCTS)
-    refreshStock()
-    addNotification(`Stock remis à 0 pour ${result.count} produits — valeur ${result.totalValue.toFixed(2)} DH`, 'success')
-    if (result.entries?.length > 0) setClearReceipt({ ...result, label: 'Remise à zéro complète du stock (rupture)' })
-  }
-
   // "Vider la caisse" : après vérification du code, récupère le détail complet (ventes +
   // commandes de la session en cours) pour afficher/imprimer le reçu de clôture.
   const handleViderCaisse = async (password) => {
@@ -369,12 +358,6 @@ export default function POSPage() {
             <button onClick={handleClearPerishables}
               className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-card border border-diana-border text-diana-brown text-xs font-medium hover:border-diana-danger/40 hover:text-diana-danger transition-colors">
               <FiSunset size={14} /> Fin de journée (Pain, Viennoiserie, Salé, Millefeuille)
-            </button>
-          )}
-          {isAdmin && (
-            <button onClick={handleResetAllStock}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-diana-danger/10 border border-diana-danger/30 text-diana-danger text-xs font-semibold hover:bg-diana-danger/20 transition-colors">
-              <FiTrash2 size={14} /> Tout en rupture (0 partout)
             </button>
           )}
         </div>
