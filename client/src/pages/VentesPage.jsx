@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { FiDollarSign, FiCalendar, FiTrendingUp, FiPrinter, FiUsers, FiBox, FiChevronDown, FiPackage, FiRotateCcw } from 'react-icons/fi'
+import { FiDollarSign, FiCalendar, FiTrendingUp, FiPrinter, FiUsers, FiBox, FiChevronDown, FiPackage, FiRotateCcw, FiAlertTriangle } from 'react-icons/fi'
 import { ATELIERS, mergeProductOverlay } from '../data/products'
 import { getProductOverlay } from '../api/products'
 import {
   getProductionLog, getSalesLog, getRefunds, getCommandesBilan, subscribeToStockUpdates, sameDay, getRzizaDeliveries, getRetours,
-  getStockClearLog,
+  getStockClearLog, resetRetoursCaisse,
 } from '../data/stockStore'
+import CodeConfirmModal from '../components/CodeConfirmModal'
+import { useNotification } from '../context/NotificationContext'
 
 const EXCLUDED_CATEGORIES = ['melange', 'cake_design']
 
@@ -25,6 +27,7 @@ function todayStr() {
 }
 
 export default function VentesPage() {
+  const { addNotification } = useNotification()
   const [date, setDate] = useState(todayStr())
   const [productionLog, setProductionLog] = useState([])
   const [salesLog, setSalesLog] = useState([])
@@ -62,6 +65,22 @@ export default function VentesPage() {
     refresh()
     return subscribeToStockUpdates(refresh)
   }, [refresh])
+
+  // Réinitialisation ciblée de "Retour du jour précédent" / "Bilan avec retours" — sans toucher
+  // aux ventes/production déjà enregistrées. Double confirmation (texte à retaper, puis mot de
+  // passe admin), car irréversible.
+  const [showResetRetoursPassword, setShowResetRetoursPassword] = useState(false)
+  const handleAskResetRetours = () => {
+    const typed = window.prompt('Ceci supprime définitivement "Retour du jour précédent" et remet le bilan avec retours à zéro, pour repartir avec un solde propre à partir d\'aujourd\'hui. Les ventes et la production déjà enregistrées ne sont PAS touchées.\n\nPour continuer, tapez SUPPRIMER en majuscules :')
+    if (typed !== 'SUPPRIMER') return
+    setShowResetRetoursPassword(true)
+  }
+  const handleConfirmResetRetours = async (password) => {
+    await resetRetoursCaisse(password) // lève une erreur si le mot de passe est incorrect (gérée par le modal)
+    setShowResetRetoursPassword(false)
+    refresh()
+    addNotification('Retour du jour précédent réinitialisé — vous repartez avec un solde propre.', 'success')
+  }
 
   // Map productId -> catégorie / nom, pour croiser ventes/retours avec l'atelier concerné
   const productCategoryMap = useMemo(() => {
@@ -231,8 +250,19 @@ export default function VentesPage() {
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-diana-dark text-diana-cream border border-diana-border text-xs font-semibold hover:border-diana-gold/40 transition-colors">
               <FiPrinter size={13} /> Imprimer
             </button>
+            <button onClick={handleAskResetRetours}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-diana-danger/10 text-diana-danger border border-diana-danger/30 text-xs font-semibold hover:bg-diana-danger/20 transition-colors">
+              <FiAlertTriangle size={13} /> Réinitialiser les retours
+            </button>
           </div>
         </motion.div>
+
+        <CodeConfirmModal open={showResetRetoursPassword}
+          title="Réinitialiser les retours de caisse"
+          description={`"Retour du jour précédent" (${retourPrecedentValue.toFixed(2)} DH) et le bilan avec retours vont être remis à zéro. Les ventes et la production déjà enregistrées ne sont pas touchées. Entrez votre mot de passe pour confirmer.`}
+          confirmLabel="Réinitialiser"
+          onConfirm={handleConfirmResetRetours}
+          onCancel={() => setShowResetRetoursPassword(false)} />
 
         {/* Totaux généraux du jour */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
