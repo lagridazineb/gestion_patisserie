@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { CATEGORIES_POS as CATEGORIES, mergeProductOverlay, mergeProductsByCategory, findCategory } from '../data/products'
 import { getProductOverlay } from '../api/products'
-import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getPlateauAvailableStock, getActiveFrigoBatches, getAtelierTasks } from '../data/stockStore'
+import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getActiveFrigoBatches, getAtelierTasks } from '../data/stockStore'
 import QuantityModal from '../components/QuantityModal'
 import ReceiptHeader from '../components/ReceiptHeader'
 import CodeConfirmModal from '../components/CodeConfirmModal'
@@ -115,9 +115,13 @@ export default function POSPage() {
     setQtyModalState({ open: true, product, initialValue, mode })
   }
 
+  // Stock "infini" pour toutes les catégories, SAUF Frigo Entremet (lots réels du préparateur,
+  // stock max = 1 par lot) et Entremet Dh (produit géré comme les autres, avec son propre
+  // stock) : ces deux-là gardent leur stock réel, tout le reste ne peut jamais être "en rupture".
   const displayStock = (product) => {
-    const virtual = getPlateauAvailableStock(stock, product.id)
-    return virtual !== null ? virtual : (stock[product.id] ?? 0)
+    if (product.frigoEntremet) return stock[product.id] ?? 0
+    if (product.category === 'entremet_dh') return stock[product.id] ?? 0
+    return Infinity
   }
 
   const handleProductClick = (product) => {
