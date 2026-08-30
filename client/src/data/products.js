@@ -1,6 +1,6 @@
-// Catégories affichées dans la Caisse (POS) : liste plate, inchangée par rapport à l'origine.
-// "Frigo Entremet" et "Entremet Dh" ne sont PAS affichées ici (Entremets/Gâteaux au Kg se
-// vendent uniquement via la page Commande, avec sa personnalisation/photo — pas en vente directe).
+// Catégories affichées dans la Caisse (POS) : liste plate.
+// "Frigo Entremet" (lots faits par le préparateur, stock max = 1 par lot) et "Entremet Dh"
+// (vente à la découpe / sur devis, en tapant le montant en DH) sont de nouveau affichées ici.
 export const CATEGORIES_POS = [
   { id: "pain", label: "Pain", labelAr: "خبز", image: "/category-images/pain.jpg" },
   { id: "viennoiserie", label: "Viennoiserie", labelAr: "معجنات", image: "/category-images/viennoiserie.jpg" },
@@ -9,6 +9,8 @@ export const CATEGORIES_POS = [
   { id: "patisserie", label: "Pâtisserie", labelAr: "الحلويات", image: "/category-images/patisserie.jpg" },
   { id: "sale", label: "Salé", labelAr: "المالح", image: "/category-images/sale.jpg" },
   { id: "rziza", label: "Rziza", labelAr: "رزيزة", image: "/category-images/rziza.jpg" },
+  { id: "frigo_entremet", label: "Frigo Entremet", labelAr: "فريجو الكيك", image: "/category-images/entremet.jpg" },
+  { id: "entremet_dh", label: "Entremet Dh", labelAr: "الكيك بالدرهم", image: "/category-images/entremet.jpg" },
 ];
 
 export const CATEGORIES_COMMANDE = [
