@@ -9,17 +9,21 @@ import {
 } from '../data/stockStore'
 import CodeConfirmModal from '../components/CodeConfirmModal'
 import { useNotification } from '../context/NotificationContext'
+import { useLanguage } from '../context/LanguageContext'
+import { formatT } from '../i18n/translations'
 
 const EXCLUDED_CATEGORIES = ['melange', 'cake_design']
 
+// "Gâteaux Kg" et "Entremet Dh" n'ont plus leur propre carte sur la page Ventes : ils sont
+// regroupés avec "Entremets" dans la carte Pâtisserie (même logique que pour "entremet").
 function mapToAtelier(categoryId) {
-  return categoryId === 'entremet' ? 'patisserie' : categoryId
+  return (categoryId === 'entremet' || categoryId === 'gateaux_kg' || categoryId === 'entremet_dh') ? 'patisserie' : categoryId
 }
-const NO_OWN_CARD_CATEGORIES = ['entremet']
+const NO_OWN_CARD_CATEGORIES = ['entremet', 'gateaux_kg', 'entremet_dh']
 
 const EXTRA_VENTES_CATEGORIES = [
-  { id: 'millefeuille', label: 'Millefeuille / Cake' },
-  { id: 'rziza', label: 'Rziza' },
+  { id: 'millefeuille', label: 'Millefeuille / Cake', labelAr: 'ميل فوي / كيك' },
+  { id: 'rziza', label: 'Rziza', labelAr: 'رزيزة' },
 ]
 
 function todayStr() {
@@ -28,6 +32,8 @@ function todayStr() {
 
 export default function VentesPage() {
   const { addNotification } = useNotification()
+  const { lang, t } = useLanguage()
+  const getAtelierLabel = (a) => (lang === 'ar' ? (a.labelAr || a.label) : a.label)
   const [date, setDate] = useState(todayStr())
   const [productionLog, setProductionLog] = useState([])
   const [salesLog, setSalesLog] = useState([])
@@ -71,7 +77,10 @@ export default function VentesPage() {
   // passe admin), car irréversible.
   const [showResetRetoursPassword, setShowResetRetoursPassword] = useState(false)
   const handleAskResetRetours = () => {
-    const typed = window.prompt('Ceci supprime définitivement "Retour du jour précédent" et remet le bilan avec retours à zéro, pour repartir avec un solde propre à partir d\'aujourd\'hui. Les ventes et la production déjà enregistrées ne sont PAS touchées.\n\nPour continuer, tapez SUPPRIMER en majuscules :')
+    const promptText = lang === 'ar'
+      ? 'سيتم حذف "مرتجع اليوم السابق" نهائياً وإعادة الحساب مع المرتجعات إلى الصفر، للبدء برصيد نظيف اعتباراً من اليوم. المبيعات والإنتاج المسجلة مسبقاً لن تتأثر.\n\nللمتابعة، اكتب SUPPRIMER بأحرف كبيرة:'
+      : 'Ceci supprime définitivement "Retour du jour précédent" et remet le bilan avec retours à zéro, pour repartir avec un solde propre à partir d\'aujourd\'hui. Les ventes et la production déjà enregistrées ne sont PAS touchées.\n\nPour continuer, tapez SUPPRIMER en majuscules :'
+    const typed = window.prompt(promptText)
     if (typed !== 'SUPPRIMER') return
     setShowResetRetoursPassword(true)
   }
@@ -79,7 +88,10 @@ export default function VentesPage() {
     await resetRetoursCaisse(password) // lève une erreur si le mot de passe est incorrect (gérée par le modal)
     setShowResetRetoursPassword(false)
     refresh()
-    addNotification('Retour du jour précédent réinitialisé — vous repartez avec un solde propre.', 'success')
+    addNotification(
+      lang === 'ar' ? 'تمت إعادة تعيين مرتجع اليوم السابق — يمكنك البدء برصيد نظيف.' : 'Retour du jour précédent réinitialisé — vous repartez avec un solde propre.',
+      'success'
+    )
   }
 
   // Map productId -> catégorie / nom, pour croiser ventes/retours avec l'atelier concerné
@@ -108,7 +120,7 @@ export default function VentesPage() {
     const summary = {}
     ;[...ATELIERS.filter((a) => !EXCLUDED_CATEGORIES.includes(a.id) && !NO_OWN_CARD_CATEGORIES.includes(a.id)), ...EXTRA_VENTES_CATEGORIES].forEach((a) => {
       summary[a.id] = {
-        atelier: a.id, label: a.label,
+        atelier: a.id, label: getAtelierLabel(a),
         totalProducedQty: 0, totalProducedValue: 0,
         totalSoldQty: 0, totalSoldValue: 0, totalRefundValue: 0,
         productionProducts: {}, soldProducts: {},
@@ -193,7 +205,7 @@ export default function VentesPage() {
       productionProducts: Object.values(s.productionProducts).sort((a, b) => b.value - a.value),
       soldProducts: Object.values(s.soldProducts).sort((a, b) => b.value - a.value),
     }))
-  }, [productionLog, salesLog, refunds, rzizaDeliveries, productCategoryMap, productNameMap, date])
+  }, [productionLog, salesLog, refunds, rzizaDeliveries, productCategoryMap, productNameMap, date, lang])
 
   const totalProductionValue = atelierSummary.reduce((sum, a) => sum + a.totalProducedValue, 0)
   const totalVentesNet = atelierSummary.reduce((sum, a) => sum + a.netRevenue, 0)
@@ -235,41 +247,41 @@ export default function VentesPage() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
           className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">Rapport</p>
-            <h2 className="font-fraunces text-3xl font-medium text-diana-cream">Ventes</h2>
-            <p className="text-sm text-diana-brown mt-1">Production par préparateur, retours de caisse et commandes</p>
+            <p className="text-xs tracking-[2px] uppercase text-diana-brown mb-1">{t('ventes.rapport')}</p>
+            <h2 className="font-fraunces text-3xl font-medium text-diana-cream">{t('ventes.titre')}</h2>
+            <p className="text-sm text-diana-brown mt-1">{t('ventes.sousTitre')}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <FiCalendar className="text-diana-brown" size={15} />
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
               className="px-3 py-2 text-sm bg-diana-card border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50" />
             {date && (
-              <button onClick={() => setDate('')} className="text-xs text-diana-brown hover:text-diana-gold underline">Toutes les dates</button>
+              <button onClick={() => setDate('')} className="text-xs text-diana-brown hover:text-diana-gold underline">{t('ventes.toutesLesDates')}</button>
             )}
             <button onClick={() => window.print()}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-diana-dark text-diana-cream border border-diana-border text-xs font-semibold hover:border-diana-gold/40 transition-colors">
-              <FiPrinter size={13} /> Imprimer
+              <FiPrinter size={13} /> {t('ventes.imprimer')}
             </button>
             <button onClick={handleAskResetRetours}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-diana-danger/10 text-diana-danger border border-diana-danger/30 text-xs font-semibold hover:bg-diana-danger/20 transition-colors">
-              <FiAlertTriangle size={13} /> Réinitialiser les retours
+              <FiAlertTriangle size={13} /> {t('ventes.reinitialiserRetours')}
             </button>
           </div>
         </motion.div>
 
         <CodeConfirmModal open={showResetRetoursPassword}
-          title="Réinitialiser les retours de caisse"
-          description={`"Retour du jour précédent" (${retourPrecedentValue.toFixed(2)} DH) et le bilan avec retours vont être remis à zéro. Les ventes et la production déjà enregistrées ne sont pas touchées. Entrez votre mot de passe pour confirmer.`}
-          confirmLabel="Réinitialiser"
+          title={t('ventes.modalTitre')}
+          description={formatT(t('ventes.modalDescription'), { value: retourPrecedentValue.toFixed(2) })}
+          confirmLabel={t('ventes.modalConfirmLabel')}
           onConfirm={handleConfirmResetRetours}
           onCancel={() => setShowResetRetoursPassword(false)} />
 
         {/* Totaux généraux du jour */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
           {[
-            { label: 'Total production', value: `${totalProductionValue.toFixed(2)} DH`, icon: FiBox, color: 'bg-blue-500/10 text-blue-400' },
-            { label: "Chiffre d'affaires commandes", value: `${totalCommandes.toFixed(2)} DH`, icon: FiCalendar, color: 'bg-emerald-500/10 text-emerald-400' },
-            { label: 'Retour du jour précédent', value: `${retourPrecedentValue.toFixed(2)} DH`, icon: FiRotateCcw, color: 'bg-purple-500/10 text-purple-400' },
+            { label: t('ventes.statTotalProduction'), value: `${totalProductionValue.toFixed(2)} DH`, icon: FiBox, color: 'bg-blue-500/10 text-blue-400' },
+            { label: t('ventes.statCaCommandes'), value: `${totalCommandes.toFixed(2)} DH`, icon: FiCalendar, color: 'bg-emerald-500/10 text-emerald-400' },
+            { label: t('ventes.statRetourPrecedent'), value: `${retourPrecedentValue.toFixed(2)} DH`, icon: FiRotateCcw, color: 'bg-purple-500/10 text-purple-400' },
           ].map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
               className="bg-diana-card border border-diana-border rounded-2xl p-5">
@@ -286,10 +298,10 @@ export default function VentesPage() {
             className="bg-diana-card border border-diana-border rounded-2xl p-5">
             <div className="w-10 h-10 rounded-xl bg-orange-400/10 text-orange-400 flex items-center justify-center mb-3"><FiRotateCcw size={18} /></div>
             <p className="font-fraunces text-2xl font-semibold text-diana-cream mb-1">{totalFermetureValue.toFixed(2)} DH</p>
-            <p className="text-xs text-diana-brown mb-2">Retours de fermeture</p>
+            <p className="text-xs text-diana-brown mb-2">{t('ventes.statRetoursFermeture')}</p>
             <div className="flex items-center justify-between text-[11px] pt-2 border-t border-diana-border/40">
-              <span className="text-diana-danger">Perte : {perteFermetureValue.toFixed(2)} DH</span>
-              <span className="text-diana-gold">Retour : {retourFermetureValue.toFixed(2)} DH</span>
+              <span className="text-diana-danger">{t('ventes.perte')} : {perteFermetureValue.toFixed(2)} DH</span>
+              <span className="text-diana-gold">{t('ventes.retour')} : {retourFermetureValue.toFixed(2)} DH</span>
             </div>
           </motion.div>
 
@@ -297,7 +309,7 @@ export default function VentesPage() {
             className="bg-diana-card border border-diana-border rounded-2xl p-5">
             <div className="w-10 h-10 rounded-xl bg-diana-gold/10 text-diana-gold flex items-center justify-center mb-3"><FiDollarSign size={18} /></div>
             <p className="font-fraunces text-2xl font-semibold text-diana-cream mb-1">{bilanAvecRetours.toFixed(2)} DH</p>
-            <p className="text-xs text-diana-brown">Bilan avec retours (production + commandes + retour précédent - retour du jour)</p>
+            <p className="text-xs text-diana-brown">{t('ventes.statBilanAvecRetours')}</p>
           </motion.div>
         </div>
 
@@ -306,15 +318,15 @@ export default function VentesPage() {
             besoin de déplier quoi que ce soit. */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="mb-8">
           <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-            <h3 className="font-fraunces text-lg text-diana-cream">Retours de caisse</h3>
+            <h3 className="font-fraunces text-lg text-diana-cream">{t('ventes.retoursCaisse')}</h3>
             <div className="inline-flex bg-diana-card border border-diana-border rounded-xl p-1">
               <button onClick={() => setRetourTab('previous')}
                 className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${retourTab === 'previous' ? 'bg-purple-500 text-white' : 'text-diana-brown hover:text-diana-cream'}`}>
-                Jour précédent
+                {t('ventes.jourPrecedent')}
               </button>
               <button onClick={() => setRetourTab('current')}
                 className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${retourTab === 'current' ? 'bg-diana-gold text-diana-dark' : 'text-diana-brown hover:text-diana-cream'}`}>
-                Fermeture du jour
+                {t('ventes.fermetureDuJour')}
               </button>
             </div>
           </div>
@@ -323,13 +335,11 @@ export default function VentesPage() {
             const isPrevious = retourTab === 'previous'
             const data = isPrevious ? retours.previous : retours.current
             const color = isPrevious ? 'bg-purple-500/10 text-purple-400' : 'bg-diana-gold/10 text-diana-gold'
-            const emptyLabel = isPrevious
-              ? "Pas encore de retour enregistré pour le jour précédent."
-              : "Pas encore calculé : se fait automatiquement au vidage de fin de journée (page Stock)."
+            const emptyLabel = isPrevious ? t('ventes.pasDeRetourPrecedent') : t('ventes.pasEncoreCalcule')
             const filledLabel = data
               ? (isPrevious
-                  ? `Calculé le ${data.date} — réutilisé comme fond de caisse aujourd'hui.`
-                  : "Toutes catégories confondues (pain, viennoiserie, frigo, entremet, salé) : ce qui sera revendu (retour) et ce qui a été jeté (perte).")
+                  ? formatT(t('ventes.calculeLe'), { date: data.date })
+                  : t('ventes.toutesCategoriesConfondues'))
               : null
             // Pour la fermeture du jour (current), on fusionne le retour (revendable) et la
             // perte (jetée) en une seule liste, chaque ligne étant étiquetée, pour montrer
@@ -352,10 +362,10 @@ export default function VentesPage() {
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-diana-border/40">
-                  <p className="text-[11px] uppercase tracking-wide text-diana-brown mb-2">Détail produit par produit</p>
+                  <p className="text-[11px] uppercase tracking-wide text-diana-brown mb-2">{t('ventes.detailProduitParProduit')}</p>
                   {entries.length === 0 ? (
                     <p className="text-xs italic text-diana-brownLight">
-                      {hasData ? 'Aucun produit dans ce retour' : "Rien à afficher — aucune clôture de fin de journée n'a encore été enregistrée pour ce cas."}
+                      {hasData ? t('ventes.aucunProduitDansCeRetour') : t('ventes.rienAAfficher')}
                     </p>
                   ) : (
                     <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
@@ -365,17 +375,17 @@ export default function VentesPage() {
                             <FiPackage size={11} className="text-diana-brown shrink-0" /> {e.name} × {e.qty}
                             {e.price ? <span className="text-diana-brownLight"> ({Number(e.price).toFixed(2)} DH/u)</span> : null}
                             {e.kind === 'perte' && (
-                              <span className="text-[9px] uppercase tracking-wide text-diana-danger bg-diana-danger/10 px-1.5 py-0.5 rounded shrink-0">Perte</span>
+                              <span className="text-[9px] uppercase tracking-wide text-diana-danger bg-diana-danger/10 px-1.5 py-0.5 rounded shrink-0">{t('ventes.perte')}</span>
                             )}
                             {e.kind === 'retour' && (
-                              <span className="text-[9px] uppercase tracking-wide text-diana-gold bg-diana-gold/10 px-1.5 py-0.5 rounded shrink-0">Retour</span>
+                              <span className="text-[9px] uppercase tracking-wide text-diana-gold bg-diana-gold/10 px-1.5 py-0.5 rounded shrink-0">{t('ventes.retour')}</span>
                             )}
                           </span>
                           <span className={`font-medium shrink-0 ${e.kind === 'perte' ? 'text-diana-danger' : 'text-diana-gold'}`}>{Number(e.value).toFixed(2)} DH</span>
                         </div>
                       ))}
                       <div className="flex justify-between text-xs gap-2 pt-2 border-t border-diana-border/40 font-semibold">
-                        <span className="text-diana-brown">Total ({entries.length} produit{entries.length > 1 ? 's' : ''})</span>
+                        <span className="text-diana-brown">{formatT(t('ventes.totalProduits'), { n: entries.length, s: entries.length > 1 ? 's' : '' })}</span>
                         <span className="text-diana-gold">{totalValue.toFixed(2)} DH</span>
                       </div>
                     </div>
@@ -389,15 +399,15 @@ export default function VentesPage() {
         {/* Détail par atelier / préparateur — séparé en 2 onglets Production / Vente */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-8">
           <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-            <h3 className="font-fraunces text-lg text-diana-cream">Production &amp; ventes par préparateur</h3>
+            <h3 className="font-fraunces text-lg text-diana-cream">{t('ventes.productionVentesParPreparateur')}</h3>
             <div className="inline-flex bg-diana-card border border-diana-border rounded-xl p-1">
               <button onClick={() => setVentesTab('production')}
                 className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${ventesTab === 'production' ? 'bg-emerald-600 text-white' : 'text-diana-brown hover:text-diana-cream'}`}>
-                Production
+                {t('ventes.production')}
               </button>
               <button onClick={() => setVentesTab('vente')}
                 className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${ventesTab === 'vente' ? 'bg-diana-gold text-diana-dark' : 'text-diana-brown hover:text-diana-cream'}`}>
-                Vente
+                {t('ventes.vente')}
               </button>
             </div>
           </div>
@@ -418,28 +428,28 @@ export default function VentesPage() {
                     {ventesTab === 'production' ? (
                       <div className="space-y-2.5">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-diana-brown flex items-center gap-1.5"><FiBox size={13} /> Produit</span>
+                          <span className="text-diana-brown flex items-center gap-1.5"><FiBox size={13} /> {t('ventes.produit')}</span>
                           <span className="font-semibold text-diana-cream">{a.totalProducedQty} <span className="text-diana-brown font-normal">({a.totalProducedValue.toFixed(2)} DH)</span></span>
                         </div>
                         <div className="flex items-center justify-between text-sm pt-2 border-t border-diana-border/40">
-                          <span className="text-diana-brown">Valeur produite</span>
+                          <span className="text-diana-brown">{t('ventes.valeurProduite')}</span>
                           <span className="font-semibold text-diana-gold">{a.totalProducedValue.toFixed(2)} DH</span>
                         </div>
                       </div>
                     ) : (
                       <div className="space-y-2.5">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-diana-brown flex items-center gap-1.5"><FiTrendingUp size={13} /> Vendu</span>
+                          <span className="text-diana-brown flex items-center gap-1.5"><FiTrendingUp size={13} /> {t('ventes.vendu')}</span>
                           <span className="font-semibold text-diana-cream">{a.totalSoldQty} <span className="text-diana-brown font-normal">({a.totalSoldValue.toFixed(2)} DH)</span></span>
                         </div>
                         {a.totalRefundValue > 0 && (
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-diana-brown flex items-center gap-1.5"><FiRotateCcw size={13} /> Retour</span>
+                            <span className="text-diana-brown flex items-center gap-1.5"><FiRotateCcw size={13} /> {t('ventes.retour')}</span>
                             <span className="font-semibold text-diana-danger">-{a.totalRefundValue.toFixed(2)} DH</span>
                           </div>
                         )}
                         <div className="flex items-center justify-between text-sm pt-2 border-t border-diana-border/40">
-                          <span className="text-diana-brown">Chiffre d'affaires net</span>
+                          <span className="text-diana-brown">{t('ventes.chiffreAffairesNet')}</span>
                           <span className="font-semibold text-diana-gold">{a.netRevenue.toFixed(2)} DH</span>
                         </div>
                       </div>
@@ -448,11 +458,11 @@ export default function VentesPage() {
                   {isOpen && (
                     <div className="mt-4 pt-4 border-t border-diana-border/40">
                       <p className="text-[11px] uppercase tracking-wide text-diana-brown mb-2">
-                        {ventesTab === 'production' ? 'Détail production par produit' : 'Détail vente par produit'}
+                        {ventesTab === 'production' ? t('ventes.detailProductionParProduit') : t('ventes.detailVenteParProduit')}
                       </p>
                       {products.length === 0 ? (
                         <p className="text-xs italic text-diana-brownLight">
-                          {ventesTab === 'production' ? 'Aucune production enregistrée' : 'Aucune vente enregistrée'}
+                          {ventesTab === 'production' ? t('ventes.aucuneProductionEnregistree') : t('ventes.aucuneVenteEnregistree')}
                         </p>
                       ) : (
                         <div className="space-y-1.5">
@@ -479,18 +489,18 @@ export default function VentesPage() {
         {commandesBilan && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
             className="bg-diana-card border border-diana-border rounded-2xl p-6">
-            <h3 className="font-fraunces text-lg text-diana-cream mb-4">Commandes — {date || todayStr()} {!date && <span className="text-xs font-sans font-normal text-diana-brown">(les commandes ne peuvent être consultées que jour par jour)</span>}</h3>
+            <h3 className="font-fraunces text-lg text-diana-cream mb-4">{formatT(t('ventes.commandesTitre'), { date: date || todayStr() })} {!date && <span className="text-xs font-sans font-normal text-diana-brown">{t('ventes.commandesNote')}</span>}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-diana-dark/30 rounded-xl p-4">
-                <p className="text-xs text-diana-brown mb-1.5">Avances reçues</p>
+                <p className="text-xs text-diana-brown mb-1.5">{t('ventes.avancesRecues')}</p>
                 <p className="font-semibold text-diana-cream">{commandesBilan.totalAvances.toFixed(2)} DH</p>
               </div>
               <div className="bg-diana-dark/30 rounded-xl p-4">
-                <p className="text-xs text-diana-brown mb-1.5">Restes récupérés (livraison)</p>
+                <p className="text-xs text-diana-brown mb-1.5">{t('ventes.restesRecuperes')}</p>
                 <p className="font-semibold text-diana-cream">{commandesBilan.totalRestes.toFixed(2)} DH</p>
               </div>
               <div className="bg-diana-dark/30 rounded-xl p-4 border border-diana-gold/30">
-                <p className="text-xs text-diana-brown mb-1.5">Chiffre d'affaires commandes</p>
+                <p className="text-xs text-diana-brown mb-1.5">{t('ventes.statCaCommandes')}</p>
                 <p className="font-semibold text-diana-gold">{totalCommandes.toFixed(2)} DH</p>
               </div>
             </div>
