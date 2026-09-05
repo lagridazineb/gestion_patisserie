@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { pool } = require('../config/db')
 const { authMiddleware, preparateurMiddleware } = require('../middleware/auth')
-const { adjustStock } = require('../utils/stockHelpers')
+const { adjustStock, setStock } = require('../utils/stockHelpers')
 
 // Journal de production, filtrable par atelier + date (ex: ?atelier=pain&date=2026-07-11)
 router.get('/', authMiddleware, async (req, res) => {
@@ -83,6 +83,67 @@ router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
     res.json({ id, productId, product, quantity, category, price, atelier, frigoBatch, frigoBatches })
   } catch (error) {
     console.error('Erreur POST /api/production :', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// Corrige une erreur de saisie de quantité (admin) — le stock est réajusté par la SEULE
+// différence entre l'ancienne et la nouvelle quantité, donc la correction se répercute
+// automatiquement partout où ce stock est lu (page Stock, page Préparateur, quantité
+// disponible à la vente en caisse, et donc le chiffre d'affaires calculé sur les ventes
+// réellement enregistrées). Réservé aux entrées "simples" (stock mutualisé par produit) :
+// les catégories "gateaux_kg" et "entremet" fonctionnent par lots individuels (frigo_batches,
+// chacun avec son propre prix) et ne peuvent pas être corrigées par une simple quantité.
+router.put('/:id', authMiddleware, preparateurMiddleware, async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    const newQty = Number(req.body.quantity)
+    if (!newQty || isNaN(newQty) || newQty <= 0) {
+      return res.status(400).json({ error: 'Quantité invalide' })
+    }
+    const [rows] = await pool.query('SELECT * FROM production_entries WHERE id = ?', [id])
+    const entry = rows[0]
+    if (!entry) return res.status(404).json({ error: 'Entrée introuvable' })
+    if (entry.category === 'gateaux_kg' || entry.category === 'entremet') {
+      return res.status(400).json({ error: "Cette entrée est un lot individuel du frigo entremet et ne peut pas être corrigée par quantité — supprimez-la et resaisissez-la si besoin." })
+    }
+
+    const oldQty = Number(entry.quantity)
+    const delta = newQty - oldQty
+    await pool.query('UPDATE production_entries SET quantity = ? WHERE id = ?', [newQty, id])
+    if (entry.product_id && delta !== 0) {
+      await adjustStock(entry.product_id, delta)
+    }
+    res.json({ success: true, id, quantity: newQty, delta })
+  } catch (error) {
+    console.error('Erreur PUT /api/production/:id :', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// Vide en une fois tous les lots "Frigo Entremet" encore en stock pour une catégorie donnée
+// (entremet ou gateaux_kg) — utile quand un préparateur s'est trompé sur plusieurs lots
+// d'affilée et qu'il est plus rapide de tout vider que de supprimer un par un. On remet le
+// stock de chaque lot à 0 (comme la clôture du soir) plutôt que de supprimer les lignes, pour
+// garder l'historique de production intact.
+router.delete('/frigo-batches/:category', authMiddleware, preparateurMiddleware, async (req, res) => {
+  try {
+    const { category } = req.params
+    if (category !== 'entremet' && category !== 'gateaux_kg') {
+      return res.status(400).json({ error: 'Catégorie invalide' })
+    }
+    const [batches] = await pool.query(
+      `SELECT fb.id FROM frigo_batches fb
+       JOIN stock_quantities sq ON sq.product_id = fb.id
+       WHERE fb.category = ? AND sq.quantity > 0`,
+      [category]
+    )
+    for (const b of batches) {
+      await setStock(b.id, 0)
+    }
+    res.json({ success: true, count: batches.length })
+  } catch (error) {
+    console.error('Erreur DELETE /api/production/frigo-batches/:category :', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })
