@@ -65,6 +65,13 @@ export async function editProductionEntry(id, quantity) {
   return data
 }
 
+// Vide en une fois tous les lots encore en stock du frigo entremet (ou gâteaux au kg) —
+// remet leur stock à 0 sans supprimer l'historique de production.
+export async function clearFrigoBatches(category) {
+  const { data } = await apiClient.delete(`/production/frigo-batches/${category}`)
+  return data
+}
+
 export async function getActiveFrigoBatches() {
   const { data } = await apiClient.get('/production/frigo-batches')
   return data.batches.map((b) => ({
