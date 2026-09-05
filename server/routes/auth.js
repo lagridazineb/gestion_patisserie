@@ -28,14 +28,14 @@ router.post('/login', async (req, res) => {
     await pool.query('UPDATE users SET session_token = ? WHERE id = ?', [sessionToken, user.id])
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, atelier: user.atelier, sid: sessionToken },
+      { id: user.id, email: user.email, role: user.role, business: user.business, atelier: user.atelier, sid: sessionToken },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     )
 
     res.json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, atelier: user.atelier },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, business: user.business, atelier: user.atelier },
     })
   } catch (error) {
     console.error('Erreur /api/auth/login :', error)
@@ -48,7 +48,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, email, name, role, atelier FROM users WHERE id = ? LIMIT 1',
+      'SELECT id, email, name, role, business, atelier FROM users WHERE id = ? LIMIT 1',
       [req.user.id]
     )
     const user = rows[0]
@@ -64,8 +64,12 @@ router.get('/me', authMiddleware, async (req, res) => {
 // Ne renvoie jamais le mot de passe/hash.
 router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
+    // Chaque admin ne gère que les comptes de son propre espace (pâtisserie ou café) —
+    // ça évite de mélanger les deux listes d'utilisateurs dans une seule page.
+    const business = req.user.business || 'patisserie'
     const [rows] = await pool.query(
-      'SELECT id, email, name, role, atelier FROM users ORDER BY role, name'
+      'SELECT id, email, name, role, business, atelier FROM users WHERE business = ? ORDER BY role, name',
+      [business]
     )
     res.json({ users: rows })
   } catch (error) {
