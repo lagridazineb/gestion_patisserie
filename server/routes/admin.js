@@ -14,6 +14,13 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth')
 router.post('/reset-all-data', authMiddleware, adminMiddleware, async (req, res) => {
   const conn = await pool.getConnection()
   try {
+    // Réservé à l'admin pâtisserie : les tables ci-dessous (production, stock, rziza, ...)
+    // n'existent que côté pâtisserie. L'admin café a son propre "Réinitialiser" plus ciblé
+    // s'il en a besoin (aucun pour l'instant, son volume de données étant très simple).
+    if ((req.user.business || 'patisserie') !== 'patisserie') {
+      return res.status(403).json({ error: 'Action réservée à l\'espace pâtisserie' })
+    }
+
     const { password } = req.body
     if (!password) return res.status(400).json({ error: 'Mot de passe requis' })
 
@@ -29,13 +36,15 @@ router.post('/reset-all-data', authMiddleware, adminMiddleware, async (req, res)
       'sales', 'reservations', 'refunds', 'purchases',
       'production_entries', 'frigo_batches', 'stock_quantities', 'stock_clear_log',
       'retours_veille', 'retours_vidage', 'retours_caisse',
-      'fonds_caisse', 'rziza_deliveries', 'cashier_sessions',
+      'rziza_deliveries', 'cashier_sessions',
     ]
 
     await conn.beginTransaction()
     for (const t of tables) {
       await conn.query(`DELETE FROM ${t}`)
     }
+    // fonds_caisse est partagée avec le café : on ne supprime que les lignes pâtisserie.
+    await conn.query("DELETE FROM fonds_caisse WHERE business = 'patisserie'")
     // Le numéro de ticket repart à 0 (le prochain ticket sera le n°1).
     await conn.query("UPDATE ticket_counter SET value = 0 WHERE id = 1")
     // Déconnecte tout le monde (jetons invalidés) pour repartir sur une base propre — sauf
