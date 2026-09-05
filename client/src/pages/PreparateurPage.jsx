@@ -5,8 +5,8 @@ import { useNotification } from '../context/NotificationContext'
 import { useLanguage } from '../context/LanguageContext'
 import { ATELIERS, getAtelierCategories, mergeProductsByCategory } from '../data/products'
 import { getProductOverlay } from '../api/products'
-import { getStock, addProduction, getProductionLog, subscribeToStockUpdates, getAtelierTasks, getAtelierDoneTasks, markAtelierDone, getActiveFrigoBatches } from '../data/stockStore'
-import { FiBox, FiPlus, FiCheck, FiClock, FiCalendar, FiPackage, FiClipboard, FiUser, FiPhone, FiEye, FiCheckCircle, FiXCircle, FiScissors, FiGrid } from 'react-icons/fi'
+import { getStock, addProduction, getProductionLog, subscribeToStockUpdates, getAtelierTasks, getAtelierDoneTasks, markAtelierDone, getActiveFrigoBatches, clearFrigoBatches } from '../data/stockStore'
+import { FiBox, FiPlus, FiCheck, FiClock, FiCalendar, FiPackage, FiClipboard, FiUser, FiPhone, FiEye, FiCheckCircle, FiXCircle, FiScissors, FiGrid, FiTrash2 } from 'react-icons/fi'
 import NumericField from '../components/NumericField'
 import TimeField from '../components/TimeField'
 import { getProductDisplayName, getCategoryLabel } from '../i18n/productNames'
@@ -26,6 +26,8 @@ export default function PreparateurPage() {
   const [revealedStatus, setRevealedStatus] = useState({}) // { [reservationId]: true } — statut affiché après clic sur "Prête"
   const [selectedProduct, setSelectedProduct] = useState('')
   const [quantity, setQuantity] = useState('')
+  // Prix saisi manuellement pour un entremet circulaire (au lieu du prix catalogue par défaut)
+  const [entremetPrice, setEntremetPrice] = useState('')
   const [date, setDate] = useState(() => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -54,6 +56,16 @@ export default function PreparateurPage() {
   const visibleProducts = isPatisserie
     ? (activeCategoryFilter ? (PRODUCTS[activeCategoryFilter] || []).map((p) => ({ ...p, category: activeCategoryFilter })) : [])
     : atelierProducts
+
+  // Pré-remplit le prix de l'entremet avec le prix catalogue dès qu'on sélectionne un produit
+  // — le préparateur peut ensuite le modifier librement avant d'enregistrer.
+  useEffect(() => {
+    const product = (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)
+    if (product?.category === 'entremet') {
+      setEntremetPrice(product.price > 0 ? String(product.price) : '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProduct])
 
   const refresh = useCallback(async () => {
     const today = new Date()
@@ -129,10 +141,19 @@ export default function PreparateurPage() {
     // Ce prix est envoyé tel quel (quantity=1) et devient le prix du lot affiché dans le
     // frigo d'entremet, avec le prix saisi par le préparateur.
     const isGateauKg = product.category === 'gateaux_kg'
+    const isEntremet = product.category === 'entremet'
+    // Entremet circulaire : le préparateur peut saisir son propre prix (au lieu du prix
+    // catalogue par défaut) — chaque pièce produite est créditée dans le frigo avec ce prix.
+    let entremetUnitPrice = product.price
+    if (isEntremet) {
+      const parsedPrice = parseFloat(String(entremetPrice).replace(',', '.'))
+      if (isNaN(parsedPrice) || parsedPrice <= 0) return
+      entremetUnitPrice = parsedPrice
+    }
     await addProduction({
       productId: product.id, product: product.name,
       quantity: isGateauKg ? 1 : qty, date, time,
-      category: product.category, price: isGateauKg ? qty : product.price,
+      category: product.category, price: isGateauKg ? qty : (isEntremet ? entremetUnitPrice : product.price),
       // `product.price` est le prix au kg de ce gâteau dans le catalogue (ex: 130 DH/kg) : on
       // l'envoie au serveur pour qu'il calcule le poids EXACT (prix saisi / prix au kg).
       pricePerKg: isGateauKg ? product.price : undefined,
@@ -140,7 +161,20 @@ export default function PreparateurPage() {
     })
     setSelectedProduct('')
     setQuantity('')
+    setEntremetPrice('')
     addNotification(formatT(t('preparateur.productionEnregistree'), { name: getProductDisplayName(product, lang), qty }), 'success')
+    refresh()
+  }
+
+  // Vide en une fois tous les lots du frigo entremet (ou gâteaux au kg) encore en stock —
+  // utile en cas d'erreur de saisie répétée. Garde l'historique de production, remet juste
+  // le stock des lots à 0 (comme la clôture du soir).
+  const handleClearFrigo = async () => {
+    const category = prepTab === 'kg' ? 'gateaux_kg' : 'entremet'
+    const label = prepTab === 'kg' ? 'gâteaux au kg' : 'entremet'
+    if (!window.confirm(`Vider tout le frigo ${label} ? Tous les lots invendus de cette catégorie seront supprimés du stock.`)) return
+    const result = await clearFrigoBatches(category)
+    addNotification(`Frigo ${label} vidé (${result.count} lot(s) supprimé(s) du stock)`, 'success')
     refresh()
   }
 
@@ -339,6 +373,27 @@ export default function PreparateurPage() {
                 {(() => {
                   const currentProduct = (isPatisserie ? visibleProducts : atelierProducts).find(p => p.id === selectedProduct)
                   const isGateauKg = currentProduct?.category === 'gateaux_kg'
+                  const isEntremet = currentProduct?.category === 'entremet'
+                  if (isEntremet) {
+                    return (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-diana-brown mb-1.5">{t('preparateur.quantiteFabriquee')}</label>
+                          <NumericField value={quantity} onChange={setQuantity} placeholder={t('preparateur.quantitePlaceholder')}
+                            title={getProductDisplayName(currentProduct, lang) || t('preparateur.quantiteFabriquee')}
+                            unit={t('preparateur.piece')}
+                            className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream text-left focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-diana-brown mb-1.5">Prix unitaire</label>
+                          <NumericField value={entremetPrice} onChange={setEntremetPrice} placeholder="Prix en DH"
+                            title={`Prix — ${getProductDisplayName(currentProduct, lang) || ''}`}
+                            unit="DH"
+                            className="w-full px-4 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream text-left focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" />
+                        </div>
+                      </div>
+                    )
+                  }
                   return (
                     <>
                       <label className="block text-xs text-diana-brown mb-1.5">{isGateauKg ? 'Prix du gâteau' : t('preparateur.quantiteFabriquee')}</label>
@@ -439,9 +494,15 @@ export default function PreparateurPage() {
         {isPatisserie && (prepTab === 'kg' || prepTab === 'entremets') && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-diana-card border border-diana-border rounded-2xl p-5 sm:p-6 mt-6">
-            <div className="flex items-center gap-3 mb-5">
+            <div className="flex items-center gap-3 mb-5 flex-wrap">
               <div className="w-10 h-10 rounded-xl bg-diana-gold/10 flex items-center justify-center"><FiGrid className="text-diana-gold" size={20} /></div>
-              <h3 className="font-fraunces text-lg text-diana-cream">Frigo d'entremet — détail des lots</h3>
+              <h3 className="font-fraunces text-lg text-diana-cream flex-1">Frigo d'entremet — détail des lots</h3>
+              {frigoBatches.filter((b) => visibleProducts.some((p) => p.id === b.baseProductId)).length > 0 && (
+                <button type="button" onClick={handleClearFrigo}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-diana-danger/10 text-diana-danger border border-diana-danger/30 text-xs font-semibold hover:bg-diana-danger/20 transition-colors">
+                  <FiTrash2 size={13} /> Vider le frigo
+                </button>
+              )}
             </div>
             {frigoBatches.filter((b) => visibleProducts.some((p) => p.id === b.baseProductId)).length === 0 ? (
               <p className="text-sm italic text-diana-brownLight text-center py-6">Aucun lot en stock pour le moment.</p>
