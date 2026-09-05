@@ -33,6 +33,17 @@ const caissierNavItems = [
   { path: '/commandes/suivi', icon: FiClipboard, key: 'suiviCommandes' },
 ]
 
+// Espace Café — nav bien plus courte (pas de stock, pas de commandes, pas de production).
+const cafeAdminNavItems = [
+  { path: '/cafe', icon: FiHome, key: 'caisse' },
+  { path: '/cafe/bilan', icon: FiPieChart, key: 'bilan' },
+  { path: '/cafe/produits', icon: FiShoppingBag, key: 'produits' },
+]
+
+const cafeCaissierNavItems = [
+  { path: '/cafe', icon: FiHome, key: 'caisse' },
+]
+
 export default function Layout() {
   const { user, isAuthenticated, logout } = useAuth()
   const { t, lang, toggleLang } = useLanguage()
@@ -41,12 +52,25 @@ export default function Layout() {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showLogoutCode, setShowLogoutCode] = useState(false)
-  const navItems = user?.role === 'admin' ? adminNavItems : user?.role === 'caissier' ? caissierNavItems : preparateurNavItems
+  const isCafe = (user?.business || 'patisserie') === 'cafe'
+  const homePath = isCafe ? '/cafe' : '/'
+  const navItems = isCafe
+    ? (user?.role === 'admin' ? cafeAdminNavItems : cafeCaissierNavItems)
+    : (user?.role === 'admin' ? adminNavItems : user?.role === 'caissier' ? caissierNavItems : preparateurNavItems)
 
-  // La déconnexion nécessite d'abord le code (mot de passe) — voir CodeConfirmModal plus bas.
-  // Un caissier ne peut pas se déconnecter directement : il doit d'abord "Vider la caisse"
-  // (page Caisse), qui clôture la session et déconnecte automatiquement après impression.
+  // La déconnexion nécessite d'abord le code (mot de passe) — voir CodeConfirmModal plus bas —
+  // uniquement côté pâtisserie (mécanisme de session de caisse). Côté café, plus simple : pas
+  // de session à clôturer, la déconnexion est directe (comme dans l'app café d'origine).
+  // Un caissier PÂTISSERIE ne peut pas se déconnecter directement : il doit d'abord "Vider la
+  // caisse" (page Caisse), qui clôture la session et déconnecte automatiquement après
+  // impression.
   const handleLogout = () => {
+    if (isCafe) {
+      logout()
+      setSidebarOpen(false)
+      navigate(homePath)
+      return
+    }
     if (user?.role === 'caissier') {
       setSidebarOpen(false)
       addNotification('Vous devez d\'abord "Vider la caisse" (page Caisse) pour vous déconnecter.', 'error')
