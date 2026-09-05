@@ -28,7 +28,10 @@ export default function LoginPage() {
     }
   }, [])
 
-  const goToSpace = (role) => navigate(role === 'preparateur' ? '/preparateur' : role === 'caissier' ? '/' : '/bilan')
+  const goToSpace = (business, role) => {
+    if (business === 'cafe') { navigate('/cafe'); return }
+    navigate(role === 'preparateur' ? '/preparateur' : role === 'caissier' ? '/' : '/bilan')
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -38,18 +41,22 @@ export default function LoginPage() {
     if (result.success) {
       addNotification(t('login.connexionReussie'), 'success')
       const role = result.user?.role
-      if (role === 'caissier') {
-    
+      const business = result.user?.business || 'patisserie'
+      // L'espace Café n'a pas de session de caisse à ouvrir (pas de dépôt d'ouverture) —
+      // on y entre directement, comme dans l'application café d'origine.
+      if (business === 'cafe') {
+        goToSpace(business, role)
+      } else if (role === 'caissier') {
         const alreadyOpenedToday = await hasOpenedSessionToday().catch(() => false)
         if (alreadyOpenedToday) {
           openSession(0).catch(() => {})
-          goToSpace(role)
+          goToSpace(business, role)
         } else {
           setDepositPrompt({ user: result.user })
         }
       } else {
         openSession(0).catch(() => {})
-        goToSpace(role)
+        goToSpace(business, role)
       }
     } else {
       addNotification(result.error, 'error')
@@ -64,7 +71,7 @@ export default function LoginPage() {
     }
     setDepositLoading(false)
     setDepositPrompt(null)
-    goToSpace('caissier')
+    goToSpace('patisserie', 'caissier')
   }
 
   return (
