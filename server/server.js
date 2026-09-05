@@ -59,6 +59,13 @@ app.use('/api/bilan', require('./routes/bilan'))
 app.use('/api/sessions', require('./routes/sessions'))
 app.use('/api/admin', require('./routes/admin'))
 
+// Espace Café (Dianna Café) — même serveur, mêmes comptes utilisateurs (colonne `business`),
+// mais ses propres tables (carte, ventes, dépôts) puisque son fonctionnement est plus simple
+// (pas de stock, pas de catégories, pas de commandes).
+app.use('/api/cafe/products', require('./routes/cafeProducts'))
+app.use('/api/cafe/sales', require('./routes/cafeSales'))
+app.use('/api/cafe/deposits', require('./routes/cafeDeposits'))
+
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT 1')
