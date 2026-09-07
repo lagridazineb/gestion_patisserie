@@ -8,7 +8,6 @@ import { getProductOverlay } from '../api/products'
 import { getStock, addProduction, getProductionLog, subscribeToStockUpdates, getAtelierTasks, getAtelierDoneTasks, markAtelierDone, getActiveFrigoBatches, clearFrigoBatches } from '../data/stockStore'
 import { FiBox, FiPlus, FiCheck, FiClock, FiCalendar, FiPackage, FiClipboard, FiUser, FiPhone, FiEye, FiCheckCircle, FiXCircle, FiScissors, FiGrid, FiTrash2 } from 'react-icons/fi'
 import NumericField from '../components/NumericField'
-import TimeField from '../components/TimeField'
 import { getProductDisplayName, getCategoryLabel } from '../i18n/productNames'
 import { formatT } from '../i18n/translations'
 
@@ -32,7 +31,14 @@ export default function PreparateurPage() {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   })
-  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5))
+  // L'heure n'est plus saisissable par le préparateur : elle est désormais toujours l'heure
+  // réelle d'enregistrement, fixée par le serveur (voir server/routes/production.js). Cet
+  // état ne sert plus qu'à un affichage informatif (horloge en direct) et n'est jamais envoyé.
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
   // Pour le préparateur Pâtisserie uniquement : 3 sections séparées.
   const [prepTab, setPrepTab] = useState('tranche') // 'tranche' | 'entremets' | 'kg'
   const isPatisserie = user?.atelier === 'patisserie'
@@ -152,7 +158,8 @@ export default function PreparateurPage() {
     }
     await addProduction({
       productId: product.id, product: product.name,
-      quantity: isGateauKg ? 1 : qty, date, time,
+      // Pas de `time` envoyé : l'heure exacte est fixée par le serveur au moment de l'insertion.
+      quantity: isGateauKg ? 1 : qty, date,
       category: product.category, price: isGateauKg ? qty : (isEntremet ? entremetUnitPrice : product.price),
       // `product.price` est le prix au kg de ce gâteau dans le catalogue (ex: 130 DH/kg) : on
       // l'envoie au serveur pour qu'il calcule le poids EXACT (prix saisi / prix au kg).
@@ -418,8 +425,10 @@ export default function PreparateurPage() {
                   <label className="block text-xs text-diana-brown mb-1.5">{t('preparateur.heure')}</label>
                   <div className="relative">
                     <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 text-diana-brown z-10" size={14} />
-                    <TimeField value={time} onChange={setTime} title={t('preparateur.heure')}
-                      className="w-full min-w-0 pl-10 pr-2 py-3 bg-diana-dark border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50 transition-colors text-sm" />
+                    <div title="Heure enregistrée automatiquement à la validation"
+                      className="w-full min-w-0 pl-10 pr-2 py-3 bg-diana-dark/60 border border-diana-border rounded-xl text-diana-brownLight focus:outline-none transition-colors text-sm select-none">
+                      {now.toTimeString().slice(0, 5)}
+                    </div>
                   </div>
                 </div>
               </div>
