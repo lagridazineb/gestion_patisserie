@@ -27,7 +27,7 @@ router.get('/', authMiddleware, async (req, res) => {
 // plusieurs lots "Frigo Entremet" individuels au lieu de créditer un stock mutualisé.
 router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
   try {
-    const { productId, product, quantity, category, price, pricePerKg, atelier, date, time, image, user } = req.body
+    const { productId, product, quantity, category, price, pricePerKg, atelier, date, image, user } = req.body
     const id = Date.now()
 
     // Gâteau au kg : le préparateur saisit le PRIX total du gâteau. On calcule ici le poids
@@ -39,11 +39,14 @@ router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
       weightKg = Math.round((Number(price) / Number(pricePerKg)) * 1000) / 1000
     }
 
+    // L'heure est désormais fixée par le serveur (CURTIME()) au moment exact de l'enregistrement
+    // — jamais par ce que le préparateur a pu saisir côté client — pour que l'heure affichée à
+    // l'admin soit garantie fiable.
     await pool.query(
       `INSERT INTO production_entries
         (id, product_id, product_name, quantity, category, price, weight_kg, atelier, user_name, production_date, production_time, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [id, productId, product, quantity, category, price, weightKg, atelier, user || req.user.email, date, time]
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURTIME(), NOW())`,
+      [id, productId, product, quantity, category, price, weightKg, atelier, user || req.user.email, date]
     )
 
     let frigoBatch = null
