@@ -34,7 +34,9 @@ export async function getProductionLog(atelier, date) {
     id: p.id, productId: p.product_id, product: p.product_name, quantity: Number(p.quantity),
     category: p.category, price: p.price !== null ? Number(p.price) : null,
     weightKg: p.weight_kg !== null && p.weight_kg !== undefined ? Number(p.weight_kg) : null,
-    atelier: p.atelier, user: p.user_name, date: p.production_date, time: p.production_time, timestamp: p.created_at,
+    atelier: p.atelier, user: p.user_name, date: p.production_date,
+    time: p.production_time ? String(p.production_time).slice(0, 5) : p.production_time,
+    timestamp: p.created_at,
   }))
 }
 
