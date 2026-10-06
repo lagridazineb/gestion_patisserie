@@ -28,6 +28,10 @@ export default function StockPage() {
   const [productionSearch, setProductionSearch] = useState('')
   const [productionDate, setProductionDate] = useState('')
   const [preparateurDate, setPreparateurDate] = useState('')
+  // Filtre par date de l'onglet "Stock" principal : vide = stock en direct (comme avant), une
+  // date choisie = quantité produite ce jour-là par produit, au lieu de voir tout le stock actuel
+  // mélangé. N'affecte que cet onglet (indépendant de productionDate / preparateurDate).
+  const [stockDate, setStockDate] = useState('')
   const [clearReceipt, setClearReceipt] = useState(null)
   const [productOverlay, setProductOverlay] = useState({ customProducts: [], edits: [], deletedIds: [] })
   const { addNotification } = useNotification()
@@ -65,7 +69,26 @@ export default function StockPage() {
     return unsubscribe
   }, [refresh])
 
-  const filteredProducts = ALL_PRODUCTS.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredProductsAll = ALL_PRODUCTS.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+
+  // Quand une date est choisie dans l'onglet Stock, on affiche la quantité PRODUITE ce jour-là
+  // par produit (calculée depuis le journal de production déjà chargé), plutôt que le stock en
+  // direct — qui n'a pas de notion de date (c'est juste "ce qu'il reste maintenant").
+  const stockByDateMap = useMemo(() => {
+    if (!stockDate) return null
+    const map = {}
+    productionLog.forEach((entry) => {
+      if (!sameDay(entry.timestamp, stockDate)) return
+      map[entry.productId] = (map[entry.productId] || 0) + entry.quantity
+    })
+    return map
+  }, [productionLog, stockDate])
+
+  // Avec une date active, on ne garde que les produits réellement fabriqués ce jour-là — c'est
+  // justement le but : ne plus tout voir en même temps, seulement la portion de ce jour.
+  const filteredProducts = stockByDateMap
+    ? filteredProductsAll.filter((p) => stockByDateMap[p.id] > 0)
+    : filteredProductsAll
   const lowStockItems = filteredProducts.filter(p => (stocks[p.id] ?? 0) <= 5)
 
   // Map productId -> category (atelier) pour croiser les ventes avec les ateliers
@@ -281,19 +304,35 @@ export default function StockPage() {
               </div>
             </motion.div>
 
-            {lowStockItems.length > 0 && (
+            {!stockDate && lowStockItems.length > 0 && (
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
                 className="bg-diana-accent/10 border border-diana-accent/20 rounded-xl p-4 mb-6 flex items-center gap-3">
                 <FiAlertTriangle className="text-diana-accentLight shrink-0" size={20} />
                 <p className="text-sm text-diana-accentLight">{lowStockItems.length} produit{lowStockItems.length > 1 ? 's' : ''} en stock faible</p>
               </motion.div>
             )}
-            <div className="relative max-w-md mb-6">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
-              <input type="text" placeholder="Rechercher un produit..." value={searchQuery} dir="auto" lang="fr"
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors" />
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <div className="relative flex-1 max-w-md">
+                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-diana-brown" size={18} />
+                <input type="text" placeholder="Rechercher un produit..." value={searchQuery} dir="auto" lang="fr"
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-diana-card border border-diana-border rounded-xl text-diana-cream placeholder-diana-brown focus:outline-none focus:border-diana-gold/50 transition-colors" />
+              </div>
+              <div className="flex items-center gap-2">
+                <FiCalendar className="text-diana-brown shrink-0" size={16} />
+                <input type="date" value={stockDate} onChange={(e) => setStockDate(e.target.value)}
+                  className="px-3 py-2.5 bg-diana-card border border-diana-border rounded-xl text-diana-cream text-sm focus:outline-none focus:border-diana-gold/50 transition-colors" />
+                {stockDate && (
+                  <button onClick={() => setStockDate('')}
+                    className="text-xs text-diana-brown hover:text-diana-gold underline whitespace-nowrap">Voir le stock en direct</button>
+                )}
+              </div>
             </div>
+            {stockDate && (
+              <p className="text-xs text-diana-brown -mt-4 mb-5">
+                Affichage : quantité produite le {new Date(stockDate).toLocaleDateString('fr-FR')} (au lieu du stock en direct).
+              </p>
+            )}
 
             {/* Vue desktop : tableau */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
@@ -312,8 +351,8 @@ export default function StockPage() {
                   <tbody>
                     <AnimatePresence>
                       {filteredProducts.map((product, i) => {
-                        const stock = stocks[product.id] ?? 0
-                        const isLow = stock <= 5
+                        const stock = stockByDateMap ? stockByDateMap[product.id] ?? 0 : stocks[product.id] ?? 0
+                        const isLow = !stockByDateMap && stock <= 5
                         return (
                           <motion.tr key={product.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.01 }}
                             className="border-b border-diana-border/30 last:border-0 hover:bg-diana-dark/30 transition-colors">
@@ -339,14 +378,18 @@ export default function StockPage() {
                               )}
                             </td>
                             <td className="px-6 py-4">
-                              <div className="flex items-center justify-center gap-1">
-                                <button onClick={() => handleAdjust(product.id, -1)}
-                                  className="w-7 h-7 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown hover:text-diana-cream hover:border-diana-gold/30 transition-colors"><FiMinus size={12} /></button>
-                                <button onClick={() => handleAdjust(product.id, 1)}
-                                  className="w-7 h-7 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown hover:text-diana-cream hover:border-diana-gold/30 transition-colors"><FiPlus size={12} /></button>
-                                <button onClick={() => handleEdit(product.id)}
-                                  className="w-7 h-7 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown hover:text-diana-cream hover:border-diana-gold/30 transition-colors ml-1"><FiEdit3 size={12} /></button>
-                              </div>
+                              {stockDate ? (
+                                <p className="text-center text-[11px] text-diana-brown italic">voir "Détail production" pour corriger</p>
+                              ) : (
+                                <div className="flex items-center justify-center gap-1">
+                                  <button onClick={() => handleAdjust(product.id, -1)}
+                                    className="w-7 h-7 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown hover:text-diana-cream hover:border-diana-gold/30 transition-colors"><FiMinus size={12} /></button>
+                                  <button onClick={() => handleAdjust(product.id, 1)}
+                                    className="w-7 h-7 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown hover:text-diana-cream hover:border-diana-gold/30 transition-colors"><FiPlus size={12} /></button>
+                                  <button onClick={() => handleEdit(product.id)}
+                                    className="w-7 h-7 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown hover:text-diana-cream hover:border-diana-gold/30 transition-colors ml-1"><FiEdit3 size={12} /></button>
+                                </div>
+                              )}
                             </td>
                           </motion.tr>
                         )
@@ -361,8 +404,8 @@ export default function StockPage() {
             <div className="md:hidden space-y-3">
               <AnimatePresence>
                 {filteredProducts.map((product) => {
-                  const stock = stocks[product.id] ?? 0
-                  const isLow = stock <= 5
+                  const stock = stockByDateMap ? stockByDateMap[product.id] ?? 0 : stocks[product.id] ?? 0
+                  const isLow = !stockByDateMap && stock <= 5
                   return (
                     <motion.div key={product.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                       className="bg-diana-card border border-diana-border rounded-xl p-4">
@@ -385,14 +428,18 @@ export default function StockPage() {
                         ) : (
                           <span className={`text-base font-semibold ${isLow ? 'text-diana-danger' : 'text-diana-cream'}`}>{stock}</span>
                         )}
-                        <div className="flex items-center gap-1.5">
-                          <button onClick={() => handleAdjust(product.id, -1)}
-                            className="w-9 h-9 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown active:scale-95 transition-transform"><FiMinus size={14} /></button>
-                          <button onClick={() => handleAdjust(product.id, 1)}
-                            className="w-9 h-9 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown active:scale-95 transition-transform"><FiPlus size={14} /></button>
-                          <button onClick={() => handleEdit(product.id)}
-                            className="w-9 h-9 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown active:scale-95 transition-transform"><FiEdit3 size={14} /></button>
-                        </div>
+                        {stockDate ? (
+                          <p className="text-[11px] text-diana-brown italic">voir "Détail production"</p>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => handleAdjust(product.id, -1)}
+                              className="w-9 h-9 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown active:scale-95 transition-transform"><FiMinus size={14} /></button>
+                            <button onClick={() => handleAdjust(product.id, 1)}
+                              className="w-9 h-9 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown active:scale-95 transition-transform"><FiPlus size={14} /></button>
+                            <button onClick={() => handleEdit(product.id)}
+                              className="w-9 h-9 rounded-lg bg-diana-dark border border-diana-border flex items-center justify-center text-diana-brown active:scale-95 transition-transform"><FiEdit3 size={14} /></button>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )
