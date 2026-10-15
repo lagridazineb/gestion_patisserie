@@ -13,6 +13,7 @@ import {
 import NumericField from '../components/NumericField'
 import CodeConfirmModal from '../components/CodeConfirmModal'
 import ReceiptHeader from '../components/ReceiptHeader'
+import EditProductionModal from '../components/EditProductionModal'
 
 export default function StockPage() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -151,25 +152,54 @@ export default function StockPage() {
     addNotification('Entrée de production supprimée', 'success')
   }
 
-  const [editingProductionId, setEditingProductionId] = useState(null)
-  const [editingProductionValue, setEditingProductionValue] = useState('')
+  // Correction d'une production (quantité / produit / catégorie), sur n'importe quelle date.
+  const [editingEntry, setEditingEntry] = useState(null)
+  // Produit déplié dans l'onglet Stock quand une date est choisie (pour voir/corriger ses saisies)
+  const [expandedStockProduct, setExpandedStockProduct] = useState(null)
 
-  const startEditProduction = (entry) => {
-    setEditingProductionId(entry.id)
-    setEditingProductionValue(String(entry.quantity))
-  }
+  const isLotEntry = (entry) => entry.category === 'gateaux_kg' || entry.category === 'entremet'
 
-  const saveEditProduction = async (entry) => {
-    const newQty = Number(editingProductionValue)
-    setEditingProductionId(null)
-    if (!newQty || newQty <= 0 || newQty === entry.quantity) return
+  const saveEditProduction = async (patch) => {
+    const entry = editingEntry
     try {
-      await editProductionEntry(entry.id, newQty)
+      await editProductionEntry(entry.id, patch)
+      setEditingEntry(null)
       refresh()
-      addNotification('Quantité corrigée — mise à jour dans le stock, la vente et la page préparateur.', 'success')
+      addNotification('Production corrigée — mise à jour dans le stock, la vente et la page préparateur.', 'success')
     } catch (e) {
       addNotification(e.response?.data?.error || 'Impossible de corriger cette entrée', 'error')
     }
+  }
+
+  // Saisies de production du produit pour la date choisie dans l'onglet Stock
+  const entriesForProductOnDate = (productId) =>
+    productionLog.filter((e) => e.productId === productId && sameDay(e.timestamp, stockDate))
+
+  const renderDayEntries = (product) => {
+    const entries = entriesForProductOnDate(product.id)
+    return (
+      <div className="space-y-2">
+        <p className="text-[11px] uppercase tracking-wide text-diana-brown">Saisies du {new Date(stockDate).toLocaleDateString('fr-FR')}</p>
+        {entries.map((entry) => (
+          <div key={entry.id} className="flex items-center justify-between gap-3 bg-diana-dark/40 border border-diana-border/50 rounded-lg px-3 py-2">
+            <div className="min-w-0">
+              <p className="text-xs text-diana-cream truncate">{entry.user || '—'} · {entry.time || ''}</p>
+              <p className="text-[11px] text-diana-brown">+{entry.quantity}</p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              {isLotEntry(entry) ? (
+                <span className="text-[11px] italic text-diana-brown">lot frigo — supprimer et resaisir</span>
+              ) : (
+                <button onClick={() => setEditingEntry(entry)} title="Corriger (quantité, produit, catégorie)"
+                  className="text-diana-brown hover:text-diana-gold"><FiEdit3 size={15} /></button>
+              )}
+              <button onClick={() => handleDeleteProduction(entry)} title="Supprimer cette saisie"
+                className="text-diana-danger hover:text-red-700"><FiX size={16} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
   }
 
   const filteredProductionLog = useMemo(() => {
@@ -354,7 +384,8 @@ export default function StockPage() {
                         const stock = stockByDateMap ? stockByDateMap[product.id] ?? 0 : stocks[product.id] ?? 0
                         const isLow = !stockByDateMap && stock <= 5
                         return (
-                          <motion.tr key={product.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.01 }}
+                          <React.Fragment key={product.id}>
+                          <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.01 }}
                             className="border-b border-diana-border/30 last:border-0 hover:bg-diana-dark/30 transition-colors">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
@@ -379,7 +410,12 @@ export default function StockPage() {
                             </td>
                             <td className="px-6 py-4">
                               {stockDate ? (
-                                <p className="text-center text-[11px] text-diana-brown italic">voir "Détail production" pour corriger</p>
+                                <div className="flex justify-center">
+                                  <button onClick={() => setExpandedStockProduct(expandedStockProduct === product.id ? null : product.id)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-diana-dark border border-diana-border text-xs text-diana-brown hover:text-diana-gold hover:border-diana-gold/30 transition-colors">
+                                    <FiEdit3 size={12} /> Corriger
+                                  </button>
+                                </div>
                               ) : (
                                 <div className="flex items-center justify-center gap-1">
                                   <button onClick={() => handleAdjust(product.id, -1)}
@@ -392,6 +428,12 @@ export default function StockPage() {
                               )}
                             </td>
                           </motion.tr>
+                          {stockDate && expandedStockProduct === product.id && (
+                            <tr className="border-b border-diana-border/30 bg-diana-dark/20">
+                              <td colSpan={5} className="px-6 py-4">{renderDayEntries(product)}</td>
+                            </tr>
+                          )}
+                          </React.Fragment>
                         )
                       })}
                     </AnimatePresence>
@@ -429,7 +471,10 @@ export default function StockPage() {
                           <span className={`text-base font-semibold ${isLow ? 'text-diana-danger' : 'text-diana-cream'}`}>{stock}</span>
                         )}
                         {stockDate ? (
-                          <p className="text-[11px] text-diana-brown italic">voir "Détail production"</p>
+                          <button onClick={() => setExpandedStockProduct(expandedStockProduct === product.id ? null : product.id)}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-diana-dark border border-diana-border text-xs text-diana-brown active:scale-95 transition-transform">
+                            <FiEdit3 size={13} /> Corriger
+                          </button>
                         ) : (
                           <div className="flex items-center gap-1.5">
                             <button onClick={() => handleAdjust(product.id, -1)}
@@ -441,6 +486,9 @@ export default function StockPage() {
                           </div>
                         )}
                       </div>
+                      {stockDate && expandedStockProduct === product.id && (
+                        <div className="mt-3 pt-3 border-t border-diana-border/40">{renderDayEntries(product)}</div>
+                      )}
                     </motion.div>
                   )
                 })}
@@ -538,25 +586,12 @@ export default function StockPage() {
                       <p className="text-xs text-diana-brown mt-0.5">{atelierLabel(entry.atelier)} · {entry.user} · {entry.date} {entry.time}</p>
                     </div>
                     <div className="flex items-center gap-3 self-start sm:self-auto">
-                      {editingProductionId === entry.id ? (
-                        <>
-                          <input type="number" autoFocus value={editingProductionValue}
-                            onChange={(e) => setEditingProductionValue(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') saveEditProduction(entry); if (e.key === 'Escape') setEditingProductionId(null) }}
-                            className="w-20 px-2 py-1 text-sm bg-diana-dark/30 border border-diana-gold/50 rounded-lg text-diana-cream focus:outline-none" />
-                          <button onClick={() => saveEditProduction(entry)} className="text-emerald-400 hover:text-emerald-300 text-xs font-semibold">OK</button>
-                          <button onClick={() => setEditingProductionId(null)} className="text-diana-brown hover:text-diana-cream text-xs">Annuler</button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-sm font-semibold text-diana-gold">+{entry.quantity}</span>
-                          {entry.category !== 'gateaux_kg' && entry.category !== 'entremet' && (
-                            <button onClick={() => startEditProduction(entry)} title="Corriger la quantité"
-                              className="text-diana-brown hover:text-diana-gold"><FiEdit3 size={15} /></button>
-                          )}
-                          <button onClick={() => handleDeleteProduction(entry)} className="text-diana-danger hover:text-red-700"><FiX size={16} /></button>
-                        </>
+                      <span className="text-sm font-semibold text-diana-gold">+{entry.quantity}</span>
+                      {!isLotEntry(entry) && (
+                        <button onClick={() => setEditingEntry(entry)} title="Corriger (quantité, produit, catégorie)"
+                          className="text-diana-brown hover:text-diana-gold"><FiEdit3 size={15} /></button>
                       )}
+                      <button onClick={() => handleDeleteProduction(entry)} className="text-diana-danger hover:text-red-700"><FiX size={16} /></button>
                     </div>
                   </div>
                 ))
@@ -565,6 +600,11 @@ export default function StockPage() {
           </motion.div>
         )}
       </div>
+
+      {editingEntry && (
+        <EditProductionModal entry={editingEntry} products={ALL_PRODUCTS}
+          onSave={saveEditProduction} onCancel={() => setEditingEntry(null)} />
+      )}
 
       {/* Reçu imprimable du vidage de stock — s'affiche et s'imprime automatiquement dès le vidage */}
       <AnimatePresence>
