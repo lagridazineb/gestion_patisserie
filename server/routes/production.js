@@ -90,34 +90,62 @@ router.post('/', authMiddleware, preparateurMiddleware, async (req, res) => {
   }
 })
 
-// Corrige une erreur de saisie de quantité (admin) — le stock est réajusté par la SEULE
-// différence entre l'ancienne et la nouvelle quantité, donc la correction se répercute
-// automatiquement partout où ce stock est lu (page Stock, page Préparateur, quantité
-// disponible à la vente en caisse, et donc le chiffre d'affaires calculé sur les ventes
-// réellement enregistrées). Réservé aux entrées "simples" (stock mutualisé par produit) :
-// les catégories "gateaux_kg" et "entremet" fonctionnent par lots individuels (frigo_batches,
-// chacun avec son propre prix) et ne peuvent pas être corrigées par une simple quantité.
+// Corrige une entrée de production (quantité et/ou produit/catégorie), sur n'importe quelle
+// date — pas seulement aujourd'hui. Le stock est réajusté par la différence :
+//  - même produit  : stock += (nouvelle quantité - ancienne quantité)
+//  - produit changé : l'ancien produit perd son ancienne quantité, le nouveau gagne la nouvelle
+// Comme la page Vente, la page Préparateur et les récapitulatifs lisent tous stock_quantities /
+// production_entries, la correction se répercute automatiquement partout.
+// Changer de produit (donc de catégorie) est réservé à l'admin ; un préparateur ne peut
+// corriger que la quantité. Réservé aux entrées "simples" (stock mutualisé par produit) :
+// "gateaux_kg" et "entremet" fonctionnent par lots individuels (frigo_batches) et ne peuvent
+// pas être corrigés par une simple quantité / un simple changement de produit.
 router.put('/:id', authMiddleware, preparateurMiddleware, async (req, res) => {
   try {
     const id = Number(req.params.id)
-    const newQty = Number(req.body.quantity)
-    if (!newQty || isNaN(newQty) || newQty <= 0) {
+    const { productId, product, category, atelier, price } = req.body
+    const newQty = req.body.quantity === undefined ? undefined : Number(req.body.quantity)
+    if (newQty !== undefined && (!newQty || isNaN(newQty) || newQty <= 0)) {
       return res.status(400).json({ error: 'Quantité invalide' })
     }
+
     const [rows] = await pool.query('SELECT * FROM production_entries WHERE id = ?', [id])
     const entry = rows[0]
     if (!entry) return res.status(404).json({ error: 'Entrée introuvable' })
-    if (entry.category === 'gateaux_kg' || entry.category === 'entremet') {
-      return res.status(400).json({ error: "Cette entrée est un lot individuel du frigo entremet et ne peut pas être corrigée par quantité — supprimez-la et resaisissez-la si besoin." })
+
+    const isFrigo = (c) => c === 'gateaux_kg' || c === 'entremet'
+    if (isFrigo(entry.category)) {
+      return res.status(400).json({ error: "Cette entrée est un lot individuel du frigo entremet et ne peut pas être corrigée — supprimez-la et resaisissez-la si besoin." })
+    }
+
+    const changesProduct = productId !== undefined && productId !== null && productId !== entry.product_id
+    if (changesProduct) {
+      if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Accès refusé - Administrateur requis' })
+      if (isFrigo(category)) {
+        return res.status(400).json({ error: 'Impossible de transformer une production en lot Frigo Entremet — supprimez-la et resaisissez-la.' })
+      }
+      if (!product || !category) return res.status(400).json({ error: 'Produit et catégorie requis' })
     }
 
     const oldQty = Number(entry.quantity)
-    const delta = newQty - oldQty
-    await pool.query('UPDATE production_entries SET quantity = ? WHERE id = ?', [newQty, id])
-    if (entry.product_id && delta !== 0) {
-      await adjustStock(entry.product_id, delta)
+    const finalQty = newQty === undefined ? oldQty : newQty
+
+    if (changesProduct) {
+      // L'ancien produit perd ce qui avait été crédité par erreur, le nouveau le gagne.
+      if (entry.product_id) await adjustStock(entry.product_id, -oldQty)
+      await adjustStock(productId, finalQty)
+      await pool.query(
+        `UPDATE production_entries
+         SET product_id = ?, product_name = ?, category = ?, price = ?, atelier = ?, quantity = ?
+         WHERE id = ?`,
+        [productId, product, category, price === undefined ? null : price, atelier || entry.atelier, finalQty, id]
+      )
+    } else {
+      const delta = finalQty - oldQty
+      await pool.query('UPDATE production_entries SET quantity = ? WHERE id = ?', [finalQty, id])
+      if (entry.product_id && delta !== 0) await adjustStock(entry.product_id, delta)
     }
-    res.json({ success: true, id, quantity: newQty, delta })
+    res.json({ success: true, id, quantity: finalQty, productId: changesProduct ? productId : entry.product_id })
   } catch (error) {
     console.error('Erreur PUT /api/production/:id :', error)
     res.status(500).json({ error: 'Erreur serveur' })
