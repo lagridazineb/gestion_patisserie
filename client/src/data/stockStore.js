@@ -62,8 +62,13 @@ export async function removeProductionEntry(id) {
 // Corrige une erreur de saisie de quantité (admin) — le stock est réajusté par la différence,
 // et comme Vente / Stock / Préparateur lisent tous la même source, la correction apparaît
 // automatiquement partout, sans rien avoir à resynchroniser ailleurs.
-export async function editProductionEntry(id, quantity) {
-  const { data } = await apiClient.put(`/production/${id}`, { quantity })
+// Accepte soit une quantité seule (editProductionEntry(id, 12)), soit un objet pour corriger
+// aussi le produit / la catégorie : { quantity, productId, product, category, atelier, price }.
+export async function editProductionEntry(id, quantityOrPatch) {
+  const body = typeof quantityOrPatch === 'object' && quantityOrPatch !== null
+    ? quantityOrPatch
+    : { quantity: quantityOrPatch }
+  const { data } = await apiClient.put(`/production/${id}`, body)
   return data
 }
 
