@@ -29,16 +29,25 @@ function mapRow(r) {
     timestamp: r.created_at,
   }
 }
-
+// server/routes/sales.js — remplace la requête de GET /api/sales (ligne ~35)
+// 1) pas de SELECT * (évite de trier les gros JSON), 2) LIMIT/pagination.
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM sales ORDER BY created_at DESC')
-    res.json({ sales: rows.map(mapRow) })
-  } catch (error) {
-    console.error('Erreur GET /api/sales :', error)
-    res.status(500).json({ error: 'Erreur serveur' })
+    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 1000);
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const [rows] = await pool.query(
+      `SELECT id, ticket_number, items, payment_type, total, refunded_qty, created_by, created_at
+       FROM sales
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Erreur GET /api/sales :', err);
+    res.status(500).json({ error: 'Erreur serveur' });
   }
-})
+});
 
 router.get('/next-ticket-number', authMiddleware, async (req, res) => {
   try {
