@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { FiCalendar, FiUser, FiPackage, FiTrendingUp, FiClock, FiChevronDown, FiChevronUp, FiLock, FiCheck, FiSearch, FiInfo, FiAlertTriangle } from 'react-icons/fi'
 import { getBilanByUser, getBilanByHour, subscribeToStockUpdates } from '../data/stockStore'
@@ -15,6 +15,16 @@ function pillClass(active) {
   }`
 }
 
+// Une connexion est affichée pour un jour donné si elle y a commencé, s'y est terminée, ou si elle
+// est toujours en cours (ouverte ce jour-là ou avant). Avant, seule l'heure d'ouverture comptait :
+// un caissier connecté depuis la veille n'apparaissait nulle part dans "Aujourd'hui".
+function sessionInDay(s, day) {
+  if (!day) return true
+  const opened = String(s.openedAt).slice(0, 10)
+  const closed = s.closedAt ? String(s.closedAt).slice(0, 10) : null
+  return opened === day || closed === day || (s.status === 'open' && opened <= day)
+}
+
 export default function UtilisateursPage() {
   const { lang } = useLanguage()
   const { addNotification } = useNotification()
@@ -23,6 +33,8 @@ export default function UtilisateursPage() {
   const [data, setData] = useState(null)
   const [sessions, setSessions] = useState([])
   const [loadError, setLoadError] = useState('')
+  const [sessionsError, setSessionsError] = useState(false)
+  const inFlight = useRef(false)
   const [accounts, setAccounts] = useState([])
 
   const refreshAccounts = useCallback(() => { fetchAllUsers().then(setAccounts).catch(() => {}) }, [])
@@ -33,23 +45,31 @@ export default function UtilisateursPage() {
   const effectiveDate = mode === 'all' ? null : (mode === 'date' ? date : new Date().toISOString().slice(0, 10))
 
   const refresh = useCallback(async () => {
-    const d = mode === 'all' ? null : (mode === 'date' ? date : new Date().toISOString().slice(0, 10))
-    // allSettled : si l'historique des connexions échoue, la page s'affiche quand même avec les
-    // totaux par utilisateur (avant : une seule erreur = page entièrement vide).
-    const [bilan, hist] = await Promise.allSettled([getBilanByUser(d), getSessionsHistory()])
-    if (bilan.status === 'fulfilled') {
-      setData(bilan.value)
-      setLoadError('')
-    } else {
-      const err = bilan.reason
-      setLoadError(err?.response?.data?.detail || err?.response?.data?.error || err?.message || 'Erreur inconnue')
+    // Une seule requête à la fois : avant, le rafraîchissement automatique (toutes les 8 s) en
+    // empilait de nouvelles alors que les précédentes n'étaient pas terminées, ce qui saturait
+    // le petit serveur gratuit (et la page mettait plusieurs minutes à s'afficher).
+    if (inFlight.current) return
+    inFlight.current = true
+    try {
+      const d = mode === 'all' ? null : (mode === 'date' ? date : new Date().toISOString().slice(0, 10))
+      const [bilan, hist] = await Promise.allSettled([getBilanByUser(d), getSessionsHistory()])
+      if (bilan.status === 'fulfilled') {
+        setData(bilan.value)
+        setLoadError('')
+      } else {
+        const err = bilan.reason
+        setLoadError(err?.response?.data?.detail || err?.response?.data?.error || err?.message || 'Erreur inconnue')
+      }
+      if (hist.status === 'fulfilled') { setSessions(hist.value); setSessionsError(false) }
+      else setSessionsError(true) // on garde les connexions déjà affichées au lieu de les vider
+    } finally {
+      inFlight.current = false
     }
-    setSessions(hist.status === 'fulfilled' ? hist.value : [])
   }, [mode, date])
 
   useEffect(() => {
     refresh()
-    return subscribeToStockUpdates(refresh)
+    return subscribeToStockUpdates(refresh, 60000) // toutes les 60 s (au lieu de 8 s) : page admin, inutile de solliciter le serveur plus souvent
   }, [refresh])
 
   const categoryLabel = (catId) => {
@@ -105,12 +125,18 @@ export default function UtilisateursPage() {
           )}
         </div>
 
+        {sessionsError && (
+          <div className="mb-4 p-3 rounded-xl bg-diana-danger/10 border border-diana-danger/30 text-xs text-diana-danger">
+            Impossible de charger l'historique des connexions pour le moment (réseau ou serveur lent). Nouvelle tentative automatique…
+          </div>
+        )}
+
         <HourFilterSection defaultDate={effectiveDate || new Date().toISOString().slice(0, 10)} accounts={accounts} />
 
         <div className="space-y-6">
           {data.users.map((u, i) => (
             <UserCard key={u.id} user={u} index={i} categoryLabel={categoryLabel}
-              sessions={sessions.filter((s) => s.userId === u.id && (!effectiveDate || s.openedAt.slice(0, 10) === effectiveDate))} />
+              sessions={sessions.filter((s) => s.userId === u.id && sessionInDay(s, effectiveDate))} />
           ))}
           {hasUnattributed && (
             <UserCard
