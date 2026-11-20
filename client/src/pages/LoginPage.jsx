@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { useLanguage } from '../context/LanguageContext'
 import { FiMail, FiLock, FiLogIn, FiGlobe } from 'react-icons/fi'
-import { openSession, hasOpenedSessionToday } from '../data/sessionsStore'
+import { openSession, getCurrentSession } from '../data/sessionsStore'
 import DepositModal from '../components/DepositModal'
 
 export default function LoginPage() {
@@ -47,9 +47,10 @@ export default function LoginPage() {
       if (business === 'cafe') {
         goToSpace(business, role)
       } else if (role === 'caissier') {
-        const alreadyOpenedToday = await hasOpenedSessionToday().catch(() => false)
-        if (alreadyOpenedToday) {
-          openSession(0).catch(() => {})
+        // Session déjà en cours (la caisse/le PC s'est éteint sans vidage) : on la reprend telle
+        // quelle, sans nouveau dépôt. Sinon c'est la première connexion après un vidage → dépôt.
+        const current = await getCurrentSession().catch(() => null)
+        if (current) {
           goToSpace(business, role)
         } else {
           setDepositPrompt({ user: result.user })
