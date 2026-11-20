@@ -62,6 +62,15 @@ async function computeSessionTotals(userId, sinceDate, withDetail = false) {
   return { salesRows, reservationRows, salesTotal, commandesTotal }
 }
 
+// Totaux "en direct" d'une session ouverte, via COUNT/SUM : une seule ligne résultat par table,
+// aucune ligne lourde lue, aucun tri. Utilisé par /history (appelé en boucle par la page admin).
+async function computeSessionAggregates(userId, sinceDate) {
+  const range = `created_by = ? AND created_at >= ? AND created_at < DATE_ADD(DATE(?), INTERVAL 1 DAY)`
+  const [[s]] = await pool.query(`SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS t FROM sales WHERE ${range}`, [userId, sinceDate, sinceDate])
+  const [[r]] = await pool.query(`SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS t FROM reservations WHERE ${range}`, [userId, sinceDate, sinceDate])
+  return { salesCount: Number(s.n), salesTotal: Number(s.t), commandesCount: Number(r.n), commandesTotal: Number(r.t) }
+}
+
 // Clôture une session restée "ouverte" sans vidage (oubli, jour précédent, doublon). L'heure de
 // sortie enregistrée est celle de la dernière vente/commande de cette session (sinon son heure
 // d'ouverture), pas l'heure du nettoyage — pour que "Sortie" reste crédible.
@@ -299,13 +308,13 @@ router.get('/history', authMiddleware, adminMiddleware, async (req, res) => {
       const base = mapSession(s)
       if (s.status !== 'open') { mapped.push(base); continue }
       try {
-        const { salesRows, reservationRows, salesTotal, commandesTotal } = await computeSessionTotals(s.user_id, s.opened_at)
+        const agg = await computeSessionAggregates(s.user_id, s.opened_at)
         mapped.push({
           ...base,
-          closingSalesTotal: salesTotal,
-          closingSalesCount: salesRows.length,
-          closingCommandesTotal: commandesTotal,
-          closingCommandesCount: reservationRows.length,
+          closingSalesTotal: agg.salesTotal,
+          closingSalesCount: agg.salesCount,
+          closingCommandesTotal: agg.commandesTotal,
+          closingCommandesCount: agg.commandesCount,
           isLive: true,
           stale: Number(s.is_stale) === 1,
         })
