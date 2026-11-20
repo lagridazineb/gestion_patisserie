@@ -37,17 +37,26 @@ async function verifyPassword(userId, password) {
 // ouverte — même si la session reste ouverte plus longtemps (oubli de déconnexion, session
 // "fantôme" qui traîne). Sans cette borne, une session ouverte à 23h50 puis refermée le
 // lendemain soir agrégerait par erreur les ventes de 2 jours différents dans un seul total.
-async function computeSessionTotals(userId, sinceDate) {
+// IMPORTANT (base MySQL gratuite à petite mémoire) : on évite `SELECT *` + `ORDER BY` sur
+// `sales`/`reservations`. Ces lignes contiennent de gros champs JSON (articles, photos) et le tri
+// côté MySQL plantait avec "Out of sort memory" (ER_OUT_OF_SORTMEMORY), ce qui faisait tomber la
+// page Utilisateurs. Donc : pas d'ORDER BY en SQL (tri fait ici, en JS), et en mode léger on ne lit
+// que id/total/created_at. `withDetail` (reçu "Vider la caisse") lit les colonnes complètes.
+async function computeSessionTotals(userId, sinceDate, withDetail = false) {
+  const cols = withDetail ? '*' : 'id, total, created_at'
+  const byDate = (a, b) => String(a.created_at).localeCompare(String(b.created_at))
   const [salesRows] = await pool.query(
-    `SELECT * FROM sales WHERE created_by = ? AND created_at >= ?
-     AND created_at < DATE_ADD(DATE(?), INTERVAL 1 DAY) ORDER BY created_at ASC`,
+    `SELECT ${cols} FROM sales WHERE created_by = ? AND created_at >= ?
+     AND created_at < DATE_ADD(DATE(?), INTERVAL 1 DAY)`,
     [userId, sinceDate, sinceDate]
   )
   const [reservationRows] = await pool.query(
-    `SELECT * FROM reservations WHERE created_by = ? AND created_at >= ?
-     AND created_at < DATE_ADD(DATE(?), INTERVAL 1 DAY) ORDER BY created_at ASC`,
+    `SELECT ${cols} FROM reservations WHERE created_by = ? AND created_at >= ?
+     AND created_at < DATE_ADD(DATE(?), INTERVAL 1 DAY)`,
     [userId, sinceDate, sinceDate]
   )
+  salesRows.sort(byDate)
+  reservationRows.sort(byDate)
   const salesTotal = salesRows.reduce((s, r) => s + Number(r.total), 0)
   const commandesTotal = reservationRows.reduce((s, r) => s + Number(r.total), 0)
   return { salesRows, reservationRows, salesTotal, commandesTotal }
@@ -231,7 +240,7 @@ router.post('/vider', authMiddleware, async (req, res) => {
       session = rows[0]
     }
 
-    const { salesRows, reservationRows, salesTotal, commandesTotal } = await computeSessionTotals(req.user.id, session.opened_at)
+    const { salesRows, reservationRows, salesTotal, commandesTotal } = await computeSessionTotals(req.user.id, session.opened_at, true)
 
     // Si "Fin de journée" a été fait aujourd'hui (Pain, Viennoiserie, Salé, Millefeuille), on
     // inclut ce récapitulatif dans le reçu de clôture de caisse, pour que le caissier n'ait
