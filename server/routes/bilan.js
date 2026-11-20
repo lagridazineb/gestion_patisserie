@@ -178,12 +178,12 @@ router.get('/by-user', authMiddleware, adminMiddleware, async (req, res) => {
     )
 
     const [salesRows] = await pool.query(
-      date ? 'SELECT * FROM sales WHERE DATE(created_at) = ?' : 'SELECT * FROM sales',
-      date ? [date] : []
+      date ? 'SELECT * FROM sales WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)' : 'SELECT * FROM sales',
+      date ? [date, date] : []
     )
     const [reservationRows] = await pool.query(
-      date ? 'SELECT * FROM reservations WHERE DATE(created_at) = ?' : 'SELECT * FROM reservations',
-      date ? [date] : []
+      date ? 'SELECT * FROM reservations WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)' : 'SELECT * FROM reservations',
+      date ? [date, date] : []
     )
 
     function safeItems(raw) {
