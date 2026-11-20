@@ -246,7 +246,7 @@ router.get('/by-user', authMiddleware, adminMiddleware, async (req, res) => {
     })
   } catch (error) {
     console.error('Erreur GET /api/bilan/by-user :', error)
-    res.status(500).json({ error: 'Erreur serveur' })
+    res.status(500).json({ error: 'Erreur serveur', detail: error.message })
   }
 })
 
