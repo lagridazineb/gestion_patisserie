@@ -22,6 +22,7 @@ export default function UtilisateursPage() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [data, setData] = useState(null)
   const [sessions, setSessions] = useState([])
+  const [loadError, setLoadError] = useState('')
   const [accounts, setAccounts] = useState([])
 
   const refreshAccounts = useCallback(() => { fetchAllUsers().then(setAccounts).catch(() => {}) }, [])
@@ -36,7 +37,13 @@ export default function UtilisateursPage() {
     // allSettled : si l'historique des connexions échoue, la page s'affiche quand même avec les
     // totaux par utilisateur (avant : une seule erreur = page entièrement vide).
     const [bilan, hist] = await Promise.allSettled([getBilanByUser(d), getSessionsHistory()])
-    if (bilan.status === 'fulfilled') setData(bilan.value)
+    if (bilan.status === 'fulfilled') {
+      setData(bilan.value)
+      setLoadError('')
+    } else {
+      const err = bilan.reason
+      setLoadError(err?.response?.data?.detail || err?.response?.data?.error || err?.message || 'Erreur inconnue')
+    }
     setSessions(hist.status === 'fulfilled' ? hist.value : [])
   }, [mode, date])
 
@@ -51,7 +58,23 @@ export default function UtilisateursPage() {
     return cat ? getCategoryLabel(cat, lang) : catId
   }
 
-  if (!data) return null
+  // Avant : `return null` = page totalement blanche, sans explication. Maintenant on affiche
+  // "Chargement…" ou, si la requête échoue, le message d'erreur du serveur avec un bouton Réessayer.
+  if (!data) {
+    return (
+      <div className="h-full flex items-center justify-center p-8">
+        {loadError ? (
+          <div className="max-w-md text-center">
+            <p className="text-sm font-semibold text-diana-danger mb-2">Impossible de charger les utilisateurs</p>
+            <p className="text-xs text-diana-brown break-words mb-4">{loadError}</p>
+            <button onClick={refresh} className="px-4 py-2 rounded-lg bg-diana-gold text-diana-darker text-xs font-semibold">Réessayer</button>
+          </div>
+        ) : (
+          <p className="text-sm text-diana-brown italic">Chargement…</p>
+        )}
+      </div>
+    )
+  }
 
   const hasUnattributed = data.unattributed.nbVentes > 0 || data.unattributed.nbCommandes > 0
 
