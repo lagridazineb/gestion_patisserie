@@ -33,9 +33,11 @@ export default function UtilisateursPage() {
 
   const refresh = useCallback(async () => {
     const d = mode === 'all' ? null : (mode === 'date' ? date : new Date().toISOString().slice(0, 10))
-    const [result, sessionsResult] = await Promise.all([getBilanByUser(d), getSessionsHistory()])
-    setData(result)
-    setSessions(sessionsResult)
+    // allSettled : si l'historique des connexions échoue, la page s'affiche quand même avec les
+    // totaux par utilisateur (avant : une seule erreur = page entièrement vide).
+    const [bilan, hist] = await Promise.allSettled([getBilanByUser(d), getSessionsHistory()])
+    if (bilan.status === 'fulfilled') setData(bilan.value)
+    setSessions(hist.status === 'fulfilled' ? hist.value : [])
   }, [mode, date])
 
   useEffect(() => {
