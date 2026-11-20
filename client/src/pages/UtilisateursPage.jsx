@@ -323,8 +323,8 @@ function UserCard({ user, index, categoryLabel, muted = false, roleText = null, 
               <div className="flex items-start gap-2 p-2.5 rounded-lg bg-diana-dark/20 text-[11px] text-diana-brownLight">
                 <FiInfo size={13} className="text-diana-brown shrink-0 mt-0.5" />
                 <span>
-                  <span className="text-emerald-400 font-semibold">Session en cours</span> = toujours connecté, pas encore déconnecté (avec le code).
-                  <span className="text-diana-cream font-semibold"> Clôturée</span> = déconnexion confirmée avec le code, ventes/commandes comptées et figées.
+                  <span className="text-emerald-400 font-semibold">Session en cours</span> = la caisse n'a pas encore été vidée. Si le PC s'éteint, la reconnexion reprend cette même session (même heure d'entrée, même dépôt).
+                  <span className="text-diana-cream font-semibold"> Clôturée</span> = "Vider la caisse" (ou déconnexion avec le code) : l'heure de sortie est celle de ce moment. La connexion suivante ouvre une nouvelle session avec son dépôt.
                 </span>
               </div>
               {sessions.map((s) => (
