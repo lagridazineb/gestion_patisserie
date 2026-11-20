@@ -53,17 +53,69 @@ async function computeSessionTotals(userId, sinceDate) {
   return { salesRows, reservationRows, salesTotal, commandesTotal }
 }
 
-// Ouvre une nouvelle session au login. Le dépôt d'ouverture (`openingAmount`) est pris en
-// compte à chaque connexion : comme /auth/login interdit désormais d'avoir deux sessions
-// ouvertes en même temps pour un caissier, chaque connexion correspond forcément à une vraie
-// reprise de caisse (la précédente a été proprement clôturée), donc on redemande le dépôt à
-// chaque fois plutôt que de deviner s'il s'agit du "premier" login du jour.
+// Clôture une session restée "ouverte" sans vidage (oubli, jour précédent, doublon). L'heure de
+// sortie enregistrée est celle de la dernière vente/commande de cette session (sinon son heure
+// d'ouverture), pas l'heure du nettoyage — pour que "Sortie" reste crédible.
+async function autoCloseSession(s, withTotals) {
+  let closedAt = s.opened_at
+  let sales = 0, salesN = 0, cmd = 0, cmdN = 0
+  if (withTotals) {
+    const t = await computeSessionTotals(s.user_id, s.opened_at)
+    sales = t.salesTotal; salesN = t.salesRows.length; cmd = t.commandesTotal; cmdN = t.reservationRows.length
+    const last = [...t.salesRows, ...t.reservationRows].map((r) => String(r.created_at)).sort().pop()
+    if (last) closedAt = last
+  }
+  await pool.query(
+    `UPDATE cashier_sessions SET closed_at = ?, status = 'closed',
+     closing_sales_total = ?, closing_sales_count = ?, closing_commandes_total = ?, closing_commandes_count = ?
+     WHERE id = ?`,
+    [closedAt, sales, salesN, cmd, cmdN, s.id]
+  )
+}
+
+// Retourne la session "en cours" à reprendre pour cet utilisateur : la plus récente ouverte
+// AUJOURD'HUI. Tout le reste (sessions ouvertes un jour précédent, doublons) est clôturé
+// automatiquement. Ainsi, si la caisse/le PC s'éteint, la reconnexion REPREND la même session
+// (même heure d'entrée, même dépôt) au lieu d'en créer une nouvelle.
+async function resolveCurrentSession(userId) {
+  const [rows] = await pool.query(
+    `SELECT *, (DATE(opened_at) = CURDATE()) AS is_today FROM cashier_sessions
+     WHERE user_id = ? AND status = 'open' ORDER BY opened_at DESC`,
+    [userId]
+  )
+  let current = null
+  for (const s of rows) {
+    if (!current && Number(s.is_today) === 1) { current = s; continue }
+    // jour précédent : ses ventes lui appartiennent ; doublon du jour : déjà comptées dans `current`
+    await autoCloseSession(s, Number(s.is_today) !== 1)
+  }
+  return current
+}
+
+// Y a-t-il une session à reprendre ? Utilisé par la page de connexion : si oui, pas de nouveau
+// dépôt à saisir ; si non, c'est la première connexion après un vidage → dépôt demandé.
+router.get('/current', authMiddleware, async (req, res) => {
+  try {
+    const current = await resolveCurrentSession(req.user.id)
+    res.json({ session: current ? mapSession(current) : null })
+  } catch (error) {
+    console.error('Erreur GET /api/sessions/current :', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// Ouvre une session au login. Si une session est déjà en cours aujourd'hui (coupure de courant,
+// PC éteint...), on la REPREND telle quelle — jamais de deuxième session ni de nouveau dépôt.
+// Le dépôt d'ouverture n'est pris en compte que pour la première connexion après un vidage.
 router.post('/open', authMiddleware, async (req, res) => {
   try {
     const openingAmount = Number(req.body.openingAmount) || 0
     const [users] = await pool.query('SELECT id, name, role FROM users WHERE id = ?', [req.user.id])
     const user = users[0]
     if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
+
+    const current = await resolveCurrentSession(user.id)
+    if (current) return res.json({ session: mapSession(current), resumed: true })
 
     const id = Date.now()
     await pool.query(
@@ -73,9 +125,7 @@ router.post('/open', authMiddleware, async (req, res) => {
     )
 
     // On relie ce dépôt d'ouverture de caisse à la table fonds_caisse, utilisée par
-    // l'admin dans la page "Bilan du jour & Dépôts", pour que le dépôt saisi par le
-    // caissier (caissier1, caissier2, ...) apparaisse automatiquement là-bas, avec le
-    // nom du caissier en note, sans que l'admin ait besoin de le ressaisir manuellement.
+    // l'admin dans la page "Bilan du jour & Dépôts".
     if (openingAmount > 0) {
       const fondId = id + 1
       await pool.query(
@@ -85,7 +135,7 @@ router.post('/open', authMiddleware, async (req, res) => {
     }
 
     const [rows] = await pool.query('SELECT * FROM cashier_sessions WHERE id = ?', [id])
-    res.json({ session: mapSession(rows[0]) })
+    res.json({ session: mapSession(rows[0]), resumed: false })
   } catch (error) {
     console.error('Erreur POST /api/sessions/open :', error)
     res.status(500).json({ error: 'Erreur serveur' })
@@ -154,7 +204,8 @@ router.post('/:id/force-close', authMiddleware, adminMiddleware, async (req, res
 
 // "Vider la caisse" : le code est requis, puis on clôture la session en cours avec le détail
 // COMPLET de toutes les ventes/commandes faites depuis l'ouverture (pour le reçu imprimé),
-// et on rouvre aussitôt une nouvelle session (dépôt 0) pour continuer à travailler.
+// SANS rouvrir de session : la prochaine ouverture sera la première connexion après ce vidage
+// (avec son propre dépôt). L'heure de sortie de ce caissier est donc l'heure du vidage.
 router.post('/vider', authMiddleware, async (req, res) => {
   try {
     const ok = await verifyPassword(req.user.id, req.body.password)
@@ -205,19 +256,11 @@ router.post('/vider', authMiddleware, async (req, res) => {
       [salesTotal, salesRows.length, commandesTotal, reservationRows.length, session.id]
     )
 
-    const newId = Date.now() + 1
-    await pool.query(
-      `INSERT INTO cashier_sessions (id, user_id, user_name, user_role, opening_amount, opened_at, status)
-       VALUES (?, ?, ?, ?, 0, NOW(), 'open')`,
-      [newId, user.id, user.name, user.role]
-    )
-
     const [closedRows] = await pool.query('SELECT * FROM cashier_sessions WHERE id = ?', [session.id])
-    const [newRows] = await pool.query('SELECT * FROM cashier_sessions WHERE id = ?', [newId])
 
     res.json({
       closedSession: mapSession(closedRows[0]),
-      newSession: mapSession(newRows[0]),
+      newSession: null,
       clearLog,
       sales: salesRows.map((s) => ({
         id: s.id, ticketNumber: s.ticket_number, items: safeItems(s.items),
@@ -234,35 +277,38 @@ router.post('/vider', authMiddleware, async (req, res) => {
   }
 })
 
-// Historique de toutes les sessions (connexions/déconnexions) — admin uniquement, page Utilisateurs
+// Historique de toutes les sessions (connexions/déconnexions) — admin uniquement, page Utilisateurs.
+// Robuste : une erreur sur le calcul "en direct" d'UNE session ouverte ne fait plus tomber toute
+// la page (avant : un seul échec = erreur 500 et page Utilisateurs vide).
 router.get('/history', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM cashier_sessions ORDER BY opened_at DESC LIMIT 300')
-    const mapped = await Promise.all(rows.map(async (s) => {
+    const [rows] = await pool.query(
+      'SELECT *, (DATE(opened_at) < CURDATE()) AS is_stale FROM cashier_sessions ORDER BY opened_at DESC LIMIT 300'
+    )
+    const mapped = []
+    for (const s of rows) {
       const base = mapSession(s)
-      if (s.status !== 'open') return base
-      // Session encore ouverte ("Session en cours") : on calcule quand même les ventes /
-      // commandes déjà faites depuis son ouverture (bornées à sa journée), pour que l'admin
-      // voie un montant même avant la clôture, au lieu de rester vide jusqu'à la déconnexion.
-      const { salesRows, reservationRows, salesTotal, commandesTotal } = await computeSessionTotals(s.user_id, s.opened_at)
-      const openedDay = new Date(s.opened_at).toISOString().slice(0, 10)
-      const todayDay = new Date().toISOString().slice(0, 10)
-      return {
-        ...base,
-        closingSalesTotal: salesTotal,
-        closingSalesCount: salesRows.length,
-        closingCommandesTotal: commandesTotal,
-        closingCommandesCount: reservationRows.length,
-        isLive: true,
-        // Ouverte un jour précédent et jamais refermée depuis = très probablement oubliée
-        // (app/onglet fermé sans cliquer sur Déconnexion, ou jeton expiré silencieusement).
-        stale: openedDay !== todayDay,
+      if (s.status !== 'open') { mapped.push(base); continue }
+      try {
+        const { salesRows, reservationRows, salesTotal, commandesTotal } = await computeSessionTotals(s.user_id, s.opened_at)
+        mapped.push({
+          ...base,
+          closingSalesTotal: salesTotal,
+          closingSalesCount: salesRows.length,
+          closingCommandesTotal: commandesTotal,
+          closingCommandesCount: reservationRows.length,
+          isLive: true,
+          stale: Number(s.is_stale) === 1,
+        })
+      } catch (e) {
+        console.error('history: totaux en direct impossibles pour la session', s.id, e.message)
+        mapped.push({ ...base, isLive: true, stale: Number(s.is_stale) === 1 })
       }
-    }))
+    }
     res.json({ sessions: mapped })
   } catch (error) {
     console.error('Erreur GET /api/sessions/history :', error)
-    res.status(500).json({ error: 'Erreur serveur' })
+    res.status(500).json({ error: 'Erreur serveur', detail: error.message })
   }
 })
 
