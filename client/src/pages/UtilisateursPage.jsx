@@ -311,7 +311,7 @@ function HourFilterSection({ defaultDate, accounts }) {
 }
 
 function UserCard({ user, index, categoryLabel, muted = false, roleText = null, sessions = [] }) {
-  const [showSessions, setShowSessions] = useState(false)
+  const [showSessions, setShowSessions] = useState(true)
   const roleLabel = roleText || (user.role === 'admin' ? 'Administrateur' : 'Caissier')
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
@@ -362,52 +362,8 @@ function UserCard({ user, index, categoryLabel, muted = false, roleText = null, 
         </div>
       )}
 
-      {sessions.length > 0 && (
+      {/* Toujours affichée pour les vrais utilisateurs (même à 0), sinon on ne sait pas si la section est vide ou cassée */}
+      {!muted && (
         <div className="mt-5 pt-4 border-t border-diana-border/50">
           <button onClick={() => setShowSessions((v) => !v)}
             className="flex items-center gap-1.5 text-xs font-semibold text-diana-brown hover:text-diana-gold transition-colors">
-            <FiClock size={13} /> Connexions ({sessions.length})
-            {showSessions ? <FiChevronUp size={13} /> : <FiChevronDown size={13} />}
-          </button>
-          {showSessions && (
-            <div className="mt-3 space-y-2">
-              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-diana-dark/20 text-[11px] text-diana-brownLight">
-                <FiInfo size={13} className="text-diana-brown shrink-0 mt-0.5" />
-                <span>
-                  <span className="text-emerald-400 font-semibold">Session en cours</span> = la caisse n'a pas encore été vidée. Si le PC s'éteint, la reconnexion reprend cette même session (même heure d'entrée, même dépôt).
-                  <span className="text-diana-cream font-semibold"> Clôturée</span> = "Vider la caisse" (ou déconnexion avec le code) : l'heure de sortie est celle de ce moment. La connexion suivante ouvre une nouvelle session avec son dépôt.
-                </span>
-              </div>
-              {sessions.map((s) => (
-                <div key={s.id} className="bg-diana-dark/30 rounded-lg p-3 text-xs">
-                  <div className="flex items-center justify-between flex-wrap gap-1.5 mb-1.5">
-                    <span className="text-diana-cream font-medium">Entrée : {new Date(s.openedAt).toLocaleString('fr-FR')}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                      s.status === 'open' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-diana-border/40 text-diana-brown'
-                    }`}>
-                      {s.status === 'open' ? 'Session en cours' : 'Clôturée'}
-                    </span>
-                  </div>
-                  <p className="text-diana-brown">Sortie : {s.closedAt ? new Date(s.closedAt).toLocaleString('fr-FR') : '—'}</p>
-                  <p className="text-diana-brown">Dépôt d'ouverture : {s.openingAmount.toFixed(2)} DH</p>
-                  {s.stale && (
-                    <div className="flex items-center gap-1.5 mt-1.5 text-amber-400">
-                      <FiAlertTriangle size={12} className="shrink-0" />
-                      <span>Ouverte un jour précédent et jamais refermée — probablement oubliée (app/onglet fermé sans déconnexion).</span>
-                    </div>
-                  )}
-                  {(s.status === 'closed' || s.isLive) && (
-                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-diana-cream">
-                      <span>Ventes{s.isLive ? ' (en cours)' : ''} : <span className="font-semibold">{(s.closingSalesTotal ?? 0).toFixed(2)} DH</span> ({s.closingSalesCount ?? 0})</span>
-                      <span>Commandes{s.isLive ? ' (en cours)' : ''} : <span className="font-semibold">{(s.closingCommandesTotal ?? 0).toFixed(2)} DH</span> ({s.closingCommandesCount ?? 0})</span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </motion.div>
-  )
-}
