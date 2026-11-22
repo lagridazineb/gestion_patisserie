@@ -9,27 +9,31 @@ import { useLanguage } from '../context/LanguageContext'
 import { fetchAllUsers, changeUserPassword } from '../api/auth'
 import { useNotification } from '../context/NotificationContext'
 
+// Date locale (heure du PC) au format YYYY-MM-DD — évite le décalage de `toISOString()` (UTC).
+function localDateStr(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function pillClass(active) {
   return `px-4 py-2 rounded-xl text-xs font-medium transition-all ${
     active ? 'bg-diana-gold text-diana-dark' : 'bg-diana-card border border-diana-border text-diana-brown hover:text-diana-cream'
   }`
 }
 
-// Une connexion est affichée pour un jour donné si elle y a commencé, s'y est terminée, ou si elle
-// est toujours en cours (ouverte ce jour-là ou avant). Avant, seule l'heure d'ouverture comptait :
-// un caissier connecté depuis la veille n'apparaissait nulle part dans "Aujourd'hui".
+// Une connexion est affichée pour un jour donné si elle y a commencé ou s'y est terminée.
+// (Les sessions oubliées d'un jour précédent sont clôturées par le serveur, voir cleanupStaleSessions.)
 function sessionInDay(s, day) {
   if (!day) return true
   const opened = String(s.openedAt).slice(0, 10)
   const closed = s.closedAt ? String(s.closedAt).slice(0, 10) : null
-  return opened === day || closed === day || (s.status === 'open' && opened <= day)
+  return opened === day || closed === day
 }
 
 export default function UtilisateursPage() {
   const { lang } = useLanguage()
   const { addNotification } = useNotification()
   const [mode, setMode] = useState('today') // 'today' | 'date' | 'all'
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(localDateStr())
   const [data, setData] = useState(null)
   const [sessions, setSessions] = useState([])
   const [loadError, setLoadError] = useState('')
@@ -42,7 +46,21 @@ export default function UtilisateursPage() {
 
   // Même date "effective" que celle envoyée à getBilanByUser, réutilisée pour filtrer
   // la liste des connexions par utilisateur (null = tout l'historique).
-  const effectiveDate = mode === 'all' ? null : (mode === 'date' ? date : new Date().toISOString().slice(0, 10))
+  const effectiveDate = mode === 'all' ? null : (mode === 'date' ? date : localDateStr())
+
+  // Choisir un jour au calendrier : si c'est aujourd'hui on repasse en mode "Aujourd'hui".
+  const setDay = (v) => {
+    if (!v) return
+    if (v === localDateStr()) { setMode('today'); return }
+    setDate(v)
+    setMode('date')
+  }
+  // Flèches ‹ › : jour précédent / suivant par rapport au jour affiché.
+  const shiftDay = (delta) => {
+    const d = new Date(`${effectiveDate || localDateStr()}T00:00:00`)
+    d.setDate(d.getDate() + delta)
+    setDay(localDateStr(d))
+  }
 
   const refresh = useCallback(async () => {
     // Une seule requête à la fois : avant, le rafraîchissement automatique (toutes les 8 s) en
@@ -51,7 +69,7 @@ export default function UtilisateursPage() {
     if (inFlight.current) return
     inFlight.current = true
     try {
-      const d = mode === 'all' ? null : (mode === 'date' ? date : new Date().toISOString().slice(0, 10))
+      const d = mode === 'all' ? null : (mode === 'date' ? date : localDateStr())
       const [bilan, hist] = await Promise.allSettled([getBilanByUser(d), getSessionsHistory()])
       if (bilan.status === 'fulfilled') {
         setData(bilan.value)
@@ -114,15 +132,16 @@ export default function UtilisateursPage() {
 
         <div className="flex items-center gap-2 mb-8 flex-wrap">
           <button onClick={() => setMode('today')} className={pillClass(mode === 'today')}>Aujourd'hui</button>
-          <button onClick={() => setMode('date')} className={pillClass(mode === 'date')}>Choisir une date</button>
-          <button onClick={() => setMode('all')} className={pillClass(mode === 'all')}>Tout l'historique</button>
-          {mode === 'date' && (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <button onClick={() => shiftDay(-1)} title="Jour précédent" className={pillClass(false)}>‹</button>
+            <label className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-diana-card cursor-pointer ${mode === 'date' ? 'border-diana-gold' : 'border-diana-border'}`}>
               <FiCalendar className="text-diana-brown" size={15} />
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                className="px-3 py-2 text-sm bg-diana-card border border-diana-border rounded-xl text-diana-cream focus:outline-none focus:border-diana-gold/50" />
-            </div>
-          )}
+              <input type="date" value={effectiveDate || ''} onChange={(e) => setDay(e.target.value)}
+                className="bg-transparent text-sm text-diana-cream focus:outline-none" />
+            </label>
+            <button onClick={() => shiftDay(1)} title="Jour suivant" className={pillClass(false)}>›</button>
+          </div>
+          <button onClick={() => setMode('all')} className={pillClass(mode === 'all')}>Tout l'historique</button>
         </div>
 
         {sessionsError && (
@@ -131,7 +150,7 @@ export default function UtilisateursPage() {
           </div>
         )}
 
-        <HourFilterSection defaultDate={effectiveDate || new Date().toISOString().slice(0, 10)} accounts={accounts} />
+        <HourFilterSection defaultDate={effectiveDate || localDateStr()} accounts={accounts} />
 
         <div className="space-y-6">
           {data.users.map((u, i) => (
@@ -367,3 +386,53 @@ function UserCard({ user, index, categoryLabel, muted = false, roleText = null, 
         <div className="mt-5 pt-4 border-t border-diana-border/50">
           <button onClick={() => setShowSessions((v) => !v)}
             className="flex items-center gap-1.5 text-xs font-semibold text-diana-brown hover:text-diana-gold transition-colors">
+            <FiClock size={13} /> Connexions ({sessions.length})
+            {showSessions ? <FiChevronUp size={13} /> : <FiChevronDown size={13} />}
+          </button>
+          {showSessions && (
+            <div className="mt-3 space-y-2">
+              {sessions.length === 0 && (
+                <p className="text-xs italic text-diana-brown">Aucune connexion sur cette période. Cliquez sur « Tout l'historique » (ou choisissez une autre date) pour voir les connexions précédentes.</p>
+              )}
+              {sessions.length > 0 && (
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-diana-dark/20 text-[11px] text-diana-brownLight">
+                <FiInfo size={13} className="text-diana-brown shrink-0 mt-0.5" />
+                <span>
+                  <span className="text-emerald-400 font-semibold">Session en cours</span> = la caisse n'a pas encore été vidée. Si le PC s'éteint, la reconnexion reprend cette même session (même heure d'entrée, même dépôt).
+                  <span className="text-diana-cream font-semibold"> Clôturée</span> = "Vider la caisse" (ou déconnexion avec le code) : l'heure de sortie est celle de ce moment. La connexion suivante ouvre une nouvelle session avec son dépôt.
+                </span>
+              </div>
+              )}
+              {sessions.map((s) => (
+                <div key={s.id} className="bg-diana-dark/30 rounded-lg p-3 text-xs">
+                  <div className="flex items-center justify-between flex-wrap gap-1.5 mb-1.5">
+                    <span className="text-diana-cream font-medium">Entrée : {new Date(s.openedAt).toLocaleString('fr-FR')}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                      s.status === 'open' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-diana-border/40 text-diana-brown'
+                    }`}>
+                      {s.status === 'open' ? 'Session en cours' : 'Clôturée'}
+                    </span>
+                  </div>
+                  <p className="text-diana-brown">Sortie : {s.closedAt ? new Date(s.closedAt).toLocaleString('fr-FR') : '—'}</p>
+                  <p className="text-diana-brown">Dépôt d'ouverture : {s.openingAmount.toFixed(2)} DH</p>
+                  {s.stale && (
+                    <div className="flex items-center gap-1.5 mt-1.5 text-amber-400">
+                      <FiAlertTriangle size={12} className="shrink-0" />
+                      <span>Ouverte un jour précédent et jamais refermée — probablement oubliée (app/onglet fermé sans déconnexion).</span>
+                    </div>
+                  )}
+                  {(s.status === 'closed' || s.isLive) && (
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-diana-cream">
+                      <span>Ventes{s.isLive ? ' (en cours)' : ''} : <span className="font-semibold">{(s.closingSalesTotal ?? 0).toFixed(2)} DH</span> ({s.closingSalesCount ?? 0})</span>
+                      <span>Commandes{s.isLive ? ' (en cours)' : ''} : <span className="font-semibold">{(s.closingCommandesTotal ?? 0).toFixed(2)} DH</span> ({s.closingCommandesCount ?? 0})</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </motion.div>
+  )
+}
