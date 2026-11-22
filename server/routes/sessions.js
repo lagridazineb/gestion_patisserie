@@ -66,9 +66,14 @@ async function computeSessionTotals(userId, sinceDate, withDetail = false) {
 // aucune ligne lourde lue, aucun tri. Utilisé par /history (appelé en boucle par la page admin).
 async function computeSessionAggregates(userId, sinceDate) {
   const range = `created_by = ? AND created_at >= ? AND created_at < DATE_ADD(DATE(?), INTERVAL 1 DAY)`
-  const [[s]] = await pool.query(`SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS t FROM sales WHERE ${range}`, [userId, sinceDate, sinceDate])
-  const [[r]] = await pool.query(`SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS t FROM reservations WHERE ${range}`, [userId, sinceDate, sinceDate])
-  return { salesCount: Number(s.n), salesTotal: Number(s.t), commandesCount: Number(r.n), commandesTotal: Number(r.t) }
+  const [[s]] = await pool.query(`SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS t, MAX(created_at) AS last FROM sales WHERE ${range}`, [userId, sinceDate, sinceDate])
+  const [[r]] = await pool.query(`SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS t, MAX(created_at) AS last FROM reservations WHERE ${range}`, [userId, sinceDate, sinceDate])
+  const lasts = [s.last, r.last].filter(Boolean).map(String).sort()
+  return {
+    salesCount: Number(s.n), salesTotal: Number(s.t),
+    commandesCount: Number(r.n), commandesTotal: Number(r.t),
+    lastAt: lasts.length ? lasts[lasts.length - 1] : null,
+  }
 }
 
 // Clôture une session restée "ouverte" sans vidage (oubli, jour précédent, doublon). L'heure de
@@ -78,10 +83,9 @@ async function autoCloseSession(s, withTotals) {
   let closedAt = s.opened_at
   let sales = 0, salesN = 0, cmd = 0, cmdN = 0
   if (withTotals) {
-    const t = await computeSessionTotals(s.user_id, s.opened_at)
-    sales = t.salesTotal; salesN = t.salesRows.length; cmd = t.commandesTotal; cmdN = t.reservationRows.length
-    const last = [...t.salesRows, ...t.reservationRows].map((r) => String(r.created_at)).sort().pop()
-    if (last) closedAt = last
+    const agg = await computeSessionAggregates(s.user_id, s.opened_at)
+    sales = agg.salesTotal; salesN = agg.salesCount; cmd = agg.commandesTotal; cmdN = agg.commandesCount
+    if (agg.lastAt) closedAt = agg.lastAt
   }
   await pool.query(
     `UPDATE cashier_sessions SET closed_at = ?, status = 'closed',
@@ -89,6 +93,26 @@ async function autoCloseSession(s, withTotals) {
      WHERE id = ?`,
     [closedAt, sales, salesN, cmd, cmdN, s.id]
   )
+}
+
+// Applique les règles de session à TOUTES les sessions encore ouvertes (pas seulement à la
+// prochaine connexion d'un utilisateur) : une session ouverte un jour précédent est clôturée
+// (sortie = heure de sa dernière vente), et il ne reste qu'UNE session ouverte par utilisateur
+// pour aujourd'hui. Appelé au chargement de l'historique admin ; sans effet s'il n'y a rien à faire.
+async function cleanupStaleSessions() {
+  const [rows] = await pool.query(
+    `SELECT *, (DATE(opened_at) = CURDATE()) AS is_today FROM cashier_sessions WHERE status = 'open'`
+  )
+  rows.sort((a, b) => String(b.opened_at).localeCompare(String(a.opened_at))) // plus récentes d'abord
+  const keptToday = new Set()
+  for (const s of rows) {
+    if (Number(s.is_today) === 1) {
+      if (!keptToday.has(s.user_id)) { keptToday.add(s.user_id); continue }
+      await autoCloseSession(s, false) // doublon du jour : ses ventes sont déjà comptées dans la session gardée
+    } else {
+      await autoCloseSession(s, true)
+    }
+  }
 }
 
 // Retourne la session "en cours" à reprendre pour cet utilisateur : la plus récente ouverte
@@ -189,11 +213,9 @@ router.post('/close', authMiddleware, async (req, res) => {
   }
 })
 
-// Clôture forcée par un admin — sans code, pour débloquer un caissier resté coincé avec une
-// session "ouverte" alors qu'il ne peut plus s'y reconnecter (appareil perdu/cassé, navigateur
-// planté, onglet fermé...). Comme /auth/login interdit désormais une deuxième connexion tant
-// qu'une session est ouverte, cette porte de secours est nécessaire pour que le caissier
-// puisse retravailler. Les totaux sont calculés normalement (bornés à la journée d'ouverture).
+// Clôture forcée par un admin — sans code, en dernier recours pour fermer une session restée
+// "ouverte" (appareil perdu/cassé, navigateur planté...). Les totaux sont calculés normalement
+// (bornés à la journée d'ouverture).
 router.post('/:id/force-close', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM cashier_sessions WHERE id = ?', [req.params.id])
@@ -300,6 +322,7 @@ router.post('/vider', authMiddleware, async (req, res) => {
 // la page (avant : un seul échec = erreur 500 et page Utilisateurs vide).
 router.get('/history', authMiddleware, adminMiddleware, async (req, res) => {
   try {
+    try { await cleanupStaleSessions() } catch (e) { console.error('history: nettoyage des sessions impossible :', e.message) }
     const [rows] = await pool.query(
       'SELECT *, (DATE(opened_at) < CURDATE()) AS is_stale FROM cashier_sessions ORDER BY opened_at DESC LIMIT 300'
     )
