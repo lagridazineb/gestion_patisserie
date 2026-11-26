@@ -35,7 +35,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, business: user.business, atelier: user.atelier },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, business: user.business, atelier: user.atelier, posScope: user.pos_scope || null },
     })
   } catch (error) {
     console.error('Erreur /api/auth/login :', error)
@@ -47,12 +47,12 @@ router.post('/login', async (req, res) => {
 // au chargement de l'app, sans redemander le mot de passe).
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT id, email, name, role, business, atelier FROM users WHERE id = ? LIMIT 1',
-      [req.user.id]
-    )
-    const user = rows[0]
-    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    // SELECT * puis tri des champs : fonctionne même si la colonne pos_scope n'existe pas encore
+    // (script SQL des caissiers 3/4 pas encore exécuté) — on ne renvoie jamais le mot de passe.
+    const [rows] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [req.user.id])
+    const row = rows[0]
+    if (!row) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    const user = { id: row.id, email: row.email, name: row.name, role: row.role, business: row.business, atelier: row.atelier, posScope: row.pos_scope || null }
     res.json({ user })
   } catch (error) {
     console.error('Erreur /api/auth/me :', error)
@@ -67,11 +67,10 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
     // Chaque admin ne gère que les comptes de son propre espace (pâtisserie ou café) —
     // ça évite de mélanger les deux listes d'utilisateurs dans une seule page.
     const business = req.user.business || 'patisserie'
-    const [rows] = await pool.query(
-      'SELECT id, email, name, role, business, atelier FROM users WHERE business = ? ORDER BY role, name',
-      [business]
-    )
-    res.json({ users: rows })
+    const [rows] = await pool.query('SELECT * FROM users WHERE business = ? ORDER BY role, name', [business])
+    res.json({
+      users: rows.map((r) => ({ id: r.id, email: r.email, name: r.name, role: r.role, business: r.business, atelier: r.atelier, posScope: r.pos_scope || null })),
+    })
   } catch (error) {
     console.error('Erreur /api/auth/users :', error)
     res.status(500).json({ error: 'Erreur serveur' })
