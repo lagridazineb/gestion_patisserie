@@ -222,7 +222,7 @@ function CodesAccesSection({ accounts, onChanged, addNotification }) {
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-diana-cream truncate">{acc.name}</p>
-                <p className="text-xs text-diana-brown">{roleLabel(acc.role)}{acc.atelier ? ` · ${acc.atelier}` : ''} · {acc.email}</p>
+                <p className="text-xs text-diana-brown">{roleLabel(acc.role)}{acc.atelier ? ` · ${acc.atelier}` : ''}{acc.posScope === 'pain' ? ' · Pain uniquement' : acc.posScope === 'sans_pain' ? ' · Toutes catégories sauf Pain' : ''} · {acc.email}</p>
               </div>
               {openId !== acc.id ? (
                 <button onClick={() => { setOpenId(acc.id); setValue('') }}
