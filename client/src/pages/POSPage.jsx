@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
-import { CATEGORIES_POS as CATEGORIES, mergeProductOverlay, mergeProductsByCategory, findCategory } from '../data/products'
+import { CATEGORIES_POS as ALL_POS_CATEGORIES, mergeProductOverlay, mergeProductsByCategory, findCategory } from '../data/products'
 import { getProductOverlay } from '../api/products'
 import { getStock, recordSale, subscribeToStockUpdates, peekNextTicketNumber, clearPerishableStock, addRzizaDelivery, getActiveFrigoBatches, getAtelierTasks } from '../data/stockStore'
 import QuantityModal from '../components/QuantityModal'
@@ -44,6 +44,14 @@ export default function POSPage() {
   const [frigoBatches, setFrigoBatches] = useState([])
   const { addNotification } = useNotification()
   const { user, logout } = useAuth()
+
+  // Caissiers à accès limité : posScope 'pain' = uniquement la catégorie Pain ; 'sans_pain' =
+  // toutes les catégories SAUF Pain ; vide (caissier 1 et 2, admin) = toutes les catégories.
+  const CATEGORIES = useMemo(() => {
+    if (user?.posScope === 'pain') return ALL_POS_CATEGORIES.filter((c) => c.id === 'pain')
+    if (user?.posScope === 'sans_pain') return ALL_POS_CATEGORIES.filter((c) => c.id !== 'pain')
+    return ALL_POS_CATEGORIES
+  }, [user?.posScope])
   const isCaissierOrAdmin = user?.role === 'admin' || user?.role === 'caissier'
   const [showViderCode, setShowViderCode] = useState(false)
   const [viderReceipt, setViderReceipt] = useState(null)
@@ -102,11 +110,12 @@ export default function POSPage() {
     const q = searchQuery.toLowerCase()
     return ALL_PRODUCTS.filter(p =>
       !p.excludeFromCaisse &&
+      (!user?.posScope || CATEGORIES.some((c) => c.id === p.category)) &&
       (p.name.toLowerCase().includes(q) ||
       getProductDisplayName(p, lang).toLowerCase().includes(q) ||
       CATEGORIES.find(c => c.id === p.category)?.label.toLowerCase().includes(q))
     ).slice(0, 12)
-  }, [searchQuery, lang])
+  }, [searchQuery, lang, user?.posScope, CATEGORIES])
 
   // Ouvre le clavier numérique pour saisir une quantité. `mode: 'add'` (depuis un clic sur un
   // produit) additionne la quantité saisie à celle déjà présente dans la commande ; `mode: 'edit'`
